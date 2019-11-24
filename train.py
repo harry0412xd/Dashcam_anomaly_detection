@@ -16,8 +16,9 @@ from yolo3.utils import get_random_data
 def _main():
     annotation_path = 'train.txt'
     log_dir = 'logs/000/'
-    classes_path = 'model_data/voc_classes.txt'
-    anchors_path = 'model_data/yolo_anchors.txt'
+    drive_dir = '/content/MyDrive'
+    classes_path = 'model_data/voc_2007_car&person_classes.txt'
+    anchors_path = 'model_data/yolo_car&person_anchors.txt'
     class_names = get_classes(classes_path)
     num_classes = len(class_names)
     anchors = get_anchors(anchors_path)
@@ -64,6 +65,7 @@ def _main():
                 initial_epoch=0,
                 callbacks=[logging, checkpoint])
         model.save_weights(log_dir + 'trained_weights_stage_1.h5')
+        model.save_weights(drive_dir + 'trained_weights_stage_1.h5')
 
     # Unfreeze and continue training, to fine-tune.
     # Train longer if the result is not good.
@@ -83,6 +85,7 @@ def _main():
             initial_epoch=50,
             callbacks=[logging, checkpoint, reduce_lr, early_stopping])
         model.save_weights(log_dir + 'trained_weights_final.h5')
+        model.save_weights(drive_dir + 'trained_weights_final.h5')
 
     # Further training if needed.
 
