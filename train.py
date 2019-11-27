@@ -1,7 +1,7 @@
 """
 Retrain the YOLO model for your own dataset.
 """
-
+from time import localtime, strftime
 import numpy as np
 import keras.backend as K
 from keras.layers import Input, Lambda
@@ -11,14 +11,18 @@ from keras.callbacks import TensorBoard, ModelCheckpoint, ReduceLROnPlateau, Ear
 
 from yolo3.model import preprocess_true_boxes, yolo_body, tiny_yolo_body, yolo_loss
 from yolo3.utils import get_random_data
-
+import sys
 
 def _main():
-    annotation_path = '2007_train.txt'
-    log_dir = 'logs/000/'
-    drive_dir = '/content/MyDrive/'
+    print(sys.version)
+    # annotation_path = '2007_train.txt'
+    annotation_path = 'OIDv4_train.txt'
+    log_dir = 'logs/oid/'
+    drive_dir = '/content/MyDrive/trained_weight'
     classes_path = 'model_data/2007_voc_car&person_classes.txt'
-    anchors_path = 'model_data/2007_voc_car&person_anchors.txt'
+    # anchors_path = 'model_data/2007_voc_car&person_anchors.txt'
+    anchors_path = 'model_data/OIDv4_anchors.txt'
+
     class_names = get_classes(classes_path)
     num_classes = len(class_names)
     anchors = get_anchors(anchors_path)
@@ -30,8 +34,8 @@ def _main():
         model = create_tiny_model(input_shape, anchors, num_classes,
             freeze_body=2, weights_path='model_data/tiny_yolo_weights.h5')
     else:
-        model = create_model(input_shape, anchors, num_classes,
-            freeze_body=2, weights_path='model_data/yolo_weights.h5') # make sure you know what you freeze
+        # model = create_model(input_shape, anchors, num_classes, freeze_body=2, weights_path='model_data/yolo_weights.h5') # make sure you know what you freeze
+        model = create_model(input_shape, anchors, num_classes, freeze_body=2, weights_path='model_data/darknet53_weights.h5')
 
     logging = TensorBoard(log_dir=log_dir)
     checkpoint = ModelCheckpoint(log_dir + 'ep{epoch:03d}-loss{loss:.3f}-val_loss{val_loss:.3f}.h5',
@@ -65,7 +69,8 @@ def _main():
                 initial_epoch=0,
                 callbacks=[logging, checkpoint])
         model.save_weights(log_dir + 'trained_weights_stage_1.h5')
-        model.save_weights(drive_dir + 'trained_weights_stage_1.h5')
+        name = 'trained_weights_stage_1({}).h5'.format(strftime("%Y%m%d_%H%M", localtime()))
+        model.save_weights(drive_dir + name)
 
     # Unfreeze and continue training, to fine-tune.
     # Train longer if the result is not good.
@@ -75,7 +80,7 @@ def _main():
         model.compile(optimizer=Adam(lr=1e-4), loss={'yolo_loss': lambda y_true, y_pred: y_pred}) # recompile to apply the change
         print('Unfreeze all of the layers.')
 
-        batch_size = 32 # note that more GPU memory is required after unfreezing the body
+        batch_size = 8 # note that more GPU memory is required after unfreezing the body
         print('Train on {} samples, val on {} samples, with batch size {}.'.format(num_train, num_val, batch_size))
         model.fit_generator(data_generator_wrapper(lines[:num_train], batch_size, input_shape, anchors, num_classes),
             steps_per_epoch=max(1, num_train//batch_size),
@@ -85,7 +90,9 @@ def _main():
             initial_epoch=50,
             callbacks=[logging, checkpoint, reduce_lr, early_stopping])
         model.save_weights(log_dir + 'trained_weights_final.h5')
-        model.save_weights(drive_dir + 'trained_weights_final.h5')
+
+        name = 'trained_weights_final({}).h5'.format(strftime("%Y%m%d_%H%M", localtime()))
+        model.save_weights(drive_dir + name)
 
     # Further training if needed.
 
