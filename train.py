@@ -12,13 +12,17 @@ from keras.callbacks import TensorBoard, ModelCheckpoint, ReduceLROnPlateau, Ear
 from yolo3.model import preprocess_true_boxes, yolo_body, tiny_yolo_body, yolo_loss
 from yolo3.utils import get_random_data
 import sys
+import os
 
 def _main():
     print(sys.version)
     # annotation_path = '2007_train.txt'
     annotation_path = 'OIDv4_train.txt'
     log_dir = 'logs/oid/'
-    drive_dir = '/content/MyDrive/trained_weight/{}/'.format(strftime("%Y%m%d_%H%M", localtime()))
+    drive_dir = '/content/MyDrive/trained_weights/{}/'.format(strftime("%Y%m%d_%H%M", localtime()))
+    if not os.path.exists(drive_dir):
+        os.makedirs(drive_dir)
+
     classes_path = 'model_data/2007_voc_car&person_classes.txt'
     # anchors_path = 'model_data/2007_voc_car&person_anchors.txt'
     anchors_path = 'model_data/OIDv4_anchors.txt'
