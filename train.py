@@ -18,7 +18,7 @@ def _main():
     # annotation_path = '2007_train.txt'
     annotation_path = 'OIDv4_train.txt'
     log_dir = 'logs/oid/'
-    drive_dir = '/content/MyDrive/trained_weight'
+    drive_dir = '/content/MyDrive/trained_weight/{}/'.format(strftime("%Y%m%d_%H%M", localtime()))
     classes_path = 'model_data/2007_voc_car&person_classes.txt'
     # anchors_path = 'model_data/2007_voc_car&person_anchors.txt'
     anchors_path = 'model_data/OIDv4_anchors.txt'
@@ -38,8 +38,10 @@ def _main():
         model = create_model(input_shape, anchors, num_classes, freeze_body=2, weights_path='model_data/darknet53_weights.h5')
 
     logging = TensorBoard(log_dir=log_dir)
-    checkpoint = ModelCheckpoint(log_dir + 'ep{epoch:03d}-loss{loss:.3f}-val_loss{val_loss:.3f}.h5',
-        monitor='val_loss', save_weights_only=True, save_best_only=True, period=3)
+    # checkpoint = ModelCheckpoint(log_dir + 'ep{epoch:03d}-loss{loss:.3f}-val_loss{val_loss:.3f}.h5',
+    #     monitor='val_loss', save_weights_only=True, save_best_only=True, period=5)
+    checkpoint = ModelCheckpoint(drive_dir + 'ep{epoch:03d}-loss{loss:.3f}-val_loss{val_loss:.3f}.h5',
+                                 monitor='val_loss', save_weights_only=True, save_best_only=True, period=5)
     reduce_lr = ReduceLROnPlateau(monitor='val_loss', factor=0.1, patience=3, verbose=1)
     early_stopping = EarlyStopping(monitor='val_loss', min_delta=0, patience=10, verbose=1)
 
@@ -59,7 +61,7 @@ def _main():
             # use custom yolo_loss Lambda layer.
             'yolo_loss': lambda y_true, y_pred: y_pred})
 
-        batch_size = 32
+        batch_size = 64
         print('Train on {} samples, val on {} samples, with batch size {}.'.format(num_train, num_val, batch_size))
         model.fit_generator(data_generator_wrapper(lines[:num_train], batch_size, input_shape, anchors, num_classes),
                 steps_per_epoch=max(1, num_train//batch_size),
@@ -68,9 +70,8 @@ def _main():
                 epochs=50,
                 initial_epoch=0,
                 callbacks=[logging, checkpoint])
-        model.save_weights(log_dir + 'trained_weights_stage_1.h5')
-        name = 'trained_weights_stage_1({}).h5'.format(strftime("%Y%m%d_%H%M", localtime()))
-        model.save_weights(drive_dir + name)
+        # model.save_weights(log_dir + 'trained_weights_stage_1.h5')
+        model.save_weights(drive_dir + 'trained_weights_stage_1.h5')
 
     # Unfreeze and continue training, to fine-tune.
     # Train longer if the result is not good.
@@ -89,10 +90,8 @@ def _main():
             epochs=100,
             initial_epoch=50,
             callbacks=[logging, checkpoint, reduce_lr, early_stopping])
-        model.save_weights(log_dir + 'trained_weights_final.h5')
-
-        name = 'trained_weights_final({}).h5'.format(strftime("%Y%m%d_%H%M", localtime()))
-        model.save_weights(drive_dir + name)
+        # model.save_weights(log_dir + 'trained_weights_final.h5')
+        model.save_weights(drive_dir + 'trained_weights_final.h5')
 
     # Further training if needed.
 
