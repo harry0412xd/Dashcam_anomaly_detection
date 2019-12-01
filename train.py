@@ -13,8 +13,9 @@ from yolo3.model import preprocess_true_boxes, yolo_body, tiny_yolo_body, yolo_l
 from yolo3.utils import get_random_data
 import sys
 import os
+import argparse
 
-def _main():
+def _main(weights_path):
     print(sys.version)
     # annotation_path = '2007_train.txt'
     annotation_path = 'OIDv4_train.txt'
@@ -36,16 +37,16 @@ def _main():
     is_tiny_version = len(anchors)==6 # default setting
     if is_tiny_version:
         model = create_tiny_model(input_shape, anchors, num_classes,
-            freeze_body=2, weights_path='model_data/tiny_yolo_weights.h5')
+            freeze_body=2, weights_path=weights_path)
     else:
         # model = create_model(input_shape, anchors, num_classes, freeze_body=2, weights_path='model_data/yolo_weights.h5') # make sure you know what you freeze
-        model = create_model(input_shape, anchors, num_classes, freeze_body=2, weights_path='model_data/darknet53_weights.h5')
+        model = create_model(input_shape, anchors, num_classes, freeze_body=2, weights_path=weights_path)
 
     logging = TensorBoard(log_dir=log_dir)
     # checkpoint = ModelCheckpoint(log_dir + 'ep{epoch:03d}-loss{loss:.3f}-val_loss{val_loss:.3f}.h5',
     #     monitor='val_loss', save_weights_only=True, save_best_only=True, period=5)
     checkpoint = ModelCheckpoint(drive_dir + 'ep{epoch:03d}-loss{loss:.3f}-val_loss{val_loss:.3f}.h5',
-                                 monitor='val_loss', save_weights_only=True, save_best_only=True, period=5)
+                                 monitor='val_loss', save_weights_only=True, save_best_only=false, period=3)
     reduce_lr = ReduceLROnPlateau(monitor='val_loss', factor=0.1, patience=3, verbose=1)
     early_stopping = EarlyStopping(monitor='val_loss', min_delta=0, patience=10, verbose=1)
 
@@ -60,7 +61,7 @@ def _main():
 
     # Train with frozen layers first, to get a stable loss.
     # Adjust num epochs to your dataset. This step is enough to obtain a not bad model.
-    if True:
+    if False:
         model.compile(optimizer=Adam(lr=1e-3), loss={
             # use custom yolo_loss Lambda layer.
             'yolo_loss': lambda y_true, y_pred: y_pred})
@@ -92,7 +93,7 @@ def _main():
             validation_data=data_generator_wrapper(lines[num_train:], batch_size, input_shape, anchors, num_classes),
             validation_steps=max(1, num_val//batch_size),
             epochs=100,
-            initial_epoch=50,
+            initial_epoch=60,
             callbacks=[logging, checkpoint, reduce_lr, early_stopping])
         # model.save_weights(log_dir + 'trained_weights_final.h5')
         model.save_weights(drive_dir + 'trained_weights_final.h5')
@@ -200,4 +201,11 @@ def data_generator_wrapper(annotation_lines, batch_size, input_shape, anchors, n
     return data_generator(annotation_lines, batch_size, input_shape, anchors, num_classes)
 
 if __name__ == '__main__':
-    _main()
+    parser = argparse.ArgumentParser()
+    parser.add_argument(
+        '--model_path', type=str,
+        help='path to model weight file'
+    )
+    
+    args = parser.parse_args()
+    _main(args.model_path)
