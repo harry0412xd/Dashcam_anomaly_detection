@@ -15,15 +15,17 @@ import sys
 import os
 import argparse
 
-def _main(weights_path):
+def _main(weights_path, log_dir):
     print(sys.version)
     # annotation_path = '2007_train.txt'
     annotation_path = 'OIDv4_train.txt'
-    log_dir = 'logs/oid/'
-    drive_dir = '/content/MyDrive/trained_weights/{}/'.format(strftime("%Y%m%d_%H%M", localtime()))
-    if not os.path.exists(drive_dir):
-        os.makedirs(drive_dir)
-
+    # log_dir = 'logs/oid/'
+    # drive_dir = '/content/MyDrive/trained_weights/{}/'.format(strftime("%Y%m%d_%H%M", localtime()))
+    # if not os.path.exists(drive_dir):
+    #     os.makedirs(drive_dir)
+    # text_log = open(r"log.txt", "a")
+    # text_log.write("[{}]Starting with {}\n".format(weights_path, strftime("%H:%M:%S", localtime()) ))
+  
     classes_path = 'model_data/2007_voc_car&person_classes.txt'
     # anchors_path = 'model_data/2007_voc_car&person_anchors.txt'
     anchors_path = 'model_data/OIDv4_anchors.txt'
@@ -45,7 +47,11 @@ def _main(weights_path):
     logging = TensorBoard(log_dir=log_dir)
     # checkpoint = ModelCheckpoint(log_dir + 'ep{epoch:03d}-loss{loss:.3f}-val_loss{val_loss:.3f}.h5',
     #     monitor='val_loss', save_weights_only=True, save_best_only=True, period=5)
+<<<<<<< HEAD
+    checkpoint = ModelCheckpoint(log_dir + 'ep{epoch:03d}-loss{loss:.3f}-val_loss{val_loss:.3f}.h5',
+=======
     checkpoint = ModelCheckpoint(drive_dir + 'ep{epoch:03d}-loss{loss:.3f}-val_loss{val_loss:.3f}.h5',
+>>>>>>> 8a8a0031d46d38b6ddf1e4a8b6ff1ef164e8bf4b
                                  monitor='val_loss', save_weights_only=True, save_best_only=False, period=3)
     reduce_lr = ReduceLROnPlateau(monitor='val_loss', factor=0.1, patience=3, verbose=1)
     early_stopping = EarlyStopping(monitor='val_loss', min_delta=0, patience=10, verbose=1)
@@ -61,7 +67,7 @@ def _main(weights_path):
 
     # Train with frozen layers first, to get a stable loss.
     # Adjust num epochs to your dataset. This step is enough to obtain a not bad model.
-    if False:
+    if True:
         model.compile(optimizer=Adam(lr=1e-3), loss={
             # use custom yolo_loss Lambda layer.
             'yolo_loss': lambda y_true, y_pred: y_pred})
@@ -72,15 +78,15 @@ def _main(weights_path):
                 steps_per_epoch=max(1, num_train//batch_size),
                 validation_data=data_generator_wrapper(lines[num_train:], batch_size, input_shape, anchors, num_classes),
                 validation_steps=max(1, num_val//batch_size),
-                epochs=50,
-                initial_epoch=0,
+                epochs=100,
+                initial_epoch=50,
                 callbacks=[logging, checkpoint])
-        # model.save_weights(log_dir + 'trained_weights_stage_1.h5')
-        model.save_weights(drive_dir + 'trained_weights_stage_1.h5')
+        model.save_weights(log_dir + 'trained_weights_stage_1.h5')
+        # model.save_weights(drive_dir + 'trained_weights_stage_1.h5')
 
     # Unfreeze and continue training, to fine-tune.
     # Train longer if the result is not good.
-    if True:
+    if False:
         for i in range(len(model.layers)):
             model.layers[i].trainable = True
         model.compile(optimizer=Adam(lr=1e-4), loss={'yolo_loss': lambda y_true, y_pred: y_pred}) # recompile to apply the change
@@ -95,8 +101,8 @@ def _main(weights_path):
             epochs=100,
             initial_epoch=60,
             callbacks=[logging, checkpoint, reduce_lr, early_stopping])
-        # model.save_weights(log_dir + 'trained_weights_final.h5')
-        model.save_weights(drive_dir + 'trained_weights_final.h5')
+        model.save_weights(log_dir + 'trained_weights_final.h5')
+        # model.save_weights(drive_dir + 'trained_weights_final.h5')
 
     # Further training if needed.
 
@@ -200,12 +206,16 @@ def data_generator_wrapper(annotation_lines, batch_size, input_shape, anchors, n
     if n==0 or batch_size<=0: return None
     return data_generator(annotation_lines, batch_size, input_shape, anchors, num_classes)
 
+
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
     parser.add_argument(
         '--model_path', type=str,
         help='path to model weight file'
     )
-    
+    parser.add_argument(
+        '--log_dir', type=str,
+        help='path to log dir'
+    )
     args = parser.parse_args()
-    _main(args.model_path)
+    _main(args.model_path, args.log_dir)
