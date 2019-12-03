@@ -88,8 +88,8 @@ def _main(weights_path, label_path, log_dir, init_epoch, target_epoch, stage):
             steps_per_epoch=max(1, num_train//batch_size),
             validation_data=data_generator_wrapper(lines[num_train:], batch_size, input_shape, anchors, num_classes),
             validation_steps=max(1, num_val//batch_size),
-            epochs=100,
-            initial_epoch=60,
+            epochs=target_epoch,
+            initial_epoch=init_epoch,
             callbacks=[logging, checkpoint, reduce_lr, early_stopping])
         model.save_weights(log_dir + 'trained_weights_final.h5')
         # model.save_weights(drive_dir + 'trained_weights_final.h5')
