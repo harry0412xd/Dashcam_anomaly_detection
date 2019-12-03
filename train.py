@@ -15,18 +15,12 @@ import sys
 import os
 import argparse
 
-def _main(weights_path, log_dir, init_epoch, target_epoch):
+def _main(weights_path, label_path, log_dir, init_epoch, target_epoch):
     print(sys.version)
     # annotation_path = '2007_train.txt'
-    annotation_path = 'OIDv4_train.txt'
-    # log_dir = 'logs/oid/'
-    # drive_dir = '/content/MyDrive/trained_weights/{}/'.format(strftime("%Y%m%d_%H%M", localtime()))
-    # if not os.path.exists(drive_dir):
-    #     os.makedirs(drive_dir)
-    # text_log = open(r"log.txt", "a")
-    # text_log.write("[{}]Starting with {}\n".format(weights_path, strftime("%H:%M:%S", localtime()) ))
-  
+    annotation_path = anchors_path 
     classes_path = 'model_data/2007_voc_car&person_classes.txt'
+    
     # anchors_path = 'model_data/2007_voc_car&person_anchors.txt'
     anchors_path = 'model_data/OIDv4_anchors.txt'
 
@@ -221,6 +215,10 @@ if __name__ == '__main__':
         '--target_epoch', type=int,
         help='Training ends at _ epoch'
     )
+    parser.add_argument(
+        '--label_path', type=str,
+        help='File containing the labels'
+    )
     args = parser.parse_args()
-    _main(args.model_path, args.log_dir,
+    _main(args.model_path, args.label_path, args.log_dir,
           args.init_epoch, args.target_epoch)

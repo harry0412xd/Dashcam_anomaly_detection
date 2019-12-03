@@ -1,12 +1,12 @@
 import numpy as np
+from tqdm import tqdm
 
 
 class YOLO_Kmeans:
 
     def __init__(self, cluster_number, filename):
         self.cluster_number = cluster_number
-        # self.filename = "2007_train.txt"
-        self.filename = "OIDv4_train.txt"
+        self.filename = "OIDv4_train_new2.txt"
 
     def iou(self, boxes, clusters):  # 1 box -> k clusters
         n = boxes.shape[0]
@@ -43,8 +43,10 @@ class YOLO_Kmeans:
         np.random.seed()
         clusters = boxes[np.random.choice(
             box_number, k, replace=False)]  # init k clusters
+        i = 0
         while True:
-
+            i+=1
+            print(i)
             distances = 1 - self.iou(boxes, clusters)
 
             current_nearest = np.argmin(distances, axis=1)
@@ -70,8 +72,8 @@ class YOLO_Kmeans:
         f.close()
 
     def txt2boxes(self):
-        f = open(self.filename, 'r')
         dataSet = []
+        f = open(self.filename, 'r')
         for line in f:
             infos = line.split(" ")
             length = len(infos)
@@ -86,8 +88,11 @@ class YOLO_Kmeans:
         return result
 
     def txt2clusters(self):
+        print("1")
         all_boxes = self.txt2boxes()
+        print("2")
         result = self.kmeans(all_boxes, k=self.cluster_number)
+        print("3")
         result = result[np.lexsort(result.T[0, None])]
         self.result2txt(result)
         print("K anchors:\n {}".format(result))
