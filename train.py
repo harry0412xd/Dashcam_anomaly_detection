@@ -75,7 +75,7 @@ def _main(weights_path, log_dir, init_epoch, target_epoch):
                 validation_data=data_generator_wrapper(lines[num_train:], batch_size, input_shape, anchors, num_classes),
                 validation_steps=max(1, num_val//batch_size),
                 epochs=target_epoch,
-                initial_epoch=initial_epoch,
+                initial_epoch=init_epoch,
                 callbacks=[logging, checkpoint])
         model.save_weights(log_dir + 'trained_weights_stage_1.h5')
         # model.save_weights(drive_dir + 'trained_weights_stage_1.h5')
@@ -214,11 +214,11 @@ if __name__ == '__main__':
         help='path to log dir'
     )
     parser.add_argument(
-        '--init_epoch', type=str,
+        '--init_epoch', type=int,
         help='Training starts at _ epoch'
     )
     parser.add_argument(
-        '--target_epoch', type=str,
+        '--target_epoch', type=int,
         help='Training ends at _ epoch'
     )
     args = parser.parse_args()
