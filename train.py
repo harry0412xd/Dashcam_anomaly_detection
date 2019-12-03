@@ -15,7 +15,7 @@ import sys
 import os
 import argparse
 
-def _main(weights_path, log_dir):
+def _main(weights_path, log_dir, init_epoch, target_epoch):
     print(sys.version)
     # annotation_path = '2007_train.txt'
     annotation_path = 'OIDv4_train.txt'
@@ -47,11 +47,7 @@ def _main(weights_path, log_dir):
     logging = TensorBoard(log_dir=log_dir)
     # checkpoint = ModelCheckpoint(log_dir + 'ep{epoch:03d}-loss{loss:.3f}-val_loss{val_loss:.3f}.h5',
     #     monitor='val_loss', save_weights_only=True, save_best_only=True, period=5)
-<<<<<<< HEAD
     checkpoint = ModelCheckpoint(log_dir + 'ep{epoch:03d}-loss{loss:.3f}-val_loss{val_loss:.3f}.h5',
-=======
-    checkpoint = ModelCheckpoint(drive_dir + 'ep{epoch:03d}-loss{loss:.3f}-val_loss{val_loss:.3f}.h5',
->>>>>>> 8a8a0031d46d38b6ddf1e4a8b6ff1ef164e8bf4b
                                  monitor='val_loss', save_weights_only=True, save_best_only=False, period=3)
     reduce_lr = ReduceLROnPlateau(monitor='val_loss', factor=0.1, patience=3, verbose=1)
     early_stopping = EarlyStopping(monitor='val_loss', min_delta=0, patience=10, verbose=1)
@@ -78,8 +74,8 @@ def _main(weights_path, log_dir):
                 steps_per_epoch=max(1, num_train//batch_size),
                 validation_data=data_generator_wrapper(lines[num_train:], batch_size, input_shape, anchors, num_classes),
                 validation_steps=max(1, num_val//batch_size),
-                epochs=100,
-                initial_epoch=50,
+                epochs=target_epoch,
+                initial_epoch=initial_epoch,
                 callbacks=[logging, checkpoint])
         model.save_weights(log_dir + 'trained_weights_stage_1.h5')
         # model.save_weights(drive_dir + 'trained_weights_stage_1.h5')
@@ -217,5 +213,14 @@ if __name__ == '__main__':
         '--log_dir', type=str,
         help='path to log dir'
     )
+    parser.add_argument(
+        '--init_epoch', type=str,
+        help='Training starts at _ epoch'
+    )
+    parser.add_argument(
+        '--target_epoch', type=str,
+        help='Training ends at _ epoch'
+    )
     args = parser.parse_args()
-    _main(args.model_path, args.log_dir)
+    _main(args.model_path, args.log_dir,
+          args.init_epoch, args.target_epoch)
