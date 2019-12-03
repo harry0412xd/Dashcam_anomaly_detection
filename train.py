@@ -15,7 +15,7 @@ import sys
 import os
 import argparse
 
-def _main(weights_path, label_path, log_dir, init_epoch, target_epoch):
+def _main(weights_path, label_path, log_dir, init_epoch, target_epoch, stage):
     print(sys.version)
     # annotation_path = '2007_train.txt'
     annotation_path = label_path 
@@ -28,7 +28,7 @@ def _main(weights_path, label_path, log_dir, init_epoch, target_epoch):
     num_classes = len(class_names)
     anchors = get_anchors(anchors_path)
 
-    input_shape = (416,416) # multiple of 32, hw
+    input_shape = (608,608) # multiple of 32, hw
 
     is_tiny_version = len(anchors)==6 # default setting
     if is_tiny_version:
@@ -57,12 +57,12 @@ def _main(weights_path, label_path, log_dir, init_epoch, target_epoch):
 
     # Train with frozen layers first, to get a stable loss.
     # Adjust num epochs to your dataset. This step is enough to obtain a not bad model.
-    if True:
+    if (stage==1):
         model.compile(optimizer=Adam(lr=1e-3), loss={
             # use custom yolo_loss Lambda layer.
             'yolo_loss': lambda y_true, y_pred: y_pred})
 
-        batch_size = 64
+        batch_size = 16
         print('Train on {} samples, val on {} samples, with batch size {}.'.format(num_train, num_val, batch_size))
         model.fit_generator(data_generator_wrapper(lines[:num_train], batch_size, input_shape, anchors, num_classes),
                 steps_per_epoch=max(1, num_train//batch_size),
@@ -76,7 +76,7 @@ def _main(weights_path, label_path, log_dir, init_epoch, target_epoch):
 
     # Unfreeze and continue training, to fine-tune.
     # Train longer if the result is not good.
-    if False:
+    if (stage==2):
         for i in range(len(model.layers)):
             model.layers[i].trainable = True
         model.compile(optimizer=Adam(lr=1e-4), loss={'yolo_loss': lambda y_true, y_pred: y_pred}) # recompile to apply the change
@@ -219,6 +219,10 @@ if __name__ == '__main__':
         '--label_path', type=str,
         help='File containing the labels'
     )
+    parser.add_argument(
+        '--stage', type=int,
+        help='Stage of training, 1=frozen, 2=unfreeze all'
+    )
     args = parser.parse_args()
     _main(args.model_path, args.label_path, args.log_dir,
-          args.init_epoch, args.target_epoch)
+          args.init_epoch, args.target_epoch, args.stage)
