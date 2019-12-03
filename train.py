@@ -18,7 +18,7 @@ import argparse
 def _main(weights_path, label_path, log_dir, init_epoch, target_epoch):
     print(sys.version)
     # annotation_path = '2007_train.txt'
-    annotation_path = anchors_path 
+    annotation_path = label_path 
     classes_path = 'model_data/2007_voc_car&person_classes.txt'
     
     # anchors_path = 'model_data/2007_voc_car&person_anchors.txt'
