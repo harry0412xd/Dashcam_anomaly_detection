@@ -1,3 +1,4 @@
 #
 *.h5
 *.weights
+video_out/*.mp4
