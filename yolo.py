@@ -181,7 +181,7 @@ class YOLO(object):
             boxed_image = letterbox_image(image, new_image_size)
         image_data = np.array(boxed_image, dtype='float32')
 
-        print(image_data.shape)
+        # print(image_data.shape)
         image_data /= 255.
         image_data = np.expand_dims(image_data, 0)  # Add batch dimension.
 
@@ -213,7 +213,8 @@ class YOLO(object):
             left = max(0, np.floor(left + 0.5).astype('int32'))
             bottom = min(image.size[1], np.floor(bottom + 0.5).astype('int32'))
             right = min(image.size[0], np.floor(right + 0.5).astype('int32'))
-            result.append([frame_no, -1, left, top, right-left, bottom-top, float(score), -1, -1, -1])
+            # result.append([frame_no, -1, left, top, right-left, bottom-top, float(score), -1, -1, -1])
+            result.append([left, top, right, bottom, float(score)])
             # print(label, (left, top), (right, bottom))
 
             # if top - label_size[1] >= 0:
@@ -233,7 +234,7 @@ class YOLO(object):
             # del draw
 
         end = timer()
-        print(end - start)
+        # print(end - start)
         return result
 
     def close_session(self):
@@ -245,11 +246,12 @@ def track_video(yolo, video_path, output_path=""):
     if not vid.isOpened():
         raise IOError("Couldn't open webcam or video")
     # video_FourCC = int(vid.get(cv2.CAP_PROP_FOURCC))
-    video_FourCC = cv2.VideoWriter_fourcc(*'XVID')
+    video_FourCC = cv2.VideoWriter_fourcc(*'X264')
     video_fps = vid.get(cv2.CAP_PROP_FPS)
     video_size = (int(vid.get(cv2.CAP_PROP_FRAME_WIDTH)),
                   int(vid.get(cv2.CAP_PROP_FRAME_HEIGHT)))
     isOutput = True if output_path != "" else False
+    # video_numOfFrame = CAP_PROP_FRAME_COUNT
     if isOutput:
         print("!!! TYPE:", type(output_path), type(video_FourCC), type(video_fps), type(video_size))
         out = cv2.VideoWriter(output_path, video_FourCC, video_fps, video_size)
@@ -257,7 +259,7 @@ def track_video(yolo, video_path, output_path=""):
     curr_fps = 0
     fps = "FPS: ??"
     prev_time = timer()
-    tracker = Sort()
+    tracker = Sort(max_age=5)
     frame_no = 0
     while True:
         return_value, frame = vid.read()
@@ -266,16 +268,15 @@ def track_video(yolo, video_path, output_path=""):
         frame_no += 1
         image = Image.fromarray(frame)
         track_result = yolo.detect_image_4track(image, frame_no)
-        print(track_result)
         trackers = tracker.update(np.array(track_result))
         
         font = ImageFont.truetype(font='font/FiraMono-Medium.otf',
                       size=np.floor(3e-2 * image.size[1] + 0.5).astype('int32'))
         for d in trackers:
-            d = d.astype(np.int32)
+            d = d.astype(np.int32) 
             draw = ImageDraw.Draw(image)
             left, top, right, bottom = int(d[0]), int(d[1]), int(d[2]), int(d[3])
-            # print(f"Object ID: {d[4]} at {left},{top}, {right},{bottom}")
+            print(f"Object ID: {d[4]} at {left},{top}, {right},{bottom}")
             thickness = (image.size[0] + image.size[1]) // 300
             label = 'Object ID: {}'.format(d[4])
             label_size = draw.textsize(label, font)
