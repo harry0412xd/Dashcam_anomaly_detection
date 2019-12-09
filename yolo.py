@@ -5,6 +5,7 @@ Class definition of YOLO_v3 style detection model on image and video
 
 import colorsys
 import os
+from tqdm import tqdm
 from timeit import default_timer as timer
 
 import numpy as np
@@ -15,8 +16,8 @@ from PIL import Image, ImageFont, ImageDraw
 
 from yolo3.model import yolo_eval, yolo_body, tiny_yolo_body
 from yolo3.utils import letterbox_image
-import os
 from keras.utils import multi_gpu_model
+
 from sort import *
 
 
@@ -26,7 +27,7 @@ class YOLO(object):
         "anchors_path": 'model_data/yolo_anchors.txt',
         "classes_path": 'model_data/coco_classes.txt',
         "score": 0.3,
-        "iou": 0.45,
+        "iou": 0.30,  #0.45
         "model_image_size": (416, 416),
         "gpu_num": 1,
     }
@@ -168,7 +169,7 @@ class YOLO(object):
         print(end - start)
         return image
 
-    def detect_image_4track(self, image,frame_no):
+    def detect_image_4track(self, image):
         start = timer()
 
         if self.model_image_size != (None, None):
@@ -199,6 +200,7 @@ class YOLO(object):
                                   size=np.floor(3e-2 * image.size[1] + 0.5).astype('int32'))
         thickness = (image.size[0] + image.size[1]) // 300
         result = []
+        class_result = []
         for i, c in reversed(list(enumerate(out_classes))):
             predicted_class = self.class_names[c]
             box = out_boxes[i]
@@ -215,6 +217,7 @@ class YOLO(object):
             right = min(image.size[0], np.floor(right + 0.5).astype('int32'))
             # result.append([frame_no, -1, left, top, right-left, bottom-top, float(score), -1, -1, -1])
             result.append([left, top, right, bottom, float(score)])
+            class_result.append(predicted_class)
             # print(label, (left, top), (right, bottom))
 
             # if top - label_size[1] >= 0:
@@ -235,7 +238,7 @@ class YOLO(object):
 
         end = timer()
         # print(end - start)
-        return result
+        return result, class_result
 
     def close_session(self):
         self.sess.close()
@@ -246,12 +249,11 @@ def track_video(yolo, video_path, output_path=""):
     if not vid.isOpened():
         raise IOError("Couldn't open webcam or video")
     # video_FourCC = int(vid.get(cv2.CAP_PROP_FOURCC))
-    video_FourCC = cv2.VideoWriter_fourcc(*'X264')
+    video_FourCC = cv2.VideoWriter_fourcc(*'XVID')
     video_fps = vid.get(cv2.CAP_PROP_FPS)
     video_size = (int(vid.get(cv2.CAP_PROP_FRAME_WIDTH)),
                   int(vid.get(cv2.CAP_PROP_FRAME_HEIGHT)))
     isOutput = True if output_path != "" else False
-    # video_numOfFrame = CAP_PROP_FRAME_COUNT
     if isOutput:
         print("!!! TYPE:", type(output_path), type(video_FourCC), type(video_fps), type(video_size))
         out = cv2.VideoWriter(output_path, video_FourCC, video_fps, video_size)
@@ -259,24 +261,30 @@ def track_video(yolo, video_path, output_path=""):
     curr_fps = 0
     fps = "FPS: ??"
     prev_time = timer()
-    tracker = Sort(max_age=5)
+    tracker = Sort(max_age=10)
     frame_no = 0
+    video_numOfFrame = cv2.CAP_PROP_FRAME_COUNT
+    pbar = tqdm(total = video_numOfFrame)
+    object_class_dict = {}
     while True:
         return_value, frame = vid.read()
         if not return_value:
             break
         frame_no += 1
         image = Image.fromarray(frame)
-        track_result = yolo.detect_image_4track(image, frame_no)
+        track_result, classes_result = yolo.detect_image_4track(image)
         trackers = tracker.update(np.array(track_result))
         
         font = ImageFont.truetype(font='font/FiraMono-Medium.otf',
                       size=np.floor(3e-2 * image.size[1] + 0.5).astype('int32'))
-        for d in trackers:
+        for i, d in enumerate(trackers):
             d = d.astype(np.int32) 
             draw = ImageDraw.Draw(image)
             left, top, right, bottom = int(d[0]), int(d[1]), int(d[2]), int(d[3])
-            print(f"Object ID: {d[4]} at {left},{top}, {right},{bottom}")
+            obj_id = d[4]
+            class_name = classes_result[i]
+            object_class_dict[obj_id] = class_name
+            print(f"{class_name} {obj_id} at {left},{top}, {right},{bottom}")
             thickness = (image.size[0] + image.size[1]) // 300
             label = 'Object ID: {}'.format(d[4])
             label_size = draw.textsize(label, font)
@@ -315,6 +323,8 @@ def track_video(yolo, video_path, output_path=""):
             out.write(result)
         if cv2.waitKey(1) & 0xFF == ord('q'):
             break
+        pbar.update(1)
+    pbar.close()
     yolo.close_session()
 
 def detect_video(yolo, video_path, output_path=""):
