@@ -5,7 +5,6 @@ Class definition of YOLO_v3 style detection model on image and video
 
 import colorsys
 import os
-from tqdm import tqdm
 from timeit import default_timer as timer
 
 import numpy as np
@@ -195,10 +194,7 @@ class YOLO(object):
             })
 
         # print('Found {} boxes for frame {}'.format(len(out_boxes), frame_no))
-
-        font = ImageFont.truetype(font='font/FiraMono-Medium.otf',
-                                  size=np.floor(3e-2 * image.size[1] + 0.5).astype('int32'))
-        thickness = (image.size[0] + image.size[1]) // 300
+       
         result = []
         class_result = []
         for i, c in reversed(list(enumerate(out_classes))):
@@ -214,7 +210,7 @@ class YOLO(object):
 
             # result.append([frame_no, -1, left, top, right-left, bottom-top, float(score), -1, -1, -1])
             result.append([left, top, right, bottom, float(score)])
-            class_result.append(predicted_class)
+            class_result.append([left, top, right, bottom, predicted_class])
         # end = timer()
         # print(end - start)
         return result, class_result
@@ -232,21 +228,21 @@ def track_video(yolo, video_path, output_path=""):
     video_fps = vid.get(cv2.CAP_PROP_FPS)
     video_size = (int(vid.get(cv2.CAP_PROP_FRAME_WIDTH)),
                   int(vid.get(cv2.CAP_PROP_FRAME_HEIGHT)))
-    video_numOfFrame = int(vid.get(cv2.CAP_PROP_FRAME_COUNT))
+    video_total_frame = int(vid.get(cv2.CAP_PROP_FRAME_COUNT))
     
     isOutput = True if output_path != "" else False
     if isOutput:
         # print("!!! TYPE:", type(output_path), type(video_FourCC), type(video_fps), type(video_size))
-        print(f"Loaded video: {output_path}, Size = {video_size}, fps = {video_fps}, total frame = {video_numOfFrame}"
+        print(f"Loaded video: {output_path}, Size = {video_size},"
+              f" fps = {video_fps}, total frame = {video_total_frame}")
         out = cv2.VideoWriter(output_path, video_FourCC, video_fps, video_size)
     accum_time = 0
     curr_fps = 0
     fps = "FPS: ??"
     prev_time = timer()
-    mot_tracker = Sort(max_age=10)
+    max_age = max(3,video_fps//5) #0.2 sec
+    mot_tracker = Sort(max_age=max_age) 
     frame_no = 0
-    
-    # pbar = tqdm(total = video_numOfFrame)
     object_class_dict = {}
     while True:
         return_value, frame = vid.read()
@@ -255,23 +251,30 @@ def track_video(yolo, video_path, output_path=""):
         frame_no += 1
         image = Image.fromarray(frame)
         if frame_no == 1: #Use first frame to decide these
-            font = ImageFont.truetype(font='font/FiraMono-Medium.otf', size=np.floor(3e-2 * image.size[1] + 0.5).astype('int32'))
+            font = ImageFont.truetype(font='font/FiraMono-Medium.otf'
+                    , size=np.floor(3e-2 * image.size[1] + 0.5).astype('int32'))
             vid_width, vid_height = image.size
-            thickness = (vid_width + vid_height) // 300
+            thickness = min((image.size[0] + image.size[1]) // 300, 5)
 
         bboxes, classes = yolo.detect_image_4track(image, frame_no)
         trackers = mot_tracker.update(np.array(bboxes))
-        print(f'Found {len(bboxes)} boxes for frame {frame_no}/{video_numOfFrame}')
-        for i, d in enumerate(trackers):
+        print(f'Found {len(bboxes)} boxes for frame {frame_no}/{video_total_frame}')
+        for d in trackers:
             d = d.astype(np.int32) 
-
-            
             left, top, right, bottom = int(d[0]), int(d[1]), int(d[2]), int(d[3])
             obj_id = d[4]
-            class_name = classes[i]
+            # Tracker(s) is remained when the detection is missing within SORT max_age
+            # The no. of detection returned may be less than the no. of trackers
+            if obj_id in object_class_dict:
+                class_name = object_class_dict[obj_id]
+            else:
+                # Match class to bbox by location
+                for c in classes:
+                    if (int(c[0])==left and int(c[1])==top and int(c[2])==right and int(c[3])==bottom):
+                        class_name = c[4]
             object_class_dict[obj_id] = class_name
             print(f"{class_name} {obj_id} at {left},{top}, {right},{bottom}")
-            label = f'{class_name}| ID: {obj_id}'
+            label = f'{class_name} {obj_id} : {d[4]}'
             draw_bbox(image, label, font, thickness, left, top, right, bottom)
 
         result = np.asarray(image)
@@ -295,8 +298,6 @@ def track_video(yolo, video_path, output_path=""):
         # cv2.imshow("result", result)
         if cv2.waitKey(1) & 0xFF == ord('q'):
             break
-    #     pbar.update(1)
-    # pbar.close()
     yolo.close_session()
 
 def draw_bbox(image, label, font, thickness, left, top, right, bottom):
