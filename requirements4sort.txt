@@ -1,5 +1,8 @@
+#Requirements provided by the SORT author
+# https://github.com/abewley/sort
+
 scipy
 filterpy==1.4.1
 numba==0.38.1
-scikit-image==0.14.3
+scikit-image==0.14.3 #Change from 0.14.0 to 0.14.3 to avoid a bug
 scikit-learn==0.19.1
