@@ -77,7 +77,7 @@ class KalmanBoxTracker(object):
   This class represents the internel state of individual tracked objects observed as bbox.
   """
   count = 0
-  def __init__(self,bbox,class_id):
+  def __init__(self,bbox, class_id):
     """
     Initialises a tracker using initial bounding box.
     """
@@ -102,6 +102,7 @@ class KalmanBoxTracker(object):
     self.age = 0
     #Keep the id of object detection classes
     self.class_id = class_id
+    self.score = bbox[4]
 
   def update(self,bbox):
     """
@@ -112,6 +113,7 @@ class KalmanBoxTracker(object):
     self.hits += 1
     self.hit_streak += 1
     self.kf.update(convert_bbox_to_z(bbox))
+    self.score = bbox[4]
 
   def predict(self):
     """
@@ -123,6 +125,7 @@ class KalmanBoxTracker(object):
     self.age += 1
     if(self.time_since_update>0):
       self.hit_streak = 0
+      self.score = -1
     self.time_since_update += 1
     self.history.append(convert_x_to_bbox(self.kf.x))
     return self.history[-1]
@@ -200,7 +203,7 @@ class Sort(object):
     trks = np.zeros((len(self.trackers),5))
     to_del = []
     ret = []
-    cls = []
+    infos = [] #storing [class_id, score]
     for t,trk in enumerate(trks):
       pos = self.trackers[t].predict()[0]
       trk[:] = [pos[0], pos[1], pos[2], pos[3], 0]
@@ -227,15 +230,16 @@ class Sort(object):
         # if((trk.time_since_update < 1) and (trk.hit_streak >= self.min_hits or self.frame_count <= self.min_hits)):
         if ((trk.time_since_update <= self.max_age) and (trk.hits >= self.min_hits or self.frame_count <= self.min_hits)):
           ret.append(np.concatenate((d,[trk.id+1])).reshape(1,-1)) # +1 as MOT benchmark requires positive
-          cls.append(trk.class_id)
+          infos.append([trk.class_id, trk.score]) #include class id and score to cooperate with object detector
         i -= 1
         #remove dead tracklet
         if(trk.time_since_update > self.max_age):
           self.trackers.pop(i)
     if(len(ret)>0):
-      return np.concatenate(ret), cls
-    return np.empty((0,5)), np.empty(0)
+      return np.concatenate(ret), infos
+    return np.empty((0,5)), np.empty((0,2))
     
+
 def parse_args():
     """Parse input arguments."""
     parser = argparse.ArgumentParser(description='SORT demo')

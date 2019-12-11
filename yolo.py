@@ -45,6 +45,11 @@ class YOLO(object):
         self.anchors = self._get_anchors()
         self.sess = K.get_session()
         self.boxes, self.scores, self.classes = self.generate()
+        self.input_size = [0,0]
+
+    #temp measure, change after the main detect function is seperated    
+    def set_input_size(width, height):
+        self.input_size = [width, height]
 
     def _get_class(self):
         classes_path = os.path.expanduser(self.classes_path)
@@ -170,7 +175,6 @@ class YOLO(object):
 
     def detect_image_4track(self, image, frame_no):
         # start = timer()
-
         if self.model_image_size != (None, None):
             assert self.model_image_size[0] % 32 == 0, 'Multiples of 32 required'
             assert self.model_image_size[1] % 32 == 0, 'Multiples of 32 required'
@@ -209,6 +213,8 @@ class YOLO(object):
             right = min(image.size[0], np.floor(right + 0.5).astype('int32'))
 
             # result.append([frame_no, -1, left, top, right-left, bottom-top, float(score), -1, -1, -1])
+
+                
             result.append([left, top, right, bottom, float(score)])
             class_result.append(c)
         # end = timer()
@@ -241,7 +247,7 @@ def track_video(yolo, video_path, output_path=""):
     fps = "FPS: ??"
     prev_time = timer()
     max_age = max(3,video_fps//6) #0.2 sec
-    mot_tracker = Sort(max_age=max_age, min_hits=5) 
+    mot_tracker = Sort(max_age=max_age, min_hits=3) 
     frame_no = 0
     object_class_dict = {}
     while True:
@@ -252,32 +258,31 @@ def track_video(yolo, video_path, output_path=""):
         image = Image.fromarray(frame)
         if frame_no == 1: #Use first frame to decide these
             font = ImageFont.truetype(font='font/FiraMono-Medium.otf'
-                    , size=np.floor(3e-2 * image.size[1] + 0.5).astype('int32'))
+                    , size=np.floor(2e-2 * image.size[1] + 0.5).astype('int32'))
             vid_width, vid_height = image.size
-            thickness = min((image.size[0] + image.size[1]) // 300, 5)
+            # thickness = min((image.size[0] + image.size[1]) // 300, 5)
+            thickness = 5
 
         bboxes, classes = yolo.detect_image_4track(image, frame_no)
-        trackers, classes = mot_tracker.update(np.array(bboxes), np.array(classes))
+        omit_small_box = True
+        if omit_small_box:
+            for i, bbox in enumerate(bboxes):
+                width = bbox[2] - bbox[0]
+                height = bbox[3] - bbox[1]
+                if 250*width*height<
+        trackers, tracker_infos = mot_tracker.update(np.array(bboxes), np.array(classes))
         print(f'Found {len(bboxes)} boxes for frame {frame_no}/{video_total_frame}')
         for c, d in enumerate(trackers):
             d = d.astype(np.int32) 
             left, top, right, bottom = int(d[0]), int(d[1]), int(d[2]), int(d[3])
             obj_id = d[4]
-            # Tracker(s) is remained when the detection is missing within SORT max_age
-            # The no. of detection returned may be less than the no. of trackers
-            # if obj_id in object_class_dict:
-            #     class_id = object_class_dict[obj_id]
-            # else:
-            #     # Match class to bbox by location
-            #     for c in classes:
-            #         if (int(c[0])==left and int(c[1])==top and int(c[2])==right and int(c[3])==bottom):
-            #             class_name = c[4]
-            # if not class_name=="NIL":
-            #     object_class_dict[obj_id] = class_name
-            class_id = classes[c]
+
+            class_id = tracker_infos[c][0]
             class_name = yolo.class_names[class_id]
-            print(f"{class_name} {obj_id} at {left},{top}, {right},{bottom}")
-            label = f'{class_name} {obj_id} : {d[4]}'
+            score = tracker_infos[c][1]
+            # print(f"{class_name} {obj_id} at {left},{top}, {right},{bottom}")
+            label = f'{class_name} {obj_id} : {score:.2f}'
+            print (f"{label} at {left},{top}, {right},{bottom}")
             draw_bbox(image, label, font, thickness, left, top, right, bottom)
 
         result = np.asarray(image)
