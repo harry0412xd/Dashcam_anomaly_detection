@@ -227,6 +227,11 @@ def _main(args):
             all_layers.append(None)
             prev_layer = all_layers[-1]
 
+        elif section.startswith('Gaussian_yolo'):
+            out_index.append(len(all_layers)-1)
+            all_layers.append(None)
+            prev_layer = all_layers[-1]
+
         elif section.startswith('net'):
             pass
 

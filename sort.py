@@ -77,7 +77,7 @@ class KalmanBoxTracker(object):
   This class represents the internel state of individual tracked objects observed as bbox.
   """
   count = 0
-  def __init__(self,bbox):
+  def __init__(self,bbox,class_id):
     """
     Initialises a tracker using initial bounding box.
     """
@@ -100,6 +100,8 @@ class KalmanBoxTracker(object):
     self.hits = 0
     self.hit_streak = 0
     self.age = 0
+    #Keep the id of object detection classes
+    self.class_id = class_id
 
   def update(self,bbox):
     """
@@ -182,7 +184,7 @@ class Sort(object):
     self.trackers = []
     self.frame_count = 0
 
-  def update(self,dets):
+  def update(self,dets, classes):
     """
     Params:
       dets - a numpy array of detections in the format [[x1,y1,x2,y2,score],[x1,y1,x2,y2,score],...]
@@ -191,11 +193,14 @@ class Sort(object):
 
     NOTE: The number of objects returned may differ from the number of detections provided.
     """
+    #add 
+
     self.frame_count += 1
     #get predicted locations from existing trackers.
     trks = np.zeros((len(self.trackers),5))
     to_del = []
     ret = []
+    cls = []
     for t,trk in enumerate(trks):
       pos = self.trackers[t].predict()[0]
       trk[:] = [pos[0], pos[1], pos[2], pos[3], 0]
@@ -214,7 +219,7 @@ class Sort(object):
 
     #create and initialise new trackers for unmatched detections
     for i in unmatched_dets:
-        trk = KalmanBoxTracker(dets[i,:]) 
+        trk = KalmanBoxTracker(dets[i,:], classes[i]) #include class_id
         self.trackers.append(trk)
     i = len(self.trackers)
     for trk in reversed(self.trackers):
@@ -222,13 +227,14 @@ class Sort(object):
         # if((trk.time_since_update < 1) and (trk.hit_streak >= self.min_hits or self.frame_count <= self.min_hits)):
         if ((trk.time_since_update <= self.max_age) and (trk.hits >= self.min_hits or self.frame_count <= self.min_hits)):
           ret.append(np.concatenate((d,[trk.id+1])).reshape(1,-1)) # +1 as MOT benchmark requires positive
+          cls.append(trk.class_id)
         i -= 1
         #remove dead tracklet
         if(trk.time_since_update > self.max_age):
           self.trackers.pop(i)
     if(len(ret)>0):
-      return np.concatenate(ret)
-    return np.empty((0,5))
+      return np.concatenate(ret), cls
+    return np.empty((0,5)), np.empty(0)
     
 def parse_args():
     """Parse input arguments."""

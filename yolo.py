@@ -210,7 +210,7 @@ class YOLO(object):
 
             # result.append([frame_no, -1, left, top, right-left, bottom-top, float(score), -1, -1, -1])
             result.append([left, top, right, bottom, float(score)])
-            class_result.append([left, top, right, bottom, predicted_class])
+            class_result.append(c)
         # end = timer()
         # print(end - start)
         return result, class_result
@@ -257,23 +257,25 @@ def track_video(yolo, video_path, output_path=""):
             thickness = min((image.size[0] + image.size[1]) // 300, 5)
 
         bboxes, classes = yolo.detect_image_4track(image, frame_no)
-        trackers = mot_tracker.update(np.array(bboxes))
+        trackers, classes = mot_tracker.update(np.array(bboxes), np.array(classes))
         print(f'Found {len(bboxes)} boxes for frame {frame_no}/{video_total_frame}')
-        for d in trackers:
+        for c, d in enumerate(trackers):
             d = d.astype(np.int32) 
             left, top, right, bottom = int(d[0]), int(d[1]), int(d[2]), int(d[3])
             obj_id = d[4]
             # Tracker(s) is remained when the detection is missing within SORT max_age
             # The no. of detection returned may be less than the no. of trackers
-            class_name = "NIL"
-            if obj_id in object_class_dict:
-                class_name = object_class_dict[obj_id]
-            else:
-                # Match class to bbox by location
-                for c in classes:
-                    if (int(c[0])==left and int(c[1])==top and int(c[2])==right and int(c[3])==bottom):
-                        class_name = c[4]
-            object_class_dict[obj_id] = class_name
+            # if obj_id in object_class_dict:
+            #     class_id = object_class_dict[obj_id]
+            # else:
+            #     # Match class to bbox by location
+            #     for c in classes:
+            #         if (int(c[0])==left and int(c[1])==top and int(c[2])==right and int(c[3])==bottom):
+            #             class_name = c[4]
+            # if not class_name=="NIL":
+            #     object_class_dict[obj_id] = class_name
+            class_id = classes[c]
+            class_name = yolo.class_names[class_id]
             print(f"{class_name} {obj_id} at {left},{top}, {right},{bottom}")
             label = f'{class_name} {obj_id} : {d[4]}'
             draw_bbox(image, label, font, thickness, left, top, right, bottom)
