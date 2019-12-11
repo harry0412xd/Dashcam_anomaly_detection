@@ -240,8 +240,8 @@ def track_video(yolo, video_path, output_path=""):
     curr_fps = 0
     fps = "FPS: ??"
     prev_time = timer()
-    max_age = max(3,video_fps//5) #0.2 sec
-    mot_tracker = Sort(max_age=max_age) 
+    max_age = max(3,video_fps//6) #0.2 sec
+    mot_tracker = Sort(max_age=max_age, min_hits=5) 
     frame_no = 0
     object_class_dict = {}
     while True:
@@ -265,6 +265,7 @@ def track_video(yolo, video_path, output_path=""):
             obj_id = d[4]
             # Tracker(s) is remained when the detection is missing within SORT max_age
             # The no. of detection returned may be less than the no. of trackers
+            class_name = "NIL"
             if obj_id in object_class_dict:
                 class_name = object_class_dict[obj_id]
             else:

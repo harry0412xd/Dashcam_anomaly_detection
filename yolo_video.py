@@ -28,22 +28,18 @@ if __name__ == '__main__':
         '--model_path', type=str,
         help='path to model weight file, default ' + YOLO.get_defaults("model_path")
     )
-
     parser.add_argument(
         '--anchors_path', type=str,
         help='path to anchor definitions, default ' + YOLO.get_defaults("anchors_path")
     )
-
     parser.add_argument(
         '--classes_path', type=str,
         help='path to class definitions, default ' + YOLO.get_defaults("classes_path")
     )
-
     parser.add_argument(
         '--gpu_num', type=int,
         help='Number of GPU to use, default ' + str(YOLO.get_defaults("gpu_num"))
     )
-
     parser.add_argument(
         '--image', default=False, action="store_true",
         help='Image detection mode, will ignore all positional arguments'
@@ -55,12 +51,19 @@ if __name__ == '__main__':
         "--input", nargs='?', type=str,required=False,default='./path2your_video',
         help = "Video input path"
     )
-
     parser.add_argument(
         "--output", nargs='?', type=str, default="",
         help = "[Optional] Video output path"
     )
 
+    parser.add_argument(
+        "--score", nargs='?', type=float, default="",
+        help = ""
+    )
+    parser.add_argument(
+        "--iou", nargs='?', type=float, default="",
+        help = ""
+    )    
     FLAGS = parser.parse_args()
 
     if FLAGS.image:
