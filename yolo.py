@@ -217,31 +217,29 @@ def track_video(yolo, video_path, output_path=""):
         raise IOError("Couldn't open webcam or video")
     video_FourCC = cv2.VideoWriter_fourcc(*'MP4V')
     video_fps = vid.get(cv2.CAP_PROP_FPS)
-    video_size = (int(vid.get(cv2.CAP_PROP_FRAME_WIDTH)),
-                  int(vid.get(cv2.CAP_PROP_FRAME_HEIGHT)))
     video_total_frame = int(vid.get(cv2.CAP_PROP_FRAME_COUNT))
-    
+
+    vid_width = int(vid.get(cv2.CAP_PROP_FRAME_WIDTH))
+    vid_height = int(vid.get(cv2.CAP_PROP_FRAME_HEIGHT))
+    thickness = min((vid_width + vid_height) // 300, 3)
+
     isOutput = True if output_path != "" else False
     if isOutput:
         # print("!!! TYPE:", type(output_path), type(video_FourCC), type(video_fps), type(video_size))
-        print(f"Loaded video: {output_path}, Size = {video_size},"
+        print(f"Loaded video: {output_path}, Size = {vid_width}x{vid_height},"
               f" fps = {video_fps}, total frame = {video_total_frame}")
-        out = cv2.VideoWriter(output_path, video_FourCC, video_fps, video_size)
+        out = cv2.VideoWriter(output_path, video_FourCC, video_fps, (vid_width, vid_height))
 
     max_age = max(3,video_fps//6)
     mot_tracker = Sort(max_age=max_age, min_hits=3) 
     frame_no = 0
-    object_class_dict = {}
+    # object_class_dict = {}
     while True:
         start = timer()
         success, frame = vid.read()
         if not success:
             break
         frame_no += 1
-        if frame_no == 1: #Use first frame to decide these
-            vid_height, vid_width, channels  = frame.shape
-            thickness = min((image.size[0] + image.size[1]) // 300, 3)
-
         bboxes, classes = yolo.detect_image_4track(frame)
         print(f'Found {len(bboxes)} boxes for frame {frame_no}/{video_total_frame}')
         #omit small bboxes since they are not accurate and useful enought for detecting anomaly
