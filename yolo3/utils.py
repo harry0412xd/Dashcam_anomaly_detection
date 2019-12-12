@@ -30,6 +30,28 @@ def letterbox_image(image, size):
     new_image.paste(image, ((w-nw)//2, (h-nh)//2))
     return new_image
 
+#resize to square using opencv which should be faster than PIL
+def letterbox_image_cv(image, desired_size):
+    import cv2
+    old_size = image.shape[:2] # old_size is in (height, width) format
+
+    ratio = desired_size/max(old_size)
+    new_size = tuple([int(x*ratio) for x in old_size])
+
+    # new_size should be in (width, height) format
+    image = cv2.resize(image, (new_size[1], new_size[0]))
+
+    delta_w = desired_size - new_size[1]
+    delta_h = desired_size - new_size[0]
+    top, bottom = delta_h//2, delta_h-(delta_h//2)
+    left, right = delta_w//2, delta_w-(delta_w//2)
+
+    color = [0, 0, 0]
+    return cv2.copyMakeBorder(image, top, bottom, left, right, cv2.BORDER_CONSTANT,
+        value=color)
+    
+
+
 def rand(a=0, b=1):
     return np.random.rand()*(b-a) + a
 

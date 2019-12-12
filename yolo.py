@@ -14,7 +14,7 @@ from keras.layers import Input
 from PIL import Image, ImageFont, ImageDraw
 
 from yolo3.model import yolo_eval, yolo_body, tiny_yolo_body
-from yolo3.utils import letterbox_image
+from yolo3.utils import letterbox_image, letterbox_image_cv
 from keras.utils import multi_gpu_model
 
 from sort import *
@@ -173,18 +173,18 @@ class YOLO(object):
         print(end - start)
         return image
 
-    def detect_image_4track(self, image, frame_no):
-        # start = timer()
-        if self.model_image_size != (None, None):
-            assert self.model_image_size[0] % 32 == 0, 'Multiples of 32 required'
-            assert self.model_image_size[1] % 32 == 0, 'Multiples of 32 required'
-            boxed_image = letterbox_image(image, tuple(reversed(self.model_image_size)))
-        else:
-            new_image_size = (image.width - (image.width % 32),
-                              image.height - (image.height % 32))
-            boxed_image = letterbox_image(image, new_image_size)
-        image_data = np.array(boxed_image, dtype='float32')
-
+    def detect_image_4track(self, image):
+        # if self.model_image_size != (None, None):
+        #     assert self.model_image_size[0] % 32 == 0, 'Multiples of 32 required'
+        #     assert self.model_image_size[1] % 32 == 0, 'Multiples of 32 required'
+        #     boxed_image = letterbox_image(image, tuple(reversed(self.model_image_size)))
+        # else:
+        #     new_image_size = (image.width - (image.width % 32),
+        #                       image.height - (image.height % 32))
+        #     boxed_image = letterbox_image(image, new_image_size)
+        # image_data = np.array(boxed_image, dtype='float32')
+        boxed_image = letterbox_image_cv(image, self.model_image_size[0])
+        image_data = np.float32(boxed_image)
         # print(image_data.shape)
         image_data /= 255.
         image_data = np.expand_dims(image_data, 0)  # Add batch dimension.
@@ -193,12 +193,11 @@ class YOLO(object):
             [self.boxes, self.scores, self.classes],
             feed_dict={
                 self.yolo_model.input: image_data,
-                self.input_image_shape: [image.size[1], image.size[0]],
+                # self.input_image_shape: [image.size[1], image.size[0]],
+                self.input_image_shape: [image.shape[0], image.shape[1]],
                 K.learning_phase(): 0
             })
-
-        # print('Found {} boxes for frame {}'.format(len(out_boxes), frame_no))
-       
+      
         result = []
         class_result = []
         for i, c in reversed(list(enumerate(out_classes))):
@@ -209,16 +208,13 @@ class YOLO(object):
             top, left, bottom, right = box
             top = max(0, np.floor(top + 0.5).astype('int32'))
             left = max(0, np.floor(left + 0.5).astype('int32'))
-            bottom = min(image.size[1], np.floor(bottom + 0.5).astype('int32'))
-            right = min(image.size[0], np.floor(right + 0.5).astype('int32'))
-
+            # bottom = min(image.size[1], np.floor(bottom + 0.5).astype('int32'))
+            # right = min(image.size[0], np.floor(right + 0.5).astype('int32'))
+            bottom = min(image.shape[0], np.floor(bottom + 0.5).astype('int32'))
+            right = min(image.shape[1], np.floor(right + 0.5).astype('int32'))
             # result.append([frame_no, -1, left, top, right-left, bottom-top, float(score), -1, -1, -1])
-
-                
             result.append([left, top, right, bottom, float(score)])
             class_result.append(c)
-        # end = timer()
-        # print(end - start)
         return result, class_result
 
     def close_session(self):
@@ -242,36 +238,45 @@ def track_video(yolo, video_path, output_path=""):
         print(f"Loaded video: {output_path}, Size = {video_size},"
               f" fps = {video_fps}, total frame = {video_total_frame}")
         out = cv2.VideoWriter(output_path, video_FourCC, video_fps, video_size)
-    accum_time = 0
-    curr_fps = 0
-    fps = "FPS: ??"
-    prev_time = timer()
+
     max_age = max(3,video_fps//6) #0.2 sec
     mot_tracker = Sort(max_age=max_age, min_hits=3) 
     frame_no = 0
     object_class_dict = {}
     while True:
+        start = timer()
         return_value, frame = vid.read()
         if not return_value:
             break
         frame_no += 1
-        image = Image.fromarray(frame)
+        # image = Image.fromarray(frame)
         if frame_no == 1: #Use first frame to decide these
+            # vid_width, vid_height = image.size
+            vid_height, vid_width, channels  = frame.shape
             font = ImageFont.truetype(font='font/FiraMono-Medium.otf'
-                    , size=np.floor(2e-2 * image.size[1] + 0.5).astype('int32'))
-            vid_width, vid_height = image.size
+                    , size=np.floor(2e-2 * vid_height + 0.5).astype('int32'))
             # thickness = min((image.size[0] + image.size[1]) // 300, 5)
             thickness = 5
 
-        bboxes, classes = yolo.detect_image_4track(image, frame_no)
+        bboxes, classes = yolo.detect_image_4track(frame)
+        print(f'Found {len(bboxes)} boxes for frame {frame_no}/{video_total_frame}')
         omit_small_box = True
         if omit_small_box:
-            for i, bbox in enumerate(bboxes):
+            omitted_count = 0
+            i = 0
+            while i<len(bboxes):
+                bbox = bboxes[i]
                 width = bbox[2] - bbox[0]
                 height = bbox[3] - bbox[1]
-                if 250*width*height<
+                if width*height<(vid_height//36)**2:
+                    print(f"{classes[i]} {width}x{height}")
+                    del bboxes[i]
+                    del classes[i]
+                    omitted_count +=1
+                else:
+                    i += 1
+            print(f"Omitted {omitted_count} boxes due to small size")
         trackers, tracker_infos = mot_tracker.update(np.array(bboxes), np.array(classes))
-        print(f'Found {len(bboxes)} boxes for frame {frame_no}/{video_total_frame}')
         for c, d in enumerate(trackers):
             d = d.astype(np.int32) 
             left, top, right, bottom = int(d[0]), int(d[1]), int(d[2]), int(d[3])
@@ -283,25 +288,20 @@ def track_video(yolo, video_path, output_path=""):
             # print(f"{class_name} {obj_id} at {left},{top}, {right},{bottom}")
             label = f'{class_name} {obj_id} : {score:.2f}'
             print (f"{label} at {left},{top}, {right},{bottom}")
-            draw_bbox(image, label, font, thickness, left, top, right, bottom)
+            # draw_bbox(image, label, font, thickness, left, top, right, bottom)
+            draw_bbox_cv(frame, label, font, thickness, left, top, right, bottom)
 
-        result = np.asarray(image)
+        # result = np.asarray(image)
+        end = timer()
         if show_fps:
-            curr_time = timer()
-            exec_time = curr_time - prev_time
-            prev_time = curr_time
-            accum_time = accum_time + exec_time
-            curr_fps = curr_fps + 1
-            if accum_time > 1:
-                accum_time = accum_time - 1
-                fps = "FPS: " + str(curr_fps)
-                curr_fps = 0
-            cv2.putText(result, text=fps, org=(3, 15), fontFace=cv2.FONT_HERSHEY_SIMPLEX,
+            fps = str(round(1/(end-start),2))
+            print(f"fps: {fps}")
+            cv2.putText(frame, text=fps, org=(3, 15), fontFace=cv2.FONT_HERSHEY_SIMPLEX,
                         fontScale=0.50, color=(255, 0, 0), thickness=2)
 
 
         if isOutput:
-            out.write(result)
+            out.write(frame)
         # cv2.namedWindow("result", cv2.WINDOW_NORMAL)
         # cv2.imshow("result", result)
         if cv2.waitKey(1) & 0xFF == ord('q'):
@@ -327,6 +327,13 @@ def draw_bbox(image, label, font, thickness, left, top, right, bottom):
     # cv2.rectangle(image, (left, top), (right, bottom), (0,255,0), 2)
     # cv2.rectangle(image, (left, top), (right, bottom), (0,255,0), 2)
     # cv2.putText(im, str(d[4]), (top+10, bottom), cv2.FONT_HERSHEY_SIMPLEX, 0.8, (0,255,0), 2)    
+
+
+def draw_bbox_cv(image, label, font, thickness, left, top, right, bottom):
+    import cv2
+    cv2.rectangle(image, (left, top), (right, bottom), (0,255,0), 2)
+    cv2.rectangle(image, (left, top), (right, bottom), (0,255,0), 2)
+    cv2.putText(image, label, (top+10, bottom), cv2.FONT_HERSHEY_SIMPLEX, 0.8, (0,255,0), 2)
 
 
 def detect_video(yolo, video_path, output_path=""):
