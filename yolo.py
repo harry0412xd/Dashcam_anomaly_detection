@@ -7,11 +7,13 @@ import colorsys
 import os
 from timeit import default_timer as timer
 
+from PIL import Image, ImageFont, ImageDraw
+import cv2
 import numpy as np
+
 from keras import backend as K
 from keras.models import load_model
 from keras.layers import Input
-from PIL import Image, ImageFont, ImageDraw
 
 from yolo3.model import yolo_eval, yolo_body, tiny_yolo_body
 from yolo3.utils import letterbox_image, letterbox_image_cv
@@ -25,8 +27,8 @@ class YOLO(object):
         "model_path": 'model_data/yolo_weights.h5',
         "anchors_path": 'model_data/yolo_anchors.txt',
         "classes_path": 'model_data/coco_classes.txt',
-        "score": 0.35, #0.3
-        "iou": 0.25, #0.45
+        "score": 0.3,
+        "iou": 0.45,
         "model_image_size": (416, 416),
         "gpu_num": 1,
     }
@@ -174,18 +176,8 @@ class YOLO(object):
         return image
 
     def detect_image_4track(self, image):
-        # if self.model_image_size != (None, None):
-        #     assert self.model_image_size[0] % 32 == 0, 'Multiples of 32 required'
-        #     assert self.model_image_size[1] % 32 == 0, 'Multiples of 32 required'
-        #     boxed_image = letterbox_image(image, tuple(reversed(self.model_image_size)))
-        # else:
-        #     new_image_size = (image.width - (image.width % 32),
-        #                       image.height - (image.height % 32))
-        #     boxed_image = letterbox_image(image, new_image_size)
-        # image_data = np.array(boxed_image, dtype='float32')
         boxed_image = letterbox_image_cv(image, self.model_image_size[0])
         image_data = np.float32(boxed_image)
-        # print(image_data.shape)
         image_data /= 255.
         image_data = np.expand_dims(image_data, 0)  # Add batch dimension.
 
@@ -193,7 +185,6 @@ class YOLO(object):
             [self.boxes, self.scores, self.classes],
             feed_dict={
                 self.yolo_model.input: image_data,
-                # self.input_image_shape: [image.size[1], image.size[0]],
                 self.input_image_shape: [image.shape[0], image.shape[1]],
                 K.learning_phase(): 0
             })
@@ -208,11 +199,9 @@ class YOLO(object):
             top, left, bottom, right = box
             top = max(0, np.floor(top + 0.5).astype('int32'))
             left = max(0, np.floor(left + 0.5).astype('int32'))
-            # bottom = min(image.size[1], np.floor(bottom + 0.5).astype('int32'))
-            # right = min(image.size[0], np.floor(right + 0.5).astype('int32'))
             bottom = min(image.shape[0], np.floor(bottom + 0.5).astype('int32'))
             right = min(image.shape[1], np.floor(right + 0.5).astype('int32'))
-            # result.append([frame_no, -1, left, top, right-left, bottom-top, float(score), -1, -1, -1])
+          
             result.append([left, top, right, bottom, float(score)])
             class_result.append(c)
         return result, class_result
@@ -239,27 +228,23 @@ def track_video(yolo, video_path, output_path=""):
               f" fps = {video_fps}, total frame = {video_total_frame}")
         out = cv2.VideoWriter(output_path, video_FourCC, video_fps, video_size)
 
-    max_age = max(3,video_fps//6) #0.2 sec
+    max_age = max(3,video_fps//6)
     mot_tracker = Sort(max_age=max_age, min_hits=3) 
     frame_no = 0
     object_class_dict = {}
     while True:
         start = timer()
-        return_value, frame = vid.read()
-        if not return_value:
+        success, frame = vid.read()
+        if not success:
             break
         frame_no += 1
-        # image = Image.fromarray(frame)
         if frame_no == 1: #Use first frame to decide these
-            # vid_width, vid_height = image.size
             vid_height, vid_width, channels  = frame.shape
-            font = ImageFont.truetype(font='font/FiraMono-Medium.otf'
-                    , size=np.floor(2e-2 * vid_height + 0.5).astype('int32'))
-            # thickness = min((image.size[0] + image.size[1]) // 300, 5)
-            thickness = 5
+            thickness = min((image.size[0] + image.size[1]) // 300, 3)
 
         bboxes, classes = yolo.detect_image_4track(frame)
         print(f'Found {len(bboxes)} boxes for frame {frame_no}/{video_total_frame}')
+        #omit small bboxes since they are not accurate and useful enought for detecting anomaly
         omit_small_box = True
         if omit_small_box:
             omitted_count = 0
@@ -269,13 +254,14 @@ def track_video(yolo, video_path, output_path=""):
                 width = bbox[2] - bbox[0]
                 height = bbox[3] - bbox[1]
                 if width*height<(vid_height//36)**2:
-                    print(f"{classes[i]} {width}x{height}")
+                    # print(f"{classes[i]} {width}x{height}")
                     del bboxes[i]
                     del classes[i]
                     omitted_count +=1
                 else:
                     i += 1
             print(f"Omitted {omitted_count} boxes due to small size")
+
         trackers, tracker_infos = mot_tracker.update(np.array(bboxes), np.array(classes))
         for c, d in enumerate(trackers):
             d = d.astype(np.int32) 
@@ -285,27 +271,23 @@ def track_video(yolo, video_path, output_path=""):
             class_id = tracker_infos[c][0]
             class_name = yolo.class_names[class_id]
             score = tracker_infos[c][1]
-            # print(f"{class_name} {obj_id} at {left},{top}, {right},{bottom}")
             label = f'{class_name} {obj_id} : {score:.2f}'
             print (f"{label} at {left},{top}, {right},{bottom}")
-            # draw_bbox(image, label, font, thickness, left, top, right, bottom)
-            draw_bbox_cv(frame, label, font, thickness, left, top, right, bottom)
+            draw_bbox_cv(frame, label, left, top, right, bottom)
 
-        # result = np.asarray(image)
         end = timer()
         if show_fps:
             fps = str(round(1/(end-start),2))
-            print(f"fps: {fps}")
+            # print(f"fps: {fps}")
             cv2.putText(frame, text=fps, org=(3, 15), fontFace=cv2.FONT_HERSHEY_SIMPLEX,
-                        fontScale=0.50, color=(255, 0, 0), thickness=2)
-
+                        fontScale=1.0, color=(255, 0, 0), thickness=2)
 
         if isOutput:
             out.write(frame)
         # cv2.namedWindow("result", cv2.WINDOW_NORMAL)
         # cv2.imshow("result", result)
-        if cv2.waitKey(1) & 0xFF == ord('q'):
-            break
+        # if cv2.waitKey(1) & 0xFF == ord('q'):
+        #     break
     yolo.close_session()
 
 def draw_bbox(image, label, font, thickness, left, top, right, bottom):
@@ -324,16 +306,12 @@ def draw_bbox(image, label, font, thickness, left, top, right, bottom):
             fill="green")
         draw.text(text_origin, label, fill=(0, 0, 0), font=font)
     del draw
-    # cv2.rectangle(image, (left, top), (right, bottom), (0,255,0), 2)
-    # cv2.rectangle(image, (left, top), (right, bottom), (0,255,0), 2)
-    # cv2.putText(im, str(d[4]), (top+10, bottom), cv2.FONT_HERSHEY_SIMPLEX, 0.8, (0,255,0), 2)    
 
 
-def draw_bbox_cv(image, label, font, thickness, left, top, right, bottom):
-    import cv2
+def draw_bbox_cv(image, label, left, top, right, bottom):
     cv2.rectangle(image, (left, top), (right, bottom), (0,255,0), 2)
     cv2.rectangle(image, (left, top), (right, bottom), (0,255,0), 2)
-    cv2.putText(image, label, (top+10, bottom), cv2.FONT_HERSHEY_SIMPLEX, 0.8, (0,255,0), 2)
+    cv2.putText(image, label, (left, top), cv2.FONT_HERSHEY_SIMPLEX, 0.8, (0,255,0), 2)
 
 
 def detect_video(yolo, video_path, output_path=""):
