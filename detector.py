@@ -36,8 +36,8 @@ def track_video(yolo, video_path, output_path=""):
         out = cv2.VideoWriter(output_path, video_FourCC, video_fps, (vid_width, vid_height))
 
     # init SORT tracker
-    max_age = max(3,video_fps//6)
-    mot_tracker = Sort(max_age=max_age, min_hits=3)
+    max_age = max(3,video_fps//2)
+    mot_tracker = Sort(max_age=max_age, min_hits=1)
 
     frame_no = 0
     # object_class_dict = {}
@@ -104,15 +104,15 @@ if __name__ == '__main__':
     Command line options
     '''
     parser.add_argument(
-        '--model_path', type=str, default="bdd/bdd.h5",
+        '--model_path', type=str, default="model_data/bdd/bdd.h5",
         help='path to model weight file, default ' + YOLO.get_defaults("model_path")
     )
     parser.add_argument(
-        '--anchors_path', type=str,default="bdd/anchors.txt",
+        '--anchors_path', type=str,default="model_data/bdd/anchors.txt",
         help='path to anchor definitions, default ' + YOLO.get_defaults("anchors_path")
     )
     parser.add_argument(
-        '--classes_path', type=str,default="bdd/classes.txt",
+        '--classes_path', type=str,default="model_data/bdd/classes.txt",
         help='path to class definitions, default ' + YOLO.get_defaults("classes_path")
     )
     parser.add_argument(
