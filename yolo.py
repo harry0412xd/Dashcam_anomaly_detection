@@ -108,74 +108,75 @@ class YOLO(object):
                                            score_threshold=self.score, iou_threshold=self.iou)
         return boxes, scores, classes
 
+    # def detect_image(self, image):
+    #     start = timer()
+
+    #     if self.model_image_size != (None, None):
+    #         assert self.model_image_size[0] % 32 == 0, 'Multiples of 32 required'
+    #         assert self.model_image_size[1] % 32 == 0, 'Multiples of 32 required'
+    #         boxed_image = letterbox_image(image, tuple(reversed(self.model_image_size)))
+    #     else:
+    #         new_image_size = (image.width - (image.width % 32),
+    #                           image.height - (image.height % 32))
+    #         boxed_image = letterbox_image(image, new_image_size)
+    #     image_data = np.array(boxed_image, dtype='float32')
+
+    #     print(image_data.shape)
+    #     image_data /= 255.
+    #     image_data = np.expand_dims(image_data, 0)  # Add batch dimension.
+
+    #     out_boxes, out_scores, out_classes = self.sess.run(
+    #         [self.boxes, self.scores, self.classes],
+    #         feed_dict={
+    #             self.yolo_model.input: image_data,
+    #             self.input_image_shape: [image.size[1], image.size[0]],
+    #             K.learning_phase(): 0
+    #         })
+
+    #     print('Found {} boxes for {}'.format(len(out_boxes), 'img'))
+
+    #     font = ImageFont.truetype(font='font/FiraMono-Medium.otf',
+    #                               size=np.floor(3e-2 * image.size[1] + 0.5).astype('int32'))
+    #     thickness = (image.size[0] + image.size[1]) // 300
+
+    #     for i, c in reversed(list(enumerate(out_classes))):
+    #         predicted_class = self.class_names[c]
+    #         box = out_boxes[i]
+    #         score = out_scores[i]
+
+    #         label = '{} {:.2f}'.format(predicted_class, score)
+    #         draw = ImageDraw.Draw(image)
+    #         label_size = draw.textsize(label, font)
+
+    #         top, left, bottom, right = box
+    #         top = max(0, np.floor(top + 0.5).astype('int32'))
+    #         left = max(0, np.floor(left + 0.5).astype('int32'))
+    #         bottom = min(image.size[1], np.floor(bottom + 0.5).astype('int32'))
+    #         right = min(image.size[0], np.floor(right + 0.5).astype('int32'))
+    #         print(label, (left, top), (right, bottom))
+
+    #         if top - label_size[1] >= 0:
+    #             text_origin = np.array([left, top - label_size[1]])
+    #         else:
+    #             text_origin = np.array([left, top + 1])
+
+    #         # My kingdom for a good redistributable image drawing library.
+    #         for i in range(thickness):
+    #             draw.rectangle(
+    #                 [left + i, top + i, right - i, bottom - i],
+    #                 outline=self.colors[c])
+    #         draw.rectangle(
+    #             [tuple(text_origin), tuple(text_origin + label_size)],
+    #             fill=self.colors[c])
+    #         draw.text(text_origin, label, fill=(0, 0, 0), font=font)
+    #         del draw
+
+    #     end = timer()
+    #     print(end - start)
+    #     return image
+
+# return bounding box instead of image with bboxes drawn
     def detect_image(self, image):
-        start = timer()
-
-        if self.model_image_size != (None, None):
-            assert self.model_image_size[0] % 32 == 0, 'Multiples of 32 required'
-            assert self.model_image_size[1] % 32 == 0, 'Multiples of 32 required'
-            boxed_image = letterbox_image(image, tuple(reversed(self.model_image_size)))
-        else:
-            new_image_size = (image.width - (image.width % 32),
-                              image.height - (image.height % 32))
-            boxed_image = letterbox_image(image, new_image_size)
-        image_data = np.array(boxed_image, dtype='float32')
-
-        print(image_data.shape)
-        image_data /= 255.
-        image_data = np.expand_dims(image_data, 0)  # Add batch dimension.
-
-        out_boxes, out_scores, out_classes = self.sess.run(
-            [self.boxes, self.scores, self.classes],
-            feed_dict={
-                self.yolo_model.input: image_data,
-                self.input_image_shape: [image.size[1], image.size[0]],
-                K.learning_phase(): 0
-            })
-
-        print('Found {} boxes for {}'.format(len(out_boxes), 'img'))
-
-        font = ImageFont.truetype(font='font/FiraMono-Medium.otf',
-                                  size=np.floor(3e-2 * image.size[1] + 0.5).astype('int32'))
-        thickness = (image.size[0] + image.size[1]) // 300
-
-        for i, c in reversed(list(enumerate(out_classes))):
-            predicted_class = self.class_names[c]
-            box = out_boxes[i]
-            score = out_scores[i]
-
-            label = '{} {:.2f}'.format(predicted_class, score)
-            draw = ImageDraw.Draw(image)
-            label_size = draw.textsize(label, font)
-
-            top, left, bottom, right = box
-            top = max(0, np.floor(top + 0.5).astype('int32'))
-            left = max(0, np.floor(left + 0.5).astype('int32'))
-            bottom = min(image.size[1], np.floor(bottom + 0.5).astype('int32'))
-            right = min(image.size[0], np.floor(right + 0.5).astype('int32'))
-            print(label, (left, top), (right, bottom))
-
-            if top - label_size[1] >= 0:
-                text_origin = np.array([left, top - label_size[1]])
-            else:
-                text_origin = np.array([left, top + 1])
-
-            # My kingdom for a good redistributable image drawing library.
-            for i in range(thickness):
-                draw.rectangle(
-                    [left + i, top + i, right - i, bottom - i],
-                    outline=self.colors[c])
-            draw.rectangle(
-                [tuple(text_origin), tuple(text_origin + label_size)],
-                fill=self.colors[c])
-            draw.text(text_origin, label, fill=(0, 0, 0), font=font)
-            del draw
-
-        end = timer()
-        print(end - start)
-        return image
-
-    def detect_image_4track(self, image):
         boxed_image = letterbox_image_cv(image, self.model_image_size[0])
         image_data = np.float32(boxed_image)
         image_data /= 255.
@@ -209,107 +210,107 @@ class YOLO(object):
     def close_session(self):
         self.sess.close()
 
-def track_video(yolo, video_path, output_path=""):
-    show_fps = True
-    import cv2
-    vid = cv2.VideoCapture(video_path)
-    if not vid.isOpened():
-        raise IOError("Couldn't open webcam or video")
-    video_FourCC = cv2.VideoWriter_fourcc(*'MP4V')
-    video_fps = vid.get(cv2.CAP_PROP_FPS)
-    video_total_frame = int(vid.get(cv2.CAP_PROP_FRAME_COUNT))
+# def track_video(yolo, video_path, output_path=""):
+#     show_fps = True
+#     import cv2
+#     vid = cv2.VideoCapture(video_path)
+#     if not vid.isOpened():
+#         raise IOError("Couldn't open webcam or video")
+#     video_FourCC = cv2.VideoWriter_fourcc(*'MP4V')
+#     video_fps = vid.get(cv2.CAP_PROP_FPS)
+#     video_total_frame = int(vid.get(cv2.CAP_PROP_FRAME_COUNT))
 
-    vid_width = int(vid.get(cv2.CAP_PROP_FRAME_WIDTH))
-    vid_height = int(vid.get(cv2.CAP_PROP_FRAME_HEIGHT))
-    thickness = min((vid_width + vid_height) // 300, 3)
+#     vid_width = int(vid.get(cv2.CAP_PROP_FRAME_WIDTH))
+#     vid_height = int(vid.get(cv2.CAP_PROP_FRAME_HEIGHT))
+#     thickness = min((vid_width + vid_height) // 300, 3)
 
-    isOutput = True if output_path != "" else False
-    if isOutput:
-        # print("!!! TYPE:", type(output_path), type(video_FourCC), type(video_fps), type(video_size))
-        print(f"Loaded video: {output_path}, Size = {vid_width}x{vid_height},"
-              f" fps = {video_fps}, total frame = {video_total_frame}")
-        out = cv2.VideoWriter(output_path, video_FourCC, video_fps, (vid_width, vid_height))
+#     isOutput = True if output_path != "" else False
+#     if isOutput:
+#         # print("!!! TYPE:", type(output_path), type(video_FourCC), type(video_fps), type(video_size))
+#         print(f"Loaded video: {output_path}, Size = {vid_width}x{vid_height},"
+#               f" fps = {video_fps}, total frame = {video_total_frame}")
+#         out = cv2.VideoWriter(output_path, video_FourCC, video_fps, (vid_width, vid_height))
 
-    max_age = max(3,video_fps//6)
-    mot_tracker = Sort(max_age=max_age, min_hits=3) 
-    frame_no = 0
-    # object_class_dict = {}
-    while True:
-        start = timer()
-        success, frame = vid.read()
-        if not success:
-            break
-        frame_no += 1
-        bboxes, classes = yolo.detect_image_4track(frame)
-        print(f'Found {len(bboxes)} boxes for frame {frame_no}/{video_total_frame}')
-        #omit small bboxes since they are not accurate and useful enought for detecting anomaly
-        omit_small_box = True
-        if omit_small_box:
-            omitted_count = 0
-            i = 0
-            while i<len(bboxes):
-                bbox = bboxes[i]
-                width = bbox[2] - bbox[0]
-                height = bbox[3] - bbox[1]
-                if width*height<(vid_height//36)**2:
-                    # print(f"{classes[i]} {width}x{height}")
-                    del bboxes[i]
-                    del classes[i]
-                    omitted_count +=1
-                else:
-                    i += 1
-            print(f"Omitted {omitted_count} boxes due to small size")
+#     max_age = max(3,video_fps//6)
+#     mot_tracker = Sort(max_age=max_age, min_hits=3) 
+#     frame_no = 0
+#     # object_class_dict = {}
+#     while True:
+#         start = timer()
+#         success, frame = vid.read()
+#         if not success:
+#             break
+#         frame_no += 1
+#         bboxes, classes = yolo.detect_image_4track(frame)
+#         print(f'Found {len(bboxes)} boxes for frame {frame_no}/{video_total_frame}')
+#         #omit small bboxes since they are not accurate and useful enought for detecting anomaly
+#         omit_small_box = True
+#         if omit_small_box:
+#             omitted_count = 0
+#             i = 0
+#             while i<len(bboxes):
+#                 bbox = bboxes[i]
+#                 width = bbox[2] - bbox[0]
+#                 height = bbox[3] - bbox[1]
+#                 if width*height<(vid_height//36)**2:
+#                     # print(f"{classes[i]} {width}x{height}")
+#                     del bboxes[i]
+#                     del classes[i]
+#                     omitted_count +=1
+#                 else:
+#                     i += 1
+#             print(f"Omitted {omitted_count} boxes due to small size")
 
-        trackers, tracker_infos = mot_tracker.update(np.array(bboxes), np.array(classes))
-        for c, d in enumerate(trackers):
-            d = d.astype(np.int32) 
-            left, top, right, bottom = int(d[0]), int(d[1]), int(d[2]), int(d[3])
-            obj_id = d[4]
+#         trackers, tracker_infos = mot_tracker.update(np.array(bboxes), np.array(classes))
+#         for c, d in enumerate(trackers):
+#             d = d.astype(np.int32) 
+#             left, top, right, bottom = int(d[0]), int(d[1]), int(d[2]), int(d[3])
+#             obj_id = d[4]
 
-            class_id = tracker_infos[c][0]
-            class_name = yolo.class_names[class_id]
-            score = tracker_infos[c][1]
-            label = f'{class_name} {obj_id} : {score:.2f}'
-            print (f"{label} at {left},{top}, {right},{bottom}")
-            draw_bbox_cv(frame, label, left, top, right, bottom)
+#             class_id = tracker_infos[c][0]
+#             class_name = yolo.class_names[class_id]
+#             score = tracker_infos[c][1]
+#             label = f'{class_name} {obj_id} : {score:.2f}'
+#             print (f"{label} at {left},{top}, {right},{bottom}")
+#             draw_bbox_cv(frame, label, left, top, right, bottom)
 
-        end = timer()
-        if show_fps:
-            fps = str(round(1/(end-start),2))
-            # print(f"fps: {fps}")
-            cv2.putText(frame, text=fps, org=(3, 15), fontFace=cv2.FONT_HERSHEY_SIMPLEX,
-                        fontScale=1.0, color=(255, 0, 0), thickness=2)
+#         end = timer()
+#         if show_fps:
+#             fps = str(round(1/(end-start),2))
+#             # print(f"fps: {fps}")
+#             cv2.putText(frame, text=fps, org=(3, 15), fontFace=cv2.FONT_HERSHEY_SIMPLEX,
+#                         fontScale=1.0, color=(255, 0, 0), thickness=2)
 
-        if isOutput:
-            out.write(frame)
-        # cv2.namedWindow("result", cv2.WINDOW_NORMAL)
-        # cv2.imshow("result", result)
-        # if cv2.waitKey(1) & 0xFF == ord('q'):
-        #     break
-    yolo.close_session()
+#         if isOutput:
+#             out.write(frame)
+#         # cv2.namedWindow("result", cv2.WINDOW_NORMAL)
+#         # cv2.imshow("result", result)
+#         # if cv2.waitKey(1) & 0xFF == ord('q'):
+#         #     break
+#     yolo.close_session()
 
-def draw_bbox(image, label, font, thickness, left, top, right, bottom):
-    draw = ImageDraw.Draw(image)
-    label_size = draw.textsize(label, font)
-    if top - label_size[1] >= 0:
-        text_origin = np.array([left, top - label_size[1]])
-    else:
-        text_origin = np.array([left, top + 1])
-    for i in range(thickness):
-        draw.rectangle(
-            [left + i, top + i, right - i, bottom - i],
-            outline="green")
-        draw.rectangle(
-            [tuple(text_origin), tuple(text_origin + label_size)],
-            fill="green")
-        draw.text(text_origin, label, fill=(0, 0, 0), font=font)
-    del draw
+# def draw_bbox(image, label, font, thickness, left, top, right, bottom):
+#     draw = ImageDraw.Draw(image)
+#     label_size = draw.textsize(label, font)
+#     if top - label_size[1] >= 0:
+#         text_origin = np.array([left, top - label_size[1]])
+#     else:
+#         text_origin = np.array([left, top + 1])
+#     for i in range(thickness):
+#         draw.rectangle(
+#             [left + i, top + i, right - i, bottom - i],
+#             outline="green")
+#         draw.rectangle(
+#             [tuple(text_origin), tuple(text_origin + label_size)],
+#             fill="green")
+#         draw.text(text_origin, label, fill=(0, 0, 0), font=font)
+#     del draw
 
 
-def draw_bbox_cv(image, label, left, top, right, bottom):
-    cv2.rectangle(image, (left, top), (right, bottom), (0,255,0), 2)
-    cv2.rectangle(image, (left, top), (right, bottom), (0,255,0), 2)
-    cv2.putText(image, label, (left, top), cv2.FONT_HERSHEY_SIMPLEX, 0.8, (0,255,0), 2)
+# def draw_bbox_cv(image, label, left, top, right, bottom):
+#     cv2.rectangle(image, (left, top), (right, bottom), (0,255,0), 2)
+#     cv2.rectangle(image, (left, top), (right, bottom), (0,255,0), 2)
+#     cv2.putText(image, label, (left, top), cv2.FONT_HERSHEY_SIMPLEX, 0.8, (0,255,0), 2)
 
 
 def detect_video(yolo, video_path, output_path=""):
