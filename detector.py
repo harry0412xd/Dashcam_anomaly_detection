@@ -8,12 +8,66 @@ import numpy as np
 from yolo import YOLO
 from sort import *
 
+#Global Variable
+#Video properties : 
+vid_width = 0
+vid_height = 0
+
 
 # draw bounding box on image given label and coordinate
-def draw_bbox(image, label, left, top, right, bottom):
-    cv2.rectangle(image, (left, top), (right, bottom), (0,255,0), 2)
-    cv2.rectangle(image, (left, top), (right, bottom), (0,255,0), 2)
-    cv2.putText(image, label, (left, top), cv2.FONT_HERSHEY_SIMPLEX, 0.8, (0,255,0), 2)
+def draw_bbox(image, ano_dict, left, top, right, bottom):
+    label = ano_dict["label"]
+    # (B,G,R)
+    box_color = (0,255,0) # Use greem as normal 
+
+    ano_label = ""
+    if ("close_distance" in ano_dict) and ano_dict["close_distance"]:
+        box_color = (0,0,255)
+        ano_label = "Close distance"
+    
+    cv2.rectangle(image, (left, top), (right, bottom), box_color, 2)
+    cv2.putText(image, label, (left, top-5), cv2.FONT_HERSHEY_SIMPLEX, 1.0, (0,255,0), 3)
+    if not ano_label=="":
+        cv2.putText(image, ano_label, ((right+left)//2, top-5), cv2.FONT_HERSHEY_SIMPLEX, 1.0, (0,0,255), 3)
+
+#omit small bboxes since they are not accurate and useful enought for detecting anomaly
+def omit_small_bboxes(bboxes,classes):
+    global vid_height
+    area_threshold = (vid_height//36)**2
+
+    omitted_count = 0
+    i = 0
+    while i<len(bboxes):
+        bbox = bboxes[i]
+        width = bbox[2] - bbox[0]
+        height = bbox[3] - bbox[1]
+        if width*height<area_threshold:
+            # print(f"{classes[i]} {width}x{height}")
+            del bboxes[i]
+            del classes[i]
+            omitted_count +=1
+        else:
+            i += 1
+    print(f"Omitted {omitted_count} boxes due to small size")
+
+def detect_close_distance(left, top, right, bottom):
+    global vid_height, vid_width
+    # (1) the bottom of bbox lies in the bottom half of the frame
+    # (2) the width of bbox is greater than certain ratio to the frame width
+
+    # If the center of bbox is closer to the two side, 
+    # the width thershold shouldbe more forgiving
+    center = (right-left)//2
+    point_list = [0, vid_width//2, vid_width]
+    closest_point = min(point_list, key=lambda x:abs(x-center))
+    if closest_point == vid_width//2 :
+        ratio_divisor = 3.5
+    else : 
+        ratio_divisor = 2.5
+
+    if bottom>(vid_height//2) and (right-left)>(vid_width//ratio_divisor):
+        return True
+    return False
 
 def track_video(yolo, video_path, output_path=""):
     show_fps = True
@@ -24,6 +78,7 @@ def track_video(yolo, video_path, output_path=""):
     video_FourCC = cv2.VideoWriter_fourcc(*'MP4V')
     video_fps = vid.get(cv2.CAP_PROP_FPS)
     video_total_frame = int(vid.get(cv2.CAP_PROP_FRAME_COUNT))
+    global vid_width, vid_height
     vid_width = int(vid.get(cv2.CAP_PROP_FRAME_WIDTH))
     vid_height = int(vid.get(cv2.CAP_PROP_FRAME_HEIGHT))
     thickness = min((vid_width + vid_height) // 300, 3)
@@ -49,24 +104,7 @@ def track_video(yolo, video_path, output_path=""):
         frame_no += 1
         bboxes, classes = yolo.detect_image(frame)
         print(f'Found {len(bboxes)} boxes for frame {frame_no}/{video_total_frame}')
-        
-        #omit small bboxes since they are not accurate and useful enought for detecting anomaly
-        omit_small_box = True
-        if omit_small_box:
-            omitted_count = 0
-            i = 0
-            while i<len(bboxes):
-                bbox = bboxes[i]
-                width = bbox[2] - bbox[0]
-                height = bbox[3] - bbox[1]
-                if width*height<(vid_height//36)**2:
-                    # print(f"{classes[i]} {width}x{height}")
-                    del bboxes[i]
-                    del classes[i]
-                    omitted_count +=1
-                else:
-                    i += 1
-            print(f"Omitted {omitted_count} boxes due to small size")
+        omit_small_bboxes(bboxes, classes)
 
         trackers, tracker_infos = mot_tracker.update(np.array(bboxes), np.array(classes))
         for c, d in enumerate(trackers):
@@ -79,7 +117,15 @@ def track_video(yolo, video_path, output_path=""):
             score = tracker_infos[c][1]
             label = f'{class_name} {obj_id} : {score:.2f}'
             print (f"{label} at {left},{top}, {right},{bottom}")
-            draw_bbox(frame, label, left, top, right, bottom)
+
+            ano_dict = {"label": label}
+            # Anomaly binary classifiers :
+            if class_name=="car" or class_name=="bus" or class_name=="truck":
+                is_close = detect_close_distance(left, top, right, bottom)
+                ano_dict['close_distance'] = is_close
+                if is_close :
+                    print (f"Object {obj_id} is too close ")
+            draw_bbox(frame, ano_dict, left, top, right, bottom)
 
         end = timer()
         if show_fps:
