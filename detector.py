@@ -1,5 +1,6 @@
 import sys
 import argparse
+import math
 from timeit import default_timer as timer
 
 import cv2
@@ -7,6 +8,7 @@ import numpy as np
 
 from yolo import YOLO
 from sort import *
+from lane_util2 import pipeline
 
 #Global Variable
 #Video properties : 
@@ -50,22 +52,39 @@ def omit_small_bboxes(bboxes,classes):
             i += 1
     print(f"Omitted {omitted_count} boxes due to small size")
 
+# def detect_close_distance(left, top, right, bottom):
+#     global vid_height, vid_width
+#     # (1) the bottom of bbox lies in the bottom half of the frame
+#     # (2) the width of bbox is greater than certain ratio to the frame width
+
+#     # If the center of bbox is closer to the two side, 
+#     # the width thershold shouldbe more forgiving
+#     center = (right-left)//2
+#     point_list = [0, vid_width//2, vid_width]
+#     closest_point = min(point_list, key=lambda x:abs(x-center))
+#     if closest_point == vid_width//2 :
+#         ratio_divisor = 3.5
+#     else : 
+#         ratio_divisor = 2.5
+
+#     if bottom>(vid_height//2) and (right-left)>(vid_width//ratio_divisor):
+#         return True
+#     return False
+
+
+def euclidean_distance(x1,x2,y1,y2):
+    return math.sqrt( (x2-x1)**2 + (y2-y1)**2)
+
 def detect_close_distance(left, top, right, bottom):
     global vid_height, vid_width
-    # (1) the bottom of bbox lies in the bottom half of the frame
-    # (2) the width of bbox is greater than certain ratio to the frame width
+    box_center = (left+right)//2
 
-    # If the center of bbox is closer to the two side, 
-    # the width thershold shouldbe more forgiving
-    center = (right-left)//2
-    point_list = [0, vid_width//2, vid_width]
-    closest_point = min(point_list, key=lambda x:abs(x-center))
-    if closest_point == vid_width//2 :
-        ratio_divisor = 3.5
-    else : 
-        ratio_divisor = 2.5
-
-    if bottom>(vid_height//2) and (right-left)>(vid_width//ratio_divisor):
+    point_list = [vid_width//3, vid_width//2, vid_width//3*2]
+    closest_point = min(point_list, key=lambda x:abs(x-box_center))
+    # distance between bottom center of bbox and video bottom 
+    dist = euclidean_distance(box_center,closest_point,bottom,vid_height)
+    if dist<(vid_height//3) :
+        print(f"distance = {dist}")
         return True
     return False
 
@@ -106,6 +125,9 @@ def track_video(yolo, video_path, output_path=""):
         print(f'Found {len(bboxes)} boxes for frame {frame_no}/{video_total_frame}')
         omit_small_bboxes(bboxes, classes)
 
+        # lane detection
+        lane_success, out_frame = pipeline(frame)
+
         trackers, tracker_infos = mot_tracker.update(np.array(bboxes), np.array(classes))
         for c, d in enumerate(trackers):
             d = d.astype(np.int32) 
@@ -125,18 +147,20 @@ def track_video(yolo, video_path, output_path=""):
                 ano_dict['close_distance'] = is_close
                 if is_close :
                     print (f"Object {obj_id} is too close ")
-            draw_bbox(frame, ano_dict, left, top, right, bottom)
+            # draw_bbox(frame, ano_dict, left, top, right, bottom)
+            draw_bbox(out_frame, ano_dict, left, top, right, bottom)
 
         end = timer()
         if show_fps:
             #calculate fps by 1sec / time consumed to process this frame
             fps = str(round(1/(end-start),2))
             # print(f"fps: {fps}")
-            cv2.putText(frame, text=fps, org=(3, 15), fontFace=cv2.FONT_HERSHEY_SIMPLEX,
+            cv2.putText(out_frame, text=fps, org=(3, 15), fontFace=cv2.FONT_HERSHEY_SIMPLEX,
                         fontScale=1.0, color=(255, 0, 0), thickness=2)
 
         if isOutput:
-            out.write(frame)
+            # out.write(frame)
+            out.write(out_frame)
         # cv2.namedWindow("result", cv2.WINDOW_NORMAL)
         # cv2.imshow("result", result)
         # if cv2.waitKey(1) & 0xFF == ord('q'):
