@@ -8,7 +8,7 @@ import numpy as np
 
 from yolo import YOLO
 from sort import *
-import AdvancedLaneFinding as lane_detector
+
 
 #Global Variable
 #Video properties : 
@@ -106,19 +106,33 @@ def get_detection_boxes():
             left, top = int(box_x), int(box_y)
             right, bottom = left+box_width, top+box_height
             result.append([left, top, right, bottom])
-            print(left, top, right, bottom)
+            # print(left, top, right, bottom)
+
+    # add two more on top side
+    top = int(vid_height*0.05)
+    bottom = top+box_height
+    left = int(vid_width*0.3)
+    result.append([left, top, left+box_width, bottom])
+    left = int(vid_width*0.6)
+    result.append([left, top, left+box_width, bottom])
+
     return box_width*box_height, result
             
 
 
-def detect_camera_moving(frame, prev_frame, size, boxes):
-    threshold = 0.01
+def detect_camera_moving(frame, prev_frame, size, boxes, should_return_img=True):
+    threshold = 0.015
 
     gray_frame = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
     gray_prev_frame = cv2.cvtColor(prev_frame, cv2.COLOR_BGR2GRAY)
     diff = cv2.absdiff(gray_frame, gray_prev_frame)
     ret, result = cv2.threshold(diff, 40, 255, cv2.THRESH_BINARY)
-    result_bgr = cv2.cvtColor(result, cv2.COLOR_GRAY2BGR)
+
+    if should_return_img:
+        result_bgr = cv2.cvtColor(result, cv2.COLOR_GRAY2BGR)
+    else: 
+        result_bgr = None
+
     count = 0
     for box in boxes:
         left, top, right, bottom = box
@@ -126,13 +140,18 @@ def detect_camera_moving(frame, prev_frame, size, boxes):
         percentage = cv2.countNonZero(detection_img)/size
         if percentage>threshold:
             count+=1
-        cv2.rectangle(result_bgr, (left, top), (right, bottom), (0,255,0), 2)
-        label = "%.3f" % percentage
-        cv2.putText(result_bgr, label, ((left+right)//2, (top+bottom)//2), cv2.FONT_HERSHEY_SIMPLEX, 1.0, (0,255,0), 2)
+        # testing purpose
+        if should_return_img:
+            cv2.rectangle(result_bgr, (left, top), (right, bottom), (0,255,0), 2)
+            label = "%.3f" % percentage
+            cv2.putText(result_bgr, label, ((left+right)//2, (top+bottom)//2), cv2.FONT_HERSHEY_SIMPLEX, 1.0, (0,255,0), 2)
+    # 8 boxes in total
     is_moving = count>3
     if is_moving:
-        cv2.putText(result_bgr, "Is moving", (1, 1), cv2.FONT_HERSHEY_SIMPLEX, 1.0, (0,255,0), 2)
-    #If 4 boxes are "stationary", determine the camera is not moving
+        if should_return_img:
+            global vid_width, vid_height
+            cv2.putText(result_bgr, "Is moving", (vid_width//2, vid_height-50), cv2.FONT_HERSHEY_SIMPLEX, 1.0, (0,0,255), 2)
+    
     return result_bgr, is_moving
 
 def sec2length(time_sec):
@@ -163,7 +182,9 @@ def track_video(yolo, video_path, output_path=""):
         print(f"Loaded video: {output_path}, Size = {vid_width}x{vid_height},"
               f" fps = {video_fps}, total frame = {video_total_frame}")
         out = cv2.VideoWriter(output_path, video_FourCC, video_fps, (vid_width, vid_height))
-    out_test = cv2.VideoWriter("test.mp4", video_FourCC, video_fps, (vid_width, vid_height))
+
+    test_output_path =  output_path.replace("output", "test")
+    out_test = cv2.VideoWriter(test_output_path, video_FourCC, video_fps, (vid_width, vid_height))
     # init SORT tracker
     max_age = max(3,video_fps//2)
     mot_tracker = Sort(max_age=max_age, min_hits=1)
