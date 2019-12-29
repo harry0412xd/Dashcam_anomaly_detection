@@ -8,7 +8,7 @@ import numpy as np
 
 from yolo import YOLO
 from sort import *
-from lane_util2 import pipeline
+import AdvancedLaneFinding as lane_detector
 
 #Global Variable
 #Video properties : 
@@ -50,7 +50,8 @@ def omit_small_bboxes(bboxes,classes):
             omitted_count +=1
         else:
             i += 1
-    print(f"Omitted {omitted_count} boxes due to small size")
+    # print(f"Omitted {omitted_count} boxes due to small size")
+    return omitted_count
 
 # def detect_close_distance(left, top, right, bottom):
 #     global vid_height, vid_width
@@ -77,16 +78,69 @@ def euclidean_distance(x1,x2,y1,y2):
 
 def detect_close_distance(left, top, right, bottom):
     global vid_height, vid_width
-    box_center = (left+right)//2
+    box_center_x = (left+right)//2
+    
+    if box_center_x<vid_width//3:
+        frame_center_x = vid_width//3
+    elif box_center_x>vid_width//3*2:
+        frame_center_x = vid_width//3*2
+    else:
+        frame_center_x = box_center_x
 
-    point_list = [vid_width//3, vid_width//2, vid_width//3*2]
-    closest_point = min(point_list, key=lambda x:abs(x-box_center))
-    # distance between bottom center of bbox and video bottom 
-    dist = euclidean_distance(box_center,closest_point,bottom,vid_height)
+    dist = euclidean_distance(box_center_x,frame_center_x,bottom,vid_height)
     if dist<(vid_height//3) :
-        print(f"distance = {dist}")
+        # print(f"distance = {dist}")
         return True
     return False
+
+def get_detection_boxes():
+    result = []
+    global vid_height, vid_width
+    boxes_x = [vid_width*0.05, vid_width*0.85]
+    boxes_y = [vid_height*0.05, vid_height*0.3, vid_height*0.55]
+    box_width = int(vid_width*0.1)
+    box_height = int(vid_height*0.15)
+
+    for box_x in boxes_x:
+        for box_y in boxes_y:
+            left, top = int(box_x), int(box_y)
+            right, bottom = left+box_width, top+box_height
+            result.append([left, top, right, bottom])
+            print(left, top, right, bottom)
+    return box_width*box_height, result
+            
+
+
+def detect_camera_moving(frame, prev_frame, size, boxes):
+    threshold = 0.01
+
+    gray_frame = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
+    gray_prev_frame = cv2.cvtColor(prev_frame, cv2.COLOR_BGR2GRAY)
+    diff = cv2.absdiff(gray_frame, gray_prev_frame)
+    ret, result = cv2.threshold(diff, 40, 255, cv2.THRESH_BINARY)
+    result_bgr = cv2.cvtColor(result, cv2.COLOR_GRAY2BGR)
+    count = 0
+    for box in boxes:
+        left, top, right, bottom = box
+        detection_img = result[top:bottom, left:right]
+        percentage = cv2.countNonZero(detection_img)/size
+        if percentage>threshold:
+            count+=1
+        cv2.rectangle(result_bgr, (left, top), (right, bottom), (0,255,0), 2)
+        label = "%.3f" % percentage
+        cv2.putText(result_bgr, label, ((left+right)//2, (top+bottom)//2), cv2.FONT_HERSHEY_SIMPLEX, 1.0, (0,255,0), 2)
+    is_moving = count>3
+    if is_moving:
+        cv2.putText(result_bgr, "Is moving", (1, 1), cv2.FONT_HERSHEY_SIMPLEX, 1.0, (0,255,0), 2)
+    #If 4 boxes are "stationary", determine the camera is not moving
+    return result_bgr, is_moving
+
+def sec2length(time_sec):
+    m = int(time_sec//60)
+    s = int(time_sec%60)
+    if s<10:
+        s= "0"+str(s)
+    return f"{m}:{s}" 
 
 def track_video(yolo, video_path, output_path=""):
     show_fps = True
@@ -97,36 +151,43 @@ def track_video(yolo, video_path, output_path=""):
     video_FourCC = cv2.VideoWriter_fourcc(*'MP4V')
     video_fps = vid.get(cv2.CAP_PROP_FPS)
     video_total_frame = int(vid.get(cv2.CAP_PROP_FRAME_COUNT))
+    video_length = sec2length(video_total_frame//video_fps)
     global vid_width, vid_height
     vid_width = int(vid.get(cv2.CAP_PROP_FRAME_WIDTH))
     vid_height = int(vid.get(cv2.CAP_PROP_FRAME_HEIGHT))
     thickness = min((vid_width + vid_height) // 300, 3)
-
+    detection_size, detection_boxes = get_detection_boxes()
     isOutput = True if output_path != "" else False
     if isOutput:
         # print("!!! TYPE:", type(output_path), type(video_FourCC), type(video_fps), type(video_size))
         print(f"Loaded video: {output_path}, Size = {vid_width}x{vid_height},"
               f" fps = {video_fps}, total frame = {video_total_frame}")
         out = cv2.VideoWriter(output_path, video_FourCC, video_fps, (vid_width, vid_height))
-
+    out_test = cv2.VideoWriter("test.mp4", video_FourCC, video_fps, (vid_width, vid_height))
     # init SORT tracker
     max_age = max(3,video_fps//2)
     mot_tracker = Sort(max_age=max_age, min_hits=1)
 
     frame_no = 0
     # object_class_dict = {}
+    prev_frame = []
     while True:
         start = timer()
         success, frame = vid.read()
         if not success:
             break
         frame_no += 1
+        out_frame = frame.copy()
         bboxes, classes = yolo.detect_image(frame)
-        print(f'Found {len(bboxes)} boxes for frame {frame_no}/{video_total_frame}')
-        omit_small_bboxes(bboxes, classes)
-
-        # lane detection
-        lane_success, out_frame = pipeline(frame)
+        
+        omitted_count = omit_small_bboxes(bboxes, classes)
+        # print(f'Found {len(bboxes)} boxes for frame {frame_no}/{video_total_frame}')
+        print(f"[{sec2length(frame_no//video_fps)}/{video_length}] [{frame_no}/{video_total_frame}]"+
+                f"  Found {len(bboxes)} boxes  | {omitted_count} omitted  ")
+                
+        if not frame_no==1 :
+            test_img, is_moving = detect_camera_moving(frame, prev_frame, detection_size, detection_boxes)
+            out_test.write(test_img)
 
         trackers, tracker_infos = mot_tracker.update(np.array(bboxes), np.array(classes))
         for c, d in enumerate(trackers):
@@ -138,7 +199,7 @@ def track_video(yolo, video_path, output_path=""):
             class_name = yolo.class_names[class_id]
             score = tracker_infos[c][1]
             label = f'{class_name} {obj_id} : {score:.2f}'
-            print (f"{label} at {left},{top}, {right},{bottom}")
+            print (f"  {label} at {left},{top}, {right},{bottom}")
 
             ano_dict = {"label": label}
             # Anomaly binary classifiers :
@@ -147,9 +208,9 @@ def track_video(yolo, video_path, output_path=""):
                 ano_dict['close_distance'] = is_close
                 if is_close :
                     print (f"Object {obj_id} is too close ")
-            # draw_bbox(frame, ano_dict, left, top, right, bottom)
             draw_bbox(out_frame, ano_dict, left, top, right, bottom)
 
+        prev_frame = frame
         end = timer()
         if show_fps:
             #calculate fps by 1sec / time consumed to process this frame
@@ -159,12 +220,9 @@ def track_video(yolo, video_path, output_path=""):
                         fontScale=1.0, color=(255, 0, 0), thickness=2)
 
         if isOutput:
-            # out.write(frame)
             out.write(out_frame)
-        # cv2.namedWindow("result", cv2.WINDOW_NORMAL)
-        # cv2.imshow("result", result)
-        # if cv2.waitKey(1) & 0xFF == ord('q'):
-        #     break
+    out.release()
+    out_test.release()
     yolo.close_session()
 
 if __name__ == '__main__':
