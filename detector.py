@@ -73,24 +73,42 @@ def omit_small_bboxes(bboxes,classes):
 #     return False
 
 
+def inside_roi(x,y):
+    global vid_height, vid_width
+    x1, y1 = vid_width//2, vid_height//2
+    x2, y2 = vid_width//8, vid_height
+    x3, y3 = vid_width//8*7, vid_height
+    a0 = area(x1, y1, x2, y2, x3, y3)
+    a1 = area(x, y, x2, y2, x3, y3)
+    a2 = area(x1, y1, x, y, x3, y3)
+    a3 = area(x1, y1, x2, y2, x, y)
+    if a1+a2+a3 == a0:
+      return True
+    else:
+      return False
+
+def area(x1, y1, x2, y2, x3, y3): 
+    return abs((x1 * (y2 - y3) + x2 * (y3 - y1) + x3 * (y1 - y2)) / 2.0) 
+
 def euclidean_distance(x1,x2,y1,y2):
     return math.sqrt( (x2-x1)**2 + (y2-y1)**2)
 
 def detect_close_distance(left, top, right, bottom):
-    global vid_height, vid_width
-    box_center_x = (left+right)//2
-    
-    if box_center_x<vid_width//3:
-        frame_center_x = vid_width//3
-    elif box_center_x>vid_width//3*2:
-        frame_center_x = vid_width//3*2
-    else:
-        frame_center_x = box_center_x
+    if inside_roi((left+right)//2, (top+bottom)//2):
+        global vid_height, vid_width
+        box_center_x = (left+right)//2
+        
+        if box_center_x<vid_width//3:
+            frame_center_x = vid_width//3
+        elif box_center_x>vid_width//3*2:
+            frame_center_x = vid_width//3*2
+        else:
+            frame_center_x = box_center_x
 
-    dist = euclidean_distance(box_center_x,frame_center_x,bottom,vid_height)
-    if dist<(vid_height//3) :
-        # print(f"distance = {dist}")
-        return True
+        dist = euclidean_distance(box_center_x,frame_center_x,bottom,vid_height)
+        if dist<(vid_height//3) :
+            # print(f"distance = {dist}")
+            return True
     return False
 
 def get_detection_boxes():
@@ -120,7 +138,7 @@ def get_detection_boxes():
             
 
 
-def detect_camera_moving(frame, prev_frame, size, boxes, should_return_img=True):
+def detect_camera_moving(frame, prev_frame, size, boxes, should_return_img=False):
     threshold = 0.015
 
     gray_frame = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
@@ -167,6 +185,7 @@ def track_video(yolo, video_path, output_path=""):
     vid = cv2.VideoCapture(video_path)
     if not vid.isOpened():
         raise IOError("Couldn't open webcam or video")
+    
     video_FourCC = cv2.VideoWriter_fourcc(*'MP4V')
     video_fps = vid.get(cv2.CAP_PROP_FPS)
     video_total_frame = int(vid.get(cv2.CAP_PROP_FRAME_COUNT))
@@ -182,9 +201,13 @@ def track_video(yolo, video_path, output_path=""):
         print(f"Loaded video: {output_path}, Size = {vid_width}x{vid_height},"
               f" fps = {video_fps}, total frame = {video_total_frame}")
         out = cv2.VideoWriter(output_path, video_FourCC, video_fps, (vid_width, vid_height))
+        
+    # Testing purpose
+    output_test = True
+    if output_test:
+        test_output_path =  output_path.replace("output", "test")
+        out_test = cv2.VideoWriter(test_output_path, video_FourCC, video_fps, (vid_width, vid_height))
 
-    test_output_path =  output_path.replace("output", "test")
-    out_test = cv2.VideoWriter(test_output_path, video_FourCC, video_fps, (vid_width, vid_height))
     # init SORT tracker
     max_age = max(3,video_fps//2)
     mot_tracker = Sort(max_age=max_age, min_hits=1)
@@ -205,10 +228,20 @@ def track_video(yolo, video_path, output_path=""):
         # print(f'Found {len(bboxes)} boxes for frame {frame_no}/{video_total_frame}')
         print(f"[{sec2length(frame_no//video_fps)}/{video_length}] [{frame_no}/{video_total_frame}]"+
                 f"  Found {len(bboxes)} boxes  | {omitted_count} omitted  ")
-                
+
+        is_moving = True # Always treat the first frame as moving
         if not frame_no==1 :
             test_img, is_moving = detect_camera_moving(frame, prev_frame, detection_size, detection_boxes)
-            out_test.write(test_img)
+            if output_test:
+                test_img, is_moving = detect_camera_moving(frame, prev_frame, detection_size, detection_boxes, True)
+
+                x1, y1 = vid_width//2, vid_height//2
+                x2, y2 = vid_width//8, vid_height
+                x3, y3 = vid_width//8*7, vid_height
+                pts = np.array([[x1,y1], [x2,y2], [x3,y3]], np.int32)
+                cv2.polylines(test_img, [pts], True, (255,0,0))
+
+                out_test.write(test_img)
 
         trackers, tracker_infos = mot_tracker.update(np.array(bboxes), np.array(classes))
         for c, d in enumerate(trackers):
@@ -224,11 +257,12 @@ def track_video(yolo, video_path, output_path=""):
 
             ano_dict = {"label": label}
             # Anomaly binary classifiers :
-            if class_name=="car" or class_name=="bus" or class_name=="truck":
-                is_close = detect_close_distance(left, top, right, bottom)
-                ano_dict['close_distance'] = is_close
-                if is_close :
-                    print (f"Object {obj_id} is too close ")
+            if is_moving:
+                if class_name=="car" or class_name=="bus" or class_name=="truck":
+                    is_close = detect_close_distance(left, top, right, bottom)
+                    ano_dict['close_distance'] = is_close
+                    if is_close :
+                        print (f"Object {obj_id} is too close ")
             draw_bbox(out_frame, ano_dict, left, top, right, bottom)
 
         prev_frame = frame
@@ -236,7 +270,7 @@ def track_video(yolo, video_path, output_path=""):
         if show_fps:
             #calculate fps by 1sec / time consumed to process this frame
             fps = str(round(1/(end-start),2))
-            # print(f"fps: {fps}")
+            print(f"--fps: {fps}")
             cv2.putText(out_frame, text=fps, org=(3, 15), fontFace=cv2.FONT_HERSHEY_SIMPLEX,
                         fontScale=1.0, color=(255, 0, 0), thickness=2)
 
