@@ -18,6 +18,9 @@ vid_height = 0
 
 # draw bounding box on image given label and coordinate
 def draw_bbox(image, ano_dict, left, top, right, bottom):
+    global vid_height
+    thickness = vid_height//720+1
+    font_size = vid_height/1080
     label = ano_dict["label"]
     # (B,G,R)
     box_color = (0,255,0) # Use greem as normal 
@@ -27,10 +30,10 @@ def draw_bbox(image, ano_dict, left, top, right, bottom):
         box_color = (0,0,255)
         ano_label = "Close distance"
     
-    cv2.rectangle(image, (left, top), (right, bottom), box_color, 2)
-    cv2.putText(image, label, (left, top-5), cv2.FONT_HERSHEY_SIMPLEX, 1.0, (0,255,0), 3)
+    cv2.rectangle(image, (left, top), (right, bottom), box_color, thickness)
+    cv2.putText(image, label, (left, top-5), cv2.FONT_HERSHEY_SIMPLEX, font_size, (0,255,0), thickness)
     if not ano_label=="":
-        cv2.putText(image, ano_label, ((right+left)//2, top-5), cv2.FONT_HERSHEY_SIMPLEX, 1.0, (0,0,255), 3)
+        cv2.putText(image, ano_label, ((right+left)//2, top-5), cv2.FONT_HERSHEY_SIMPLEX, font_size, (0,0,255), thickness)
 
 #omit small bboxes since they are not accurate and useful enought for detecting anomaly
 def omit_small_bboxes(bboxes,classes):
@@ -186,7 +189,7 @@ def track_video(yolo, video_path, output_path=""):
     if not vid.isOpened():
         raise IOError("Couldn't open webcam or video")
     
-    video_FourCC = cv2.VideoWriter_fourcc(*'MP4V')
+    video_FourCC = cv2.VideoWriter_fourcc(*'mp4v')
     video_fps = vid.get(cv2.CAP_PROP_FPS)
     video_total_frame = int(vid.get(cv2.CAP_PROP_FRAME_COUNT))
     video_length = sec2length(video_total_frame//video_fps)
