@@ -9,6 +9,8 @@ import numpy as np
 from yolo import YOLO
 from sort import *
 
+# from utils.speed_est.speed_est import Speed_Est
+
 
 #Global Variable
 #Video properties : 
@@ -218,6 +220,7 @@ def track_video(yolo, video_path, output_path=""):
     frame_no = 0
     # object_class_dict = {}
     prev_frame = []
+    # est = None
     while True:
         start = timer()
         success, frame = vid.read()
@@ -225,15 +228,13 @@ def track_video(yolo, video_path, output_path=""):
             break
         frame_no += 1
         out_frame = frame.copy()
-        bboxes, classes = yolo.detect_image(frame)
-        
-        omitted_count = omit_small_bboxes(bboxes, classes)
-        # print(f'Found {len(bboxes)} boxes for frame {frame_no}/{video_total_frame}')
-        print(f"[{sec2length(frame_no//video_fps)}/{video_length}] [{frame_no}/{video_total_frame}]"+
-                f"  Found {len(bboxes)} boxes  | {omitted_count} omitted  ")
 
-        is_moving = True # Always treat the first frame as moving
-        if not frame_no==1 :
+        if frame_no==1 :
+            is_moving = True # Always treat the first frame as moving
+            # speed = 0
+            # est = Speed_Est(frame)
+        else:
+            # speed = est.predict(frame)
             test_img, is_moving = detect_camera_moving(frame, prev_frame, detection_size, detection_boxes)
             if output_test:
                 test_img, is_moving = detect_camera_moving(frame, prev_frame, detection_size, detection_boxes, True)
@@ -245,6 +246,15 @@ def track_video(yolo, video_path, output_path=""):
                 cv2.polylines(test_img, [pts], True, (255,0,0))
 
                 out_test.write(test_img)
+
+
+        bboxes, classes = yolo.detect_image(frame)
+        omitted_count = omit_small_bboxes(bboxes, classes)
+        # print(f'Found {len(bboxes)} boxes for frame {frame_no}/{video_total_frame}')
+        print(f"[{sec2length(frame_no//video_fps)}/{video_length}] [{frame_no}/{video_total_frame}]"+
+                f"  Found {len(bboxes)} boxes  | {omitted_count} omitted  ")
+
+
 
         trackers, tracker_infos = mot_tracker.update(np.array(bboxes), np.array(classes))
         for c, d in enumerate(trackers):
@@ -268,6 +278,9 @@ def track_video(yolo, video_path, output_path=""):
                         print (f"Object {obj_id} is too close ")
             draw_bbox(out_frame, ano_dict, left, top, right, bottom)
 
+
+        # cv2.putText(out_frame, str(speed), org=(3, 15), fontFace=cv2.FONT_HERSHEY_SIMPLEX,
+        #                 fontScale=1.0, color=(255, 0, 0), thickness=2)
         prev_frame = frame
         end = timer()
         if show_fps:
@@ -280,7 +293,8 @@ def track_video(yolo, video_path, output_path=""):
         if isOutput:
             out.write(out_frame)
     out.release()
-    out_test.release()
+    if output_test:
+        out_test.release()
     yolo.close_session()
 
 if __name__ == '__main__':
