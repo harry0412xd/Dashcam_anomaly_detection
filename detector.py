@@ -58,31 +58,11 @@ def omit_small_bboxes(bboxes,classes):
     # print(f"Omitted {omitted_count} boxes due to small size")
     return omitted_count
 
-# def detect_close_distance(left, top, right, bottom):
-#     global vid_height, vid_width
-#     # (1) the bottom of bbox lies in the bottom half of the frame
-#     # (2) the width of bbox is greater than certain ratio to the frame width
-
-#     # If the center of bbox is closer to the two side, 
-#     # the width thershold shouldbe more forgiving
-#     center = (right-left)//2
-#     point_list = [0, vid_width//2, vid_width]
-#     closest_point = min(point_list, key=lambda x:abs(x-center))
-#     if closest_point == vid_width//2 :
-#         ratio_divisor = 3.5
-#     else : 
-#         ratio_divisor = 2.5
-
-#     if bottom>(vid_height//2) and (right-left)>(vid_width//ratio_divisor):
-#         return True
-#     return False
-
-
 def inside_roi(x,y):
     global vid_height, vid_width
     x1, y1 = vid_width//2, vid_height//2
     x2, y2 = vid_width//8, vid_height
-    x3, y3 = vid_width//8*7, vid_height
+    x3, y3 = vid_width*7//8, vid_height
     a0 = area(x1, y1, x2, y2, x3, y3)
     a1 = area(x, y, x2, y2, x3, y3)
     a2 = area(x1, y1, x, y, x3, y3)
@@ -99,8 +79,9 @@ def euclidean_distance(x1,x2,y1,y2):
     return math.sqrt( (x2-x1)**2 + (y2-y1)**2)
 
 def detect_close_distance(left, top, right, bottom):
-    if inside_roi((left+right)//2, (top+bottom)//2):
-        global vid_height, vid_width
+    global vid_height, vid_width
+    if (right-left)>(vid_width//2) or inside_roi((left+right)//2, (top+bottom)//2):
+        
         box_center_x = (left+right)//2
         
         if box_center_x<vid_width//3:
@@ -142,40 +123,46 @@ def get_detection_boxes():
     return box_width*box_height, result
             
 
-
-def detect_camera_moving(frame, prev_frame, size, boxes, should_return_img=False):
+def detect_camera_moving(cur_frame, prev_frame, size, boxes, should_return_img=False):
     threshold = 0.015
 
-    gray_frame = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
-    gray_prev_frame = cv2.cvtColor(prev_frame, cv2.COLOR_BGR2GRAY)
-    diff = cv2.absdiff(gray_frame, gray_prev_frame)
-    ret, result = cv2.threshold(diff, 40, 255, cv2.THRESH_BINARY)
-
     if should_return_img:
-        result_bgr = cv2.cvtColor(result, cv2.COLOR_GRAY2BGR)
+        return_img = cur_frame.copy()
     else: 
-        result_bgr = None
+        return_img = None
 
     count = 0
     for box in boxes:
         left, top, right, bottom = box
-        detection_img = result[top:bottom, left:right]
-        percentage = cv2.countNonZero(detection_img)/size
+        # select out the box and convert to gray
+        box_cur = cur_frame[top:bottom, left:right].copy()
+        box_cur = cv2.cvtColor(box_cur, cv2.COLOR_BGR2GRAY)
+        box_prev = prev_frame[top:bottom, left:right].copy()
+        box_prev = cv2.cvtColor(box_prev, cv2.COLOR_BGR2GRAY)
+
+        diff = cv2.absdiff(box_cur, box_prev)
+        ret, result = cv2.threshold(diff, 40, 255, cv2.THRESH_BINARY)
+        percentage = cv2.countNonZero(result)/size
         if percentage>threshold:
             count+=1
+
         # testing purpose
         if should_return_img:
-            cv2.rectangle(result_bgr, (left, top), (right, bottom), (0,255,0), 2)
+            result_bgr = cv2.cvtColor(result, cv2.COLOR_GRAY2BGR)
+            return_img[top:bottom, left:right] = result_bgr
+            cv2.rectangle(return_img, (left, top), (right, bottom), (0,255,0), 2)
             label = "%.3f" % percentage
-            cv2.putText(result_bgr, label, ((left+right)//2, (top+bottom)//2), cv2.FONT_HERSHEY_SIMPLEX, 1.0, (0,255,0), 2)
+            cv2.putText(return_img, label, ((left+right)//2, (top+bottom)//2), cv2.FONT_HERSHEY_SIMPLEX, 1.0, (0,255,0), 2)
+
     # 8 boxes in total
     is_moving = count>3
     if is_moving:
+        # testing purpose
         if should_return_img:
             global vid_width, vid_height
             cv2.putText(result_bgr, "Is moving", (vid_width//2, vid_height-50), cv2.FONT_HERSHEY_SIMPLEX, 1.0, (0,0,255), 2)
     
-    return result_bgr, is_moving
+    return return_img, is_moving
 
 def sec2length(time_sec):
     m = int(time_sec//60)
@@ -241,7 +228,7 @@ def track_video(yolo, video_path, output_path=""):
 
                 x1, y1 = vid_width//2, vid_height//2
                 x2, y2 = vid_width//8, vid_height
-                x3, y3 = vid_width//8*7, vid_height
+                x3, y3 = vid_width*7//8, vid_height
                 pts = np.array([[x1,y1], [x2,y2], [x3,y3]], np.int32)
                 cv2.polylines(test_img, [pts], True, (255,0,0))
 
