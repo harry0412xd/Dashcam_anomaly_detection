@@ -189,15 +189,13 @@ def sec2length(time_sec):
         s= "0"+str(s)
     return f"{m}:{s}" 
 
-def yolo_detect(model, frame, opt):
-
+def yolo_detect(frame, model, device, opt):
     frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
-    classes = load_classes(opt.class_path)
-    x = torch.from_numpy(frame.transpose(2, 0, 1)).to("cuda")
+    x = torch.from_numpy(frame.transpose(2, 0, 1)).to(device)
     x = x.unsqueeze(0).float()
-
     _, _, h, w = x.size()
-    ih, iw = (416, 416)
+
+    ih, iw = (opt.img_size, opt.img_size)
     dim_diff = np.abs(h - w)
     pad1, pad2 = int(dim_diff // 2), int(dim_diff - dim_diff // 2)
     pad = (pad1, pad2, 0, 0) if w <= h else (0, 0, pad1, pad2)
@@ -205,7 +203,9 @@ def yolo_detect(model, frame, opt):
     x = F.upsample(x, size=(ih, iw), mode='bilinear')
     with torch.no_grad():
         detections = model.forward(x)
+        print(detections)
         detections = non_max_suppression(detections, opt.conf_thres, opt.nms_thres)
+        print(detections)
     detections = detections[0]
     bboxes = []
     classes = []
@@ -219,9 +219,13 @@ def yolo_detect(model, frame, opt):
     return bboxes, classes
 
 
-def track_video(model, video_path, output_path, opt):
+def track_video(opt):
+
     show_fps = True
-    import cv2
+
+    video_path = opt.input
+    output_path = opt.output
+
     vid = cv2.VideoCapture(video_path)
     if not vid.isOpened():
         raise IOError("Couldn't open webcam or video")
@@ -253,7 +257,6 @@ def track_video(model, video_path, output_path, opt):
     mot_tracker = Sort(max_age=max_age, min_hits=1)
 
     frame_no = 0
-    # object_class_dict = {}
 
     
     buffer_size = video_fps//2 # store half second of frames
@@ -262,7 +265,11 @@ def track_video(model, video_path, output_path, opt):
     # frames_info = deque(maxlen=buffer_size)
 
 
-
+    # init yolov3 model
+    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+    model = Darknet(opt.model_def, img_size=opt.img_size).to(device)
+    model.load_darknet_weights(opt.weights_path)
+    model.eval()
     class_names = load_classes(opt.class_path)
 
     # est = None
@@ -298,7 +305,7 @@ def track_video(model, video_path, output_path, opt):
                 out_test.write(test_img)
 
 
-        bboxes, classes = yolo_detect(model, frame, opt)
+        bboxes, classes = yolo_detect(frame, model, device, opt)
         omitted_count = omit_small_bboxes(bboxes, classes)
         print(f"[{sec2length(frame_no//video_fps)}/{video_length}] [{frame_no}/{video_total_frame}]"+
                 f"  Found {len(bboxes)} boxes  | {omitted_count} omitted  ")
@@ -386,18 +393,8 @@ if __name__ == '__main__':
     parser.add_argument("--img_size", type=int, default=416, help="size of each image dimension")
     parser.add_argument("--checkpoint_model", type=str, help="path to checkpoint model")
 
-    parser.add_argument(
-        "--input", nargs='?', type=str,required=False,default="",
-        help = "Video input path"
-    )
-    parser.add_argument(
-        "--output", nargs='?', type=str, default="",
-        help = "[Optional] Video output path"
-    )
+    parser.add_argument("--input", nargs='?', type=str, default="",help = "Video input path")
+    parser.add_argument("--output", nargs='?', type=str, default="",  help = "[Optional] Video output path")
     opt = parser.parse_args()
 
-    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-    model = Darknet(opt.model_def, img_size=opt.img_size).to(device)
-    model.load_darknet_weights(opt.weights_path)
-    model.eval()
-    track_video(model, opt.input, opt.output, opt)
+    track_video(opt)
