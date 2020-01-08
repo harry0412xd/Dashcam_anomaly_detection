@@ -315,8 +315,11 @@ def track_video(model, video_path, output_path, opt):
             class_id = tracker_infos[c][0]
             class_name = class_names[class_id]
             score = tracker_infos[c][1]
+            if score == -1:
+              continue
+
             label = f'{class_name} {obj_id} : {score:.2f}'
-            print (f"  {label} at {left},{top}, {right},{bottom}")
+            # print (f"  {label} at {left},{top}, {right},{bottom}")
 
             ano_dict = {"label": label}
             # Anomaly binary classifiers :
@@ -367,7 +370,6 @@ def track_video(model, video_path, output_path, opt):
     out.release()
     if output_test:
         out_test.release()
-    yolo.close_session()
 
 
 
