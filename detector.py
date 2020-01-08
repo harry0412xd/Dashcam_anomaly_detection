@@ -2,6 +2,7 @@ import sys
 import argparse
 import math
 from timeit import default_timer as timer
+from collections import deque
 
 import cv2
 import numpy as np
@@ -30,7 +31,11 @@ def draw_bbox(image, ano_dict, left, top, right, bottom):
     ano_label = ""
     if ("close_distance" in ano_dict) and ano_dict["close_distance"]:
         box_color = (0,0,255)
-        ano_label = "Close distance"
+        ano_label += "Close distance "
+    
+    if ("jaywalker" in ano_dict) and ano_dict["jaywalker"]:
+        box_color = (0,0,255)
+        ano_label += "Jaywalker "
     
     cv2.rectangle(image, (left, top), (right, bottom), box_color, thickness)
     cv2.putText(image, label, (left, top-5), cv2.FONT_HERSHEY_SIMPLEX, font_size, (0,255,0), thickness)
@@ -58,11 +63,17 @@ def omit_small_bboxes(bboxes,classes):
     # print(f"Omitted {omitted_count} boxes due to small size")
     return omitted_count
 
-def inside_roi(x,y):
+# To check whether a point(x,y) is within a triangle area of interest
+# by computer the 3 traingles form with any 2 point & (x,y)
+# and check if the total area of the 3 traingles equal to the triangle of interest
+def inside_roi(x,y, pts):
     global vid_height, vid_width
-    x1, y1 = vid_width//2, vid_height//2
-    x2, y2 = vid_width//8, vid_height
-    x3, y3 = vid_width*7//8, vid_height
+    # x1, y1 = vid_width//2, vid_height//2
+    # x2, y2 = vid_width//8, vid_height
+    # x3, y3 = vid_width*7//8, vid_height
+    x1, y1 = pts[0]
+    x2, y2 = pts[1]
+    x3, y3 = pts[2]
     a0 = area(x1, y1, x2, y2, x3, y3)
     a1 = area(x, y, x2, y2, x3, y3)
     a2 = area(x1, y1, x, y, x3, y3)
@@ -80,8 +91,13 @@ def euclidean_distance(x1,x2,y1,y2):
 
 def detect_close_distance(left, top, right, bottom):
     global vid_height, vid_width
-    if (right-left)>(vid_width//2) or inside_roi((left+right)//2, (top+bottom)//2):
-        
+    pts = [(vid_width//2, vid_height//2), 
+          (vid_width//8, vid_height),
+          (vid_width*7//8, vid_height) ]
+
+    # ignore roi if the bbox is too big
+    # since its center is hard to be within the roi
+    if (right-left)>(vid_width//2) or inside_roi((left+right)//2, (top+bottom)//2, pts):
         box_center_x = (left+right)//2
         
         if box_center_x<vid_width//3:
@@ -125,7 +141,6 @@ def get_detection_boxes():
 
 def detect_camera_moving(cur_frame, prev_frame, size, boxes, should_return_img=False):
     threshold = 0.015
-
     if should_return_img:
         return_img = cur_frame.copy()
     else: 
@@ -160,7 +175,7 @@ def detect_camera_moving(cur_frame, prev_frame, size, boxes, should_return_img=F
         # testing purpose
         if should_return_img:
             global vid_width, vid_height
-            cv2.putText(result_bgr, "Is moving", (vid_width//2, vid_height-50), cv2.FONT_HERSHEY_SIMPLEX, 1.0, (0,0,255), 2)
+            cv2.putText(return_img, "Is moving", (vid_width//2, vid_height-50), cv2.FONT_HERSHEY_SIMPLEX, 1.0, (0,0,255), 2)
     
     return return_img, is_moving
 
@@ -206,7 +221,12 @@ def track_video(yolo, video_path, output_path=""):
 
     frame_no = 0
     # object_class_dict = {}
-    prev_frame = []
+
+    
+    buffer_size = video_fps//2 # store half second of frames
+    prev_frames = deque(maxlen=buffer_size)
+    frames_info = deque(maxlen=buffer_size)
+
     # est = None
     while True:
         start = timer()
@@ -222,15 +242,20 @@ def track_video(yolo, video_path, output_path=""):
             # est = Speed_Est(frame)
         else:
             # speed = est.predict(frame)
-            test_img, is_moving = detect_camera_moving(frame, prev_frame, detection_size, detection_boxes)
+            test_img, is_moving = detect_camera_moving(frame, prev_frames[0], detection_size, detection_boxes)
             if output_test:
-                test_img, is_moving = detect_camera_moving(frame, prev_frame, detection_size, detection_boxes, True)
+                test_img, is_moving = detect_camera_moving(frame, prev_frame[0], detection_size, detection_boxes, output_test)
 
+                # draw the ROI of close dist detection
                 x1, y1 = vid_width//2, vid_height//2
                 x2, y2 = vid_width//8, vid_height
                 x3, y3 = vid_width*7//8, vid_height
                 pts = np.array([[x1,y1], [x2,y2], [x3,y3]], np.int32)
                 cv2.polylines(test_img, [pts], True, (255,0,0))
+
+                pts =[(0,vid_height), (vid_width,vid_height), (vid_width//2, vid_height//4) ]
+                pts = np.array(pts,  np.int32)
+                cv2.polylines(test_img, [pts], True, (0,0,255))
 
                 out_test.write(test_img)
 
@@ -242,8 +267,9 @@ def track_video(yolo, video_path, output_path=""):
                 f"  Found {len(bboxes)} boxes  | {omitted_count} omitted  ")
 
 
-
+        # tracker_infos is added to return link the class name & the object tracked
         trackers, tracker_infos = mot_tracker.update(np.array(bboxes), np.array(classes))
+
         for c, d in enumerate(trackers):
             d = d.astype(np.int32) 
             left, top, right, bottom = int(d[0]), int(d[1]), int(d[2]), int(d[3])
@@ -263,12 +289,31 @@ def track_video(yolo, video_path, output_path=""):
                     ano_dict['close_distance'] = is_close
                     if is_close :
                         print (f"Object {obj_id} is too close ")
+
+                elif class_name=="person":
+                    center_x, center_y = (left+right)//2, (top+bottom)//2
+
+                    # left_area = [(0,0), (0,vid_height), (vid_width//4,0)]
+                    # right_area = [(vid_width,0), (vid_width,vid_height), (vid_width//4*3,0)]
+                    ROI = [(0,vid_height), (vid_width,vid_height), (vid_width//2, vid_height//4) ]
+
+                    # if the camera is moving, any person in the middle should be abnormal
+                    # if not (inside_roi(center_x, center_y, left_area) 
+                    #         or inside_roi(center_x, center_y, right_area)):
+                    if inside_roi(center_x, center_y, ROI):
+                        ano_dict['jaywalker'] = True
+
             draw_bbox(out_frame, ano_dict, left, top, right, bottom)
+
 
 
         # cv2.putText(out_frame, str(speed), org=(3, 15), fontFace=cv2.FONT_HERSHEY_SIMPLEX,
         #                 fontScale=1.0, color=(255, 0, 0), thickness=2)
-        prev_frame = frame
+        if len(prev_frames)=buffer_size:
+            frame2proc = prev_frames.pop()
+
+        prev_frames.appendleft(frame) 
+
         end = timer()
         if show_fps:
             #calculate fps by 1sec / time consumed to process this frame
