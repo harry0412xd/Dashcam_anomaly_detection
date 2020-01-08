@@ -2,3 +2,4 @@
 *.h5
 *.weights
 video_out/*.mp4
+video_out/*.mkv
