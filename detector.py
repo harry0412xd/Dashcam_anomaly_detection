@@ -2,12 +2,15 @@ import sys
 import argparse
 import math
 from timeit import default_timer as timer
-from collections import deque
+# from collections import deque
 
 import cv2
 import numpy as np
 
-from yolo import YOLO
+from yolov3.models import *
+from yolov3.utils.utils import *
+from yolov3.utils.datasets import *
+
 from sort import *
 
 # from utils.speed_est.speed_est import Speed_Est
@@ -186,7 +189,37 @@ def sec2length(time_sec):
         s= "0"+str(s)
     return f"{m}:{s}" 
 
-def track_video(yolo, video_path, output_path=""):
+def yolo_detect(model, frame, opt):
+
+    frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
+    classes = load_classes(opt.class_path)
+    x = torch.from_numpy(frame.transpose(2, 0, 1)).to("cuda")
+    x = x.unsqueeze(0).float()
+
+    _, _, h, w = x.size()
+    ih, iw = (416, 416)
+    dim_diff = np.abs(h - w)
+    pad1, pad2 = int(dim_diff // 2), int(dim_diff - dim_diff // 2)
+    pad = (pad1, pad2, 0, 0) if w <= h else (0, 0, pad1, pad2)
+    x = F.pad(x, pad=pad, mode='constant', value=127.5) / 255.0
+    x = F.upsample(x, size=(ih, iw), mode='bilinear')
+    with torch.no_grad():
+        detections = model.forward(x)
+        detections = non_max_suppression(detections, opt.conf_thres, opt.nms_thres)
+    detections = detections[0]
+    bboxes = []
+    classes = []
+
+    if detections is not None:
+        detections = rescale_boxes(detections, opt.img_size, frame.shape[:2])
+        
+        for x1, y1, x2, y2, conf, cls_conf, cls_pred in detections:
+           bboxes.append([x1, y1, x2, y2, cls_conf.item()])
+           classes.append(int(cls_pred))
+    return bboxes, classes
+
+
+def track_video(model, video_path, output_path, opt):
     show_fps = True
     import cv2
     vid = cv2.VideoCapture(video_path)
@@ -224,8 +257,13 @@ def track_video(yolo, video_path, output_path=""):
 
     
     buffer_size = video_fps//2 # store half second of frames
-    prev_frames = deque(maxlen=buffer_size)
-    frames_info = deque(maxlen=buffer_size)
+    prev_frame = []
+    # prev_frames = deque(maxlen=buffer_size)
+    # frames_info = deque(maxlen=buffer_size)
+
+
+
+    class_names = load_classes(opt.class_path)
 
     # est = None
     while True:
@@ -242,9 +280,9 @@ def track_video(yolo, video_path, output_path=""):
             # est = Speed_Est(frame)
         else:
             # speed = est.predict(frame)
-            test_img, is_moving = detect_camera_moving(frame, prev_frames[0], detection_size, detection_boxes)
+            test_img, is_moving = detect_camera_moving(frame, prev_frame, detection_size, detection_boxes)
             if output_test:
-                test_img, is_moving = detect_camera_moving(frame, prev_frame[0], detection_size, detection_boxes, output_test)
+                test_img, is_moving = detect_camera_moving(frame, prev_frame, detection_size, detection_boxes, output_test)
 
                 # draw the ROI of close dist detection
                 x1, y1 = vid_width//2, vid_height//2
@@ -260,9 +298,8 @@ def track_video(yolo, video_path, output_path=""):
                 out_test.write(test_img)
 
 
-        bboxes, classes = yolo.detect_image(frame)
+        bboxes, classes = yolo_detect(model, frame, opt)
         omitted_count = omit_small_bboxes(bboxes, classes)
-        # print(f'Found {len(bboxes)} boxes for frame {frame_no}/{video_total_frame}')
         print(f"[{sec2length(frame_no//video_fps)}/{video_length}] [{frame_no}/{video_total_frame}]"+
                 f"  Found {len(bboxes)} boxes  | {omitted_count} omitted  ")
 
@@ -276,7 +313,7 @@ def track_video(yolo, video_path, output_path=""):
             obj_id = d[4]
 
             class_id = tracker_infos[c][0]
-            class_name = yolo.class_names[class_id]
+            class_name = class_names[class_id]
             score = tracker_infos[c][1]
             label = f'{class_name} {obj_id} : {score:.2f}'
             print (f"  {label} at {left},{top}, {right},{bottom}")
@@ -309,11 +346,14 @@ def track_video(yolo, video_path, output_path=""):
 
         # cv2.putText(out_frame, str(speed), org=(3, 15), fontFace=cv2.FONT_HERSHEY_SIMPLEX,
         #                 fontScale=1.0, color=(255, 0, 0), thickness=2)
-        if len(prev_frames)=buffer_size:
-            frame2proc = prev_frames.pop()
 
-        prev_frames.appendleft(frame) 
 
+        # if len(prev_frames)=buffer_size:
+        #     frame2proc = prev_frames.pop()
+
+        # prev_frames.appendleft(frame) 
+        prev_frame = frame
+        
         end = timer()
         if show_fps:
             #calculate fps by 1sec / time consumed to process this frame
@@ -329,28 +369,20 @@ def track_video(yolo, video_path, output_path=""):
         out_test.release()
     yolo.close_session()
 
+
+
 if __name__ == '__main__':
-    # class YOLO defines the default value, so suppress any default here
-    parser = argparse.ArgumentParser(argument_default=argparse.SUPPRESS)
-    '''
-    Command line options
-    '''
-    parser.add_argument(
-        '--model_path', type=str, default="model_data/bdd/bdd.h5",
-        help='path to model weight file, default ' + YOLO.get_defaults("model_path")
-    )
-    parser.add_argument(
-        '--anchors_path', type=str,default="model_data/bdd/anchors.txt",
-        help='path to anchor definitions, default ' + YOLO.get_defaults("anchors_path")
-    )
-    parser.add_argument(
-        '--classes_path', type=str,default="model_data/bdd/classes.txt",
-        help='path to class definitions, default ' + YOLO.get_defaults("classes_path")
-    )
-    parser.add_argument(
-        '--gpu_num', type=int,default=1,
-        help='Number of GPU to use, default ' + str(YOLO.get_defaults("gpu_num"))
-    )
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--image_folder", type=str, default="data/samples", help="path to dataset")
+    parser.add_argument("--model_def", type=str, default="model_data/bdd/bdd.cfg", help="path to model definition file")
+    parser.add_argument("--weights_path", type=str, default="model_data/bdd/bdd.weights", help="path to weights file")
+    parser.add_argument("--class_path", type=str, default="model_data/bdd/classes.txt", help="path to class label file")
+    parser.add_argument("--conf_thres", type=float, default=0.55, help="object confidence threshold")
+    parser.add_argument("--nms_thres", type=float, default=0.25, help="iou thresshold for non-maximum suppression")
+    parser.add_argument("--batch_size", type=int, default=1, help="size of the batches")
+    parser.add_argument("--n_cpu", type=int, default=0, help="number of cpu threads to use during batch generation")
+    parser.add_argument("--img_size", type=int, default=416, help="size of each image dimension")
+    parser.add_argument("--checkpoint_model", type=str, help="path to checkpoint model")
 
     parser.add_argument(
         "--input", nargs='?', type=str,required=False,default="",
@@ -360,17 +392,10 @@ if __name__ == '__main__':
         "--output", nargs='?', type=str, default="",
         help = "[Optional] Video output path"
     )
-    parser.add_argument(
-        "--score", nargs='?', type=float, default="0.5",
-        help = "Confidence thershold for YOLO detection"
-    )
-    parser.add_argument(
-        "--iou", nargs='?', type=float, default="0.25",
-        help = "IoU thershold for YOLO Non-max Suppression"
-    )    
+    opt = parser.parse_args()
 
-    FLAGS = parser.parse_args()
-    if "input" in FLAGS:
-        track_video(YOLO(**vars(FLAGS)), FLAGS.input, FLAGS.output)
-    else:
-        print("Must specify at least video_input_path.  See usage with --help.")
+    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+    model = Darknet(opt.model_def, img_size=opt.img_size).to(device)
+    model.load_darknet_weights(opt.weights_path)
+    model.eval()
+    track_video(model, opt.input, opt.output, opt)
