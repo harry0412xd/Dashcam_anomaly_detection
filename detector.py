@@ -2,7 +2,7 @@ import sys
 import argparse
 import math
 from timeit import default_timer as timer
-# from collections import deque
+from collections import deque
 
 import cv2
 import numpy as np
@@ -11,20 +11,66 @@ from yolov3.models import *
 from yolov3.utils.utils import *
 from yolov3.utils.datasets import *
 
-from lane_detection.models import sync_bn
-from lane_detection.models.erfnet import *
-
+from ERFNet_CULane_PyTorch.models.erfnet import *
+from ERFNet_CULane_PyTorch.prob_to_lines import *
 
 from sort import *
 
 # from utils.speed_est.speed_est import Speed_Est
 
-
 #Global Variable
 #Video properties : 
 vid_width = 0
 vid_height = 0
+class_names = None
+detection_boxes = None
+detection_size = 0
 
+def proc_frame(writer, frames, frames_infos):
+    frame2proc = frames.popleft()
+    id_to_info = frames_infos.popleft()
+    global class_names
+
+    # frame-wise task
+    test_img, is_moving = detect_camera_moving(frame2proc, frames[0])
+
+    # object-wise
+    for obj_id in id_to_info:
+        info = id_to_info[obj_id]
+        class_id, score, bbox = info
+        left, top, right, bottom = bbox
+
+        class_name = class_names[class_id]
+        label = f'{class_name} {obj_id} : {score:.2f}'
+        # print (f"  {label} at {left},{top}, {right},{bottom}")
+        ano_dict = {"label": label}
+
+        # single frame detection:
+        if is_moving:
+            if class_name=="car" or class_name=="bus" or class_name=="truck":
+              # Detect lack of car distance
+                is_close = detect_close_distance(left, top, right, bottom)
+                ano_dict['close_distance'] = is_close
+                if is_close :
+                    print (f"Object {obj_id} is too close ")
+
+            elif class_name=="person":
+                center_x, center_y = (left+right)//2, (top+bottom)//2
+                # left_area = [(0,0), (0,vid_height), (vid_width//4,0)]
+                # right_area = [(vid_width,0), (vid_width,vid_height), (vid_width//4*3,0)]
+
+                # Combined with lane detection would be better
+                ROI = [(0,vid_height), (vid_width,vid_height), (vid_width//2, vid_height//4) ]
+                if inside_roi(center_x, center_y, ROI):
+                    ano_dict['jaywalker'] = True
+
+
+        # multi-frame detection insert here
+        # for future_frame in frames:
+        draw_bbox(frame2proc, ano_dict, left, top, right, bottom)
+    writer.write(frame2proc)
+
+    
 
 # draw bounding box on image given label and coordinate
 def draw_bbox(image, ano_dict, left, top, right, bottom):
@@ -120,6 +166,7 @@ def detect_close_distance(left, top, right, bottom):
             return True
     return False
 
+# calculate the bboxes using video resolution for the detect_camera_moving func
 def get_detection_boxes():
     result = []
     global vid_height, vid_width
@@ -142,19 +189,24 @@ def get_detection_boxes():
     result.append([left, top, left+box_width, bottom])
     left = int(vid_width*0.6)
     result.append([left, top, left+box_width, bottom])
-
-    return box_width*box_height, result
+    # return box size and list of bboxes pos
+    # return box_width*box_height, result
+    global detection_boxes, detection_size
+    detection_size = box_width*box_height
+    detection_boxes = result
             
-
-def detect_camera_moving(cur_frame, prev_frame, size, boxes, should_return_img=False):
+# detect whether the camera is moving, return img? and boolean
+def detect_camera_moving(cur_frame, prev_frame, should_return_img=False):
     threshold = 0.015
+    global detection_boxes, detection_size
+
     if should_return_img:
         return_img = cur_frame.copy()
     else: 
         return_img = None
 
     count = 0
-    for box in boxes:
+    for box in detection_boxes:
         left, top, right, bottom = box
         # select out the box and convert to gray
         box_cur = cur_frame[top:bottom, left:right].copy()
@@ -164,7 +216,7 @@ def detect_camera_moving(cur_frame, prev_frame, size, boxes, should_return_img=F
 
         diff = cv2.absdiff(box_cur, box_prev)
         ret, result = cv2.threshold(diff, 40, 255, cv2.THRESH_BINARY)
-        percentage = cv2.countNonZero(result)/size
+        percentage = cv2.countNonZero(result)/detection_size
         if percentage>threshold:
             count+=1
 
@@ -184,8 +236,10 @@ def detect_camera_moving(cur_frame, prev_frame, size, boxes, should_return_img=F
             global vid_width, vid_height
             cv2.putText(return_img, "Is moving", (vid_width//2, vid_height-50), cv2.FONT_HERSHEY_SIMPLEX, 1.0, (0,0,255), 2)
     
+    # retur_img is None if not returning img
     return return_img, is_moving
 
+# small func to help display progress
 def sec2length(time_sec):
     m = int(time_sec//60)
     s = int(time_sec%60)
@@ -193,13 +247,14 @@ def sec2length(time_sec):
         s= "0"+str(s)
     return f"{m}:{s}" 
 
+# not working atm
 def lane_detect(frame, model, device, opt):
     frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
     x = torch.from_numpy(frame.transpose(2, 0, 1)).to(device)
     x = x.unsqueeze(0).float()
-    _, _, h, w = x.size()
 
-    ih, iw = (opt.img_size, opt.img_size)
+    _, _, h, w = x.size()
+    ih, iw = (288, 800)
     dim_diff = np.abs(h - w)
     pad1, pad2 = int(dim_diff // 2), int(dim_diff - dim_diff // 2)
     pad = (pad1, pad2, 0, 0) if w <= h else (0, 0, pad1, pad2)
@@ -207,12 +262,16 @@ def lane_detect(frame, model, device, opt):
     x = F.upsample(x, size=(ih, iw), mode='bilinear')
 
     out = model.forward(x)
-    print(out)
+    out = F.softmax(out, dim=1)
+    pred = out.data.cpu().numpy()
+    print(pred)
+    # # for num in range(len(pred)):
+    # #     prob_map = (pred[num+1]*255).astype(int)
+    # #     print(prob_map)
+    # lane = GetLines(out)
+    print(lane)
 
-
-
-
-
+# yolo wrapper, return list of bounding boxes and list of corresponding classes(id)
 def yolo_detect(frame, model, device, opt):
     frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
     x = torch.from_numpy(frame.transpose(2, 0, 1)).to(device)
@@ -239,73 +298,78 @@ def yolo_detect(frame, model, device, opt):
 
 
 def track_video(opt):
-
+    # testing flag here:
     show_fps = True
 
+    # load video
     video_path = opt.input
     output_path = opt.output
-
     vid = cv2.VideoCapture(video_path)
     if not vid.isOpened():
         raise IOError("Couldn't open webcam or video")
-    
-    video_FourCC = cv2.VideoWriter_fourcc(*'mp4v')
-    video_fps = vid.get(cv2.CAP_PROP_FPS)
-    video_total_frame = int(vid.get(cv2.CAP_PROP_FRAME_COUNT))
-    video_length = sec2length(video_total_frame//video_fps)
+    # get video prop
     global vid_width, vid_height
     vid_width = int(vid.get(cv2.CAP_PROP_FRAME_WIDTH))
     vid_height = int(vid.get(cv2.CAP_PROP_FRAME_HEIGHT))
-    thickness = min((vid_width + vid_height) // 300, 3)
-    detection_size, detection_boxes = get_detection_boxes()
+    video_fps = vid.get(cv2.CAP_PROP_FPS)
+    video_total_frame = int(vid.get(cv2.CAP_PROP_FRAME_COUNT))
+    video_length = sec2length(video_total_frame//video_fps)
+    # init video writer
+    video_FourCC = cv2.VideoWriter_fourcc(*'mp4v')
     isOutput = True if output_path != "" else False
     if isOutput:
         # print("!!! TYPE:", type(output_path), type(video_FourCC), type(video_fps), type(video_size))
         print(f"Loaded video: {output_path}, Size = {vid_width}x{vid_height},"
               f" fps = {video_fps}, total frame = {video_total_frame}")
-        out = cv2.VideoWriter(output_path, video_FourCC, video_fps, (vid_width, vid_height))
-        
-    # Testing purpose
+        out_writer = cv2.VideoWriter(output_path, video_FourCC, video_fps, (vid_width, vid_height))  
+
+# Testing purpose - init test video writer
     output_test = True
     if output_test:
         test_output_path =  output_path.replace("output", "test")
         out_test = cv2.VideoWriter(test_output_path, video_FourCC, video_fps, (vid_width, vid_height))
 
-    # init SORT tracker
-    max_age = max(3,video_fps//2)
-    mot_tracker = Sort(max_age=max_age, min_hits=1)
 
-    frame_no = 0
 
-    
     buffer_size = video_fps//2 # store half second of frames
     prev_frame = []
     # prev_frames = deque(maxlen=buffer_size)
     # frames_info = deque(maxlen=buffer_size)
 
+    # init SORT tracker
+    max_age = max(3,video_fps//2)
+    mot_tracker = Sort(max_age=max_age, min_hits=1)
 
     # init yolov3 model
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     yolo_model = Darknet(opt.model_def, img_size=opt.img_size).to(device)
     yolo_model.load_darknet_weights(opt.weights_path)
     yolo_model.eval()
+
+    # global init
+    get_detection_boxes()
+    global class_names
     class_names = load_classes(opt.class_path)
 
     # init erfnet model
-    # lane_model = models.ERFNet(num_class, partial_bn=not args.no_partialbn)
-    lane_model = models.ERFNet(num_class, partial_bn=False)
-    # lane_model = torch.nn.DataParallel(model, device_ids=range(args.gpus)).cuda()
-    lane_model = torch.nn.DataParallel(model).cuda()
+    # elif args.dataset == 'CULane':
+    # num_class = 5
+    # ignore_label = 255
+    # lane_model = ERFNet(num_class)
+    # lane_model = torch.nn.DataParallel(lane_model).cuda()
 
-    checkpoint = torch.load(args.resume)
-    args.start_epoch = checkpoint['epoch']
-    best_mIoU = checkpoint['best_mIoU']
-    torch.nn.Module.load_state_dict(model, checkpoint['state_dict'])
-
-    lane_model.eval()
+    # trained_weight = "ERFNet_CULane_PyTorch/trained/ERFNet_trained.tar"
+    # checkpoint = torch.load(trained_weight)
+    # torch.nn.Module.load_state_dict(lane_model, checkpoint['state_dict'])
+    # lane_model.eval()
 
 
     # est = None
+
+    # start iter frames
+    frame_no = 0
+    prev_frames = deque()
+    frames_infos = deque()
     while True:
         start = timer()
         success, frame = vid.read()
@@ -320,8 +384,9 @@ def track_video(opt):
             # est = Speed_Est(frame)
         else:
             # speed = est.predict(frame)
-            test_img, is_moving = detect_camera_moving(frame, prev_frame, detection_size, detection_boxes)
-            if output_test:
+            # test_img, is_moving = detect_camera_moving(frame, prev_frame, detection_size, detection_boxes)
+
+            if False and output_test:
                 test_img, is_moving = detect_camera_moving(frame, prev_frame, detection_size, detection_boxes, output_test)
 
                 # draw the ROI of close dist detection
@@ -337,7 +402,9 @@ def track_video(opt):
 
                 out_test.write(test_img)
 
-        lane_detect(frame, yolo_model, device, opt)
+        # lane_detect(frame, lane_model, device, opt)
+        # out_test.write(lane_img)
+
         bboxes, classes = yolo_detect(frame, yolo_model, device, opt)
         omitted_count = omit_small_bboxes(bboxes, classes)
         print(f"[{sec2length(frame_no//video_fps)}/{video_length}] [{frame_no}/{video_total_frame}]"+
@@ -347,55 +414,25 @@ def track_video(opt):
         # tracker_infos is added to return link the class name & the object tracked
         trackers, tracker_infos = mot_tracker.update(np.array(bboxes), np.array(classes))
 
+        id_to_info = {}
         for c, d in enumerate(trackers):
             d = d.astype(np.int32) 
             left, top, right, bottom = int(d[0]), int(d[1]), int(d[2]), int(d[3])
             obj_id = d[4]
-
             class_id = tracker_infos[c][0]
             class_name = class_names[class_id]
             score = tracker_infos[c][1]
-            if score == -1:
+            if score == -1: #detection is missing
               continue
 
-            label = f'{class_name} {obj_id} : {score:.2f}'
-            # print (f"  {label} at {left},{top}, {right},{bottom}")
+            info = [class_id, score, [left, top, right, bottom]]
+            id_to_info[obj_id] = info
 
-            ano_dict = {"label": label}
-            # Anomaly binary classifiers :
-            if is_moving:
-                if class_name=="car" or class_name=="bus" or class_name=="truck":
-                    is_close = detect_close_distance(left, top, right, bottom)
-                    ano_dict['close_distance'] = is_close
-                    if is_close :
-                        print (f"Object {obj_id} is too close ")
+        if len(prev_frames)==10:
+            proc_frame(out_writer, prev_frames, frames_infos)
 
-                elif class_name=="person":
-                    center_x, center_y = (left+right)//2, (top+bottom)//2
-
-                    # left_area = [(0,0), (0,vid_height), (vid_width//4,0)]
-                    # right_area = [(vid_width,0), (vid_width,vid_height), (vid_width//4*3,0)]
-                    ROI = [(0,vid_height), (vid_width,vid_height), (vid_width//2, vid_height//4) ]
-
-                    # if the camera is moving, any person in the middle should be abnormal
-                    # if not (inside_roi(center_x, center_y, left_area) 
-                    #         or inside_roi(center_x, center_y, right_area)):
-                    if inside_roi(center_x, center_y, ROI):
-                        ano_dict['jaywalker'] = True
-
-            draw_bbox(out_frame, ano_dict, left, top, right, bottom)
-
-
-
-        # cv2.putText(out_frame, str(speed), org=(3, 15), fontFace=cv2.FONT_HERSHEY_SIMPLEX,
-        #                 fontScale=1.0, color=(255, 0, 0), thickness=2)
-
-
-        # if len(prev_frames)=buffer_size:
-        #     frame2proc = prev_frames.pop()
-
-        # prev_frames.appendleft(frame) 
-        prev_frame = frame
+        prev_frames.append(frame)
+        frames_infos.append(id_to_info)
         
         end = timer()
         if show_fps:
@@ -405,9 +442,7 @@ def track_video(opt):
             cv2.putText(out_frame, text=fps, org=(3, 15), fontFace=cv2.FONT_HERSHEY_SIMPLEX,
                         fontScale=1.0, color=(255, 0, 0), thickness=2)
 
-        if isOutput:
-            out.write(out_frame)
-    out.release()
+    out_writer.release()
     if output_test:
         out_test.release()
 
@@ -423,7 +458,7 @@ if __name__ == '__main__':
     parser.add_argument("--nms_thres", type=float, default=0.25, help="iou thresshold for non-maximum suppression")
     parser.add_argument("--batch_size", type=int, default=1, help="size of the batches")
     parser.add_argument("--n_cpu", type=int, default=0, help="number of cpu threads to use during batch generation")
-    parser.add_argument("--img_size", type=int, default=608, help="size of each image dimension")
+    parser.add_argument("--img_size", type=int, default=416, help="size of each image dimension")
     parser.add_argument("--checkpoint_model", type=str, help="path to checkpoint model")
 
     parser.add_argument("--input", nargs='?', type=str, default="",help = "Video input path")
