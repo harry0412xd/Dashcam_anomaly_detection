@@ -11,6 +11,10 @@ from yolov3.models import *
 from yolov3.utils.utils import *
 from yolov3.utils.datasets import *
 
+from lane_detection.models import sync_bn
+from lane_detection.models.erfnet import *
+
+
 from sort import *
 
 # from utils.speed_est.speed_est import Speed_Est
@@ -189,6 +193,26 @@ def sec2length(time_sec):
         s= "0"+str(s)
     return f"{m}:{s}" 
 
+def lane_detect(frame, model, device, opt):
+    frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
+    x = torch.from_numpy(frame.transpose(2, 0, 1)).to(device)
+    x = x.unsqueeze(0).float()
+    _, _, h, w = x.size()
+
+    ih, iw = (opt.img_size, opt.img_size)
+    dim_diff = np.abs(h - w)
+    pad1, pad2 = int(dim_diff // 2), int(dim_diff - dim_diff // 2)
+    pad = (pad1, pad2, 0, 0) if w <= h else (0, 0, pad1, pad2)
+    x = F.pad(x, pad=pad, mode='constant', value=127.5) / 255.0
+    x = F.upsample(x, size=(ih, iw), mode='bilinear')
+
+    out = model.forward(x)
+    print(out)
+
+
+
+
+
 def yolo_detect(frame, model, device, opt):
     frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
     x = torch.from_numpy(frame.transpose(2, 0, 1)).to(device)
@@ -203,16 +227,11 @@ def yolo_detect(frame, model, device, opt):
     x = F.upsample(x, size=(ih, iw), mode='bilinear')
     with torch.no_grad():
         detections = model.forward(x)
-        print(detections)
-        detections = non_max_suppression(detections, opt.conf_thres, opt.nms_thres)
-        print(detections)
-    detections = detections[0]
+        detections = non_max_suppression(detections, opt.conf_thres, opt.nms_thres)[0]
     bboxes = []
     classes = []
-
     if detections is not None:
         detections = rescale_boxes(detections, opt.img_size, frame.shape[:2])
-        
         for x1, y1, x2, y2, conf, cls_conf, cls_pred in detections:
            bboxes.append([x1, y1, x2, y2, cls_conf.item()])
            classes.append(int(cls_pred))
@@ -267,10 +286,24 @@ def track_video(opt):
 
     # init yolov3 model
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-    model = Darknet(opt.model_def, img_size=opt.img_size).to(device)
-    model.load_darknet_weights(opt.weights_path)
-    model.eval()
+    yolo_model = Darknet(opt.model_def, img_size=opt.img_size).to(device)
+    yolo_model.load_darknet_weights(opt.weights_path)
+    yolo_model.eval()
     class_names = load_classes(opt.class_path)
+
+    # init erfnet model
+    # lane_model = models.ERFNet(num_class, partial_bn=not args.no_partialbn)
+    lane_model = models.ERFNet(num_class, partial_bn=False)
+    # lane_model = torch.nn.DataParallel(model, device_ids=range(args.gpus)).cuda()
+    lane_model = torch.nn.DataParallel(model).cuda()
+
+    checkpoint = torch.load(args.resume)
+    args.start_epoch = checkpoint['epoch']
+    best_mIoU = checkpoint['best_mIoU']
+    torch.nn.Module.load_state_dict(model, checkpoint['state_dict'])
+
+    lane_model.eval()
+
 
     # est = None
     while True:
@@ -304,8 +337,8 @@ def track_video(opt):
 
                 out_test.write(test_img)
 
-
-        bboxes, classes = yolo_detect(frame, model, device, opt)
+        lane_detect(frame, yolo_model, device, opt)
+        bboxes, classes = yolo_detect(frame, yolo_model, device, opt)
         omitted_count = omit_small_bboxes(bboxes, classes)
         print(f"[{sec2length(frame_no//video_fps)}/{video_length}] [{frame_no}/{video_total_frame}]"+
                 f"  Found {len(bboxes)} boxes  | {omitted_count} omitted  ")
@@ -390,7 +423,7 @@ if __name__ == '__main__':
     parser.add_argument("--nms_thres", type=float, default=0.25, help="iou thresshold for non-maximum suppression")
     parser.add_argument("--batch_size", type=int, default=1, help="size of the batches")
     parser.add_argument("--n_cpu", type=int, default=0, help="number of cpu threads to use during batch generation")
-    parser.add_argument("--img_size", type=int, default=416, help="size of each image dimension")
+    parser.add_argument("--img_size", type=int, default=608, help="size of each image dimension")
     parser.add_argument("--checkpoint_model", type=str, help="path to checkpoint model")
 
     parser.add_argument("--input", nargs='?', type=str, default="",help = "Video input path")
