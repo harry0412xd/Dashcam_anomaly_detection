@@ -7,12 +7,24 @@ from collections import deque
 import cv2
 import numpy as np
 
+import torch
+from lane.utils.prob2lines import getLane
+from lane.utils.transforms import *
+
+device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+torch.set_default_tensor_type('torch.cuda.FloatTensor')
+
 from yolov3.models import *
 from yolov3.utils.utils import *
 from yolov3.utils.datasets import *
 
-from ERFNet_CULane_PyTorch.models.erfnet import *
-from ERFNet_CULane_PyTorch.prob_to_lines import *
+# from ERFNet_CULane_PyTorch.models.erfnet import *
+# from ERFNet_CULane_PyTorch.prob_to_lines import *
+from lane.model import SCNN
+mean=(0.3598, 0.3653, 0.3662) # CULane mean, std
+std=(0.2573, 0.2663, 0.2756)
+transform_img = Resize((512, 288))
+transform_to_net = Compose(ToTensor(), Normalize(mean=mean, std=std))
 
 from sort import *
 
@@ -247,29 +259,59 @@ def sec2length(time_sec):
         s= "0"+str(s)
     return f"{m}:{s}" 
 
-# not working atm
-def lane_detect(frame, model, device, opt):
-    frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
-    x = torch.from_numpy(frame.transpose(2, 0, 1)).to(device)
-    x = x.unsqueeze(0).float()
+# # not working atm
+# def lane_detect(frame, model, device, opt):
+#     frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
+#     x = torch.from_numpy(frame.transpose(2, 0, 1)).to(device)
+#     x = x.unsqueeze(0).float()
 
-    _, _, h, w = x.size()
-    ih, iw = (288, 800)
-    dim_diff = np.abs(h - w)
-    pad1, pad2 = int(dim_diff // 2), int(dim_diff - dim_diff // 2)
-    pad = (pad1, pad2, 0, 0) if w <= h else (0, 0, pad1, pad2)
-    x = F.pad(x, pad=pad, mode='constant', value=127.5) / 255.0
-    x = F.upsample(x, size=(ih, iw), mode='bilinear')
+#     _, _, h, w = x.size()
+#     ih, iw = (288, 800)
+#     dim_diff = np.abs(h - w)
+#     pad1, pad2 = int(dim_diff // 2), int(dim_diff - dim_diff // 2)
+#     pad = (pad1, pad2, 0, 0) if w <= h else (0, 0, pad1, pad2)
+#     x = F.pad(x, pad=pad, mode='constant', value=127.5) / 255.0
+#     x = F.upsample(x, size=(ih, iw), mode='bilinear')
 
-    out = model.forward(x)
-    out = F.softmax(out, dim=1)
-    pred = out.data.cpu().numpy()
-    print(pred)
-    # # for num in range(len(pred)):
-    # #     prob_map = (pred[num+1]*255).astype(int)
-    # #     print(prob_map)
-    # lane = GetLines(out)
-    print(lane)
+#     out = model.forward(x)
+#     out = F.softmax(out, dim=1)
+#     pred = out.data.cpu().numpy()
+#     print(pred)
+#     # # for num in range(len(pred)):
+#     # #     prob_map = (pred[num+1]*255).astype(int)
+#     # #     print(prob_map)
+#     # lane = GetLines(out)
+#     print(lane)
+
+def lane_detect(frame, model, writer):
+    global device
+    img = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
+    img = transform_img({'img': img})['img']
+    if device == "cuda":
+        x = transform_to_net({'img': img})['img']
+    else:
+        x = transform_to_net({'img': img})['img']
+    x.unsqueeze_(0)
+
+    seg_pred, exist_pred = model(x.cuda())[:2]
+    if device == "cuda":
+        seg_pred = seg_pred.detach().cuda().numpy()
+        exist_pred = exist_pred.detach().cuda().numpy()
+    else:
+        seg_pred = seg_pred.detach().cpu().numpy()
+        exist_pred = exist_pred.detach().cpu().numpy()
+    seg_pred = seg_pred[0]
+    exist = [1 if exist_pred[0, i] > 0.5 else 0 for i in range(4)]
+
+    img = cv2.cvtColor(img, cv2.COLOR_RGB2BGR)
+    lane_img = np.zeros_like(img)
+    color = np.array([[255, 125, 0], [0, 255, 0], [0, 0, 255], [0, 255, 255]], dtype='uint8')
+    coord_mask = np.argmax(seg_pred, axis=0)
+    for i in range(0, 4):
+        if exist_pred[0, i] > 0.5:
+            lane_img[coord_mask == (i + 1)] = color[i]
+    img = cv2.addWeighted(src1=lane_img, alpha=0.8, src2=img, beta=1., gamma=0.)
+    writer.write(img)
 
 # yolo wrapper, return list of bounding boxes and list of corresponding classes(id)
 def yolo_detect(frame, model, device, opt):
@@ -327,7 +369,7 @@ def track_video(opt):
     output_test = True
     if output_test:
         test_output_path =  output_path.replace("output", "test")
-        out_test = cv2.VideoWriter(test_output_path, video_FourCC, video_fps, (vid_width, vid_height))
+        test_writer = cv2.VideoWriter(test_output_path, video_FourCC, video_fps, (vid_width, vid_height))
 
 
 
@@ -336,20 +378,23 @@ def track_video(opt):
     # prev_frames = deque(maxlen=buffer_size)
     # frames_info = deque(maxlen=buffer_size)
 
+    # global init
+    get_detection_boxes()
+    global class_names
+    class_names = load_classes(opt.class_path)
+    global device
+
     # init SORT tracker
     max_age = max(3,video_fps//2)
     mot_tracker = Sort(max_age=max_age, min_hits=1)
 
     # init yolov3 model
-    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+
     yolo_model = Darknet(opt.model_def, img_size=opt.img_size).to(device)
     yolo_model.load_darknet_weights(opt.weights_path)
     yolo_model.eval()
 
-    # global init
-    get_detection_boxes()
-    global class_names
-    class_names = load_classes(opt.class_path)
+
 
     # init erfnet model
     # elif args.dataset == 'CULane':
@@ -363,6 +408,12 @@ def track_video(opt):
     # torch.nn.Module.load_state_dict(lane_model, checkpoint['state_dict'])
     # lane_model.eval()
 
+    # exp0 : 512, 288
+    # exp10 : 800, 288
+    lane_model = SCNN(input_size=(512, 288), pretrained=False)
+    save_dict = torch.load("lane/exp0_best.pth", map_location=device)
+    lane_model.load_state_dict(save_dict['net'])
+    lane_model.eval()
 
     # est = None
 
@@ -402,7 +453,7 @@ def track_video(opt):
 
                 out_test.write(test_img)
 
-        # lane_detect(frame, lane_model, device, opt)
+        lane_detect(frame, lane_model, test_writer)
         # out_test.write(lane_img)
 
         bboxes, classes = yolo_detect(frame, yolo_model, device, opt)
