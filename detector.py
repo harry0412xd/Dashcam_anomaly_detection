@@ -11,9 +11,6 @@ import torch
 from lane.utils.prob2lines import getLane
 from lane.utils.transforms import *
 
-device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-torch.set_default_tensor_type('torch.cuda.FloatTensor')
-
 from yolov3.models import *
 from yolov3.utils.utils import *
 from yolov3.utils.datasets import *
@@ -21,10 +18,9 @@ from yolov3.utils.datasets import *
 # from ERFNet_CULane_PyTorch.models.erfnet import *
 # from ERFNet_CULane_PyTorch.prob_to_lines import *
 from lane.model import SCNN
-mean=(0.3598, 0.3653, 0.3662) # CULane mean, std
-std=(0.2573, 0.2663, 0.2756)
-transform_img = Resize((512, 288))
-transform_to_net = Compose(ToTensor(), Normalize(mean=mean, std=std))
+transform_img = None
+transform_to_net = None
+device = None
 
 from sort import *
 
@@ -287,19 +283,13 @@ def lane_detect(frame, model, writer):
     global device
     img = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
     img = transform_img({'img': img})['img']
-    if device == "cuda":
-        x = transform_to_net({'img': img})['img']
-    else:
-        x = transform_to_net({'img': img})['img']
+    x = transform_to_net({'img': img})['img']
     x.unsqueeze_(0)
-
-    seg_pred, exist_pred = model(x.cuda())[:2]
-    if device == "cuda":
-        seg_pred = seg_pred.detach().cuda().numpy()
-        exist_pred = exist_pred.detach().cuda().numpy()
-    else:
-        seg_pred = seg_pred.detach().cpu().numpy()
-        exist_pred = exist_pred.detach().cpu().numpy()
+    if torch.cuda.is_available():
+        x = x.cuda()
+    seg_pred, exist_pred = model(x)[:2]
+    seg_pred = seg_pred.detach().cpu().numpy()
+    exist_pred = exist_pred.detach().cpu().numpy()
     seg_pred = seg_pred[0]
     exist = [1 if exist_pred[0, i] > 0.5 else 0 for i in range(4)]
 
@@ -314,7 +304,8 @@ def lane_detect(frame, model, writer):
     writer.write(img)
 
 # yolo wrapper, return list of bounding boxes and list of corresponding classes(id)
-def yolo_detect(frame, model, device, opt):
+def yolo_detect(frame, model, opt):
+    global device
     frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
     x = torch.from_numpy(frame.transpose(2, 0, 1)).to(device)
     x = x.unsqueeze(0).float()
@@ -340,6 +331,11 @@ def yolo_detect(frame, model, device, opt):
 
 
 def track_video(opt):
+    global device
+    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+    device_name = torch.cuda.get_device_name(0)
+    print(f"Using cuda device: {device_name}")
+    
     # testing flag here:
     show_fps = True
 
@@ -365,14 +361,6 @@ def track_video(opt):
               f" fps = {video_fps}, total frame = {video_total_frame}")
         out_writer = cv2.VideoWriter(output_path, video_FourCC, video_fps, (vid_width, vid_height))  
 
-# Testing purpose - init test video writer
-    output_test = True
-    if output_test:
-        test_output_path =  output_path.replace("output", "test")
-        test_writer = cv2.VideoWriter(test_output_path, video_FourCC, video_fps, (vid_width, vid_height))
-
-
-
     buffer_size = video_fps//2 # store half second of frames
     prev_frame = []
     # prev_frames = deque(maxlen=buffer_size)
@@ -382,7 +370,6 @@ def track_video(opt):
     get_detection_boxes()
     global class_names
     class_names = load_classes(opt.class_path)
-    global device
 
     # init SORT tracker
     max_age = max(3,video_fps//2)
@@ -410,11 +397,26 @@ def track_video(opt):
 
     # exp0 : 512, 288
     # exp10 : 800, 288
-    lane_model = SCNN(input_size=(512, 288), pretrained=False)
-    save_dict = torch.load("lane/exp0_best.pth", map_location=device)
+    input_size = (800, 288)
+    lane_model = SCNN(input_size=input_size, pretrained=False).to(device)
+    save_dict = torch.load("/content/MyDrive/vgg_SCNN_DULR_w9.pth", map_location=device)
     lane_model.load_state_dict(save_dict['net'])
     lane_model.eval()
 
+    mean=(0.3598, 0.3653, 0.3662) # CULane mean, std
+    std=(0.2573, 0.2663, 0.2756)
+    # Imagenet mean, std
+    # mean = (0.485, 0.456, 0.406)
+    # std = (0.229, 0.224, 0.225)
+    global transform_img, transform_to_net
+    transform_img = Resize(input_size)
+    transform_to_net = Compose(ToTensor(), Normalize(mean=mean, std=std))
+
+# Testing purpose - init test video writer
+    output_test = True
+    if output_test:
+        test_output_path =  output_path.replace("output", "test")
+        test_writer = cv2.VideoWriter(test_output_path, video_FourCC, video_fps, input_size)
     # est = None
 
     # start iter frames
@@ -456,10 +458,10 @@ def track_video(opt):
         lane_detect(frame, lane_model, test_writer)
         # out_test.write(lane_img)
 
-        bboxes, classes = yolo_detect(frame, yolo_model, device, opt)
+        bboxes, classes = yolo_detect(frame, yolo_model, opt)
         omitted_count = omit_small_bboxes(bboxes, classes)
-        print(f"[{sec2length(frame_no//video_fps)}/{video_length}] [{frame_no}/{video_total_frame}]"+
-                f"  Found {len(bboxes)} boxes  | {omitted_count} omitted  ")
+        msg = f"[{sec2length(frame_no//video_fps)}/{video_length}] [{frame_no}/{video_total_frame}]"+\
+                f"  Found {len(bboxes)} boxes  | {omitted_count} omitted  "
 
 
         # tracker_infos is added to return link the class name & the object tracked
@@ -489,13 +491,14 @@ def track_video(opt):
         if show_fps:
             #calculate fps by 1sec / time consumed to process this frame
             fps = str(round(1/(end-start),2))
-            print(f"--fps: {fps}")
+            msg += (f"--fps: {fps}")
             cv2.putText(out_frame, text=fps, org=(3, 15), fontFace=cv2.FONT_HERSHEY_SIMPLEX,
                         fontScale=1.0, color=(255, 0, 0), thickness=2)
+        print(msg)
 
     out_writer.release()
     if output_test:
-        out_test.release()
+        test_writer.release()
 
 
 
