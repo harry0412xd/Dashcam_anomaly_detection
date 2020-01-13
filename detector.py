@@ -8,8 +8,8 @@ import cv2
 import numpy as np
 
 import torch
-from lane.utils.prob2lines import getLane
-from lane.utils.transforms import *
+
+from lane_SCNN.wrapper import Lane_model
 
 from yolov3.models import *
 from yolov3.utils.utils import *
@@ -17,9 +17,6 @@ from yolov3.utils.datasets import *
 
 # from ERFNet_CULane_PyTorch.models.erfnet import *
 # from ERFNet_CULane_PyTorch.prob_to_lines import *
-from lane.model import SCNN
-transform_img = None
-transform_to_net = None
 device = None
 
 from sort import *
@@ -33,6 +30,26 @@ vid_height = 0
 class_names = None
 detection_boxes = None
 detection_size = 0
+
+def detect_jaywalker(recent_boxes):
+    center_x, center_y = (left+right)//2, (top+bottom)//2
+    # left_area = [(0,0), (0,vid_height), (vid_width//4,0)]
+    # right_area = [(vid_width,0), (vid_width,vid_height), (vid_width//4*3,0)]
+
+    # Combined with lane detection would be better
+    ROI = [(0,vid_height), (vid_width,vid_height), (vid_width//2, vid_height//4) ]
+
+# retrieve bounding boxes for an object in future n frames given obj_id
+# return list of [bbox, x] , x = frame offset i.e. that frame is x frames after 
+def ret_bbox4obj(frames_infos, obj_id):
+    bboxes_n_frameNum = []
+    for i in range(len(frames_infos)):
+        id_to_info = frames_infos[i]
+        if obj_id in id_to_info:
+          _, _, bbox = id_to_info[obj_id]
+          bboxes_n_frameNum.append([bbox, i])
+    return bboxes_n_frameNum
+          
 
 def proc_frame(writer, frames, frames_infos):
     frame2proc = frames.popleft()
@@ -61,19 +78,12 @@ def proc_frame(writer, frames, frames_infos):
                 ano_dict['close_distance'] = is_close
                 if is_close :
                     print (f"Object {obj_id} is too close ")
-
-            elif class_name=="person":
-                center_x, center_y = (left+right)//2, (top+bottom)//2
-                # left_area = [(0,0), (0,vid_height), (vid_width//4,0)]
-                # right_area = [(vid_width,0), (vid_width,vid_height), (vid_width//4*3,0)]
-
-                # Combined with lane detection would be better
-                ROI = [(0,vid_height), (vid_width,vid_height), (vid_width//2, vid_height//4) ]
-                if inside_roi(center_x, center_y, ROI):
-                    ano_dict['jaywalker'] = True
-
-
         # multi-frame detection insert here
+            elif class_name=="person":
+                t_bboxes = ret_bbox4obj(frames_infos, obj_id)
+                print(f"person {obj_id} : {t_bboxes}")
+                # if detect_jaywalker(ret_bbox4obj(frames_infos, obj_id)):
+                    # ano_dict['jaywalker'] = True
         # for future_frame in frames:
         draw_bbox(frame2proc, ano_dict, left, top, right, bottom)
     writer.write(frame2proc)
@@ -255,54 +265,6 @@ def sec2length(time_sec):
         s= "0"+str(s)
     return f"{m}:{s}" 
 
-# # not working atm
-# def lane_detect(frame, model, device, opt):
-#     frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
-#     x = torch.from_numpy(frame.transpose(2, 0, 1)).to(device)
-#     x = x.unsqueeze(0).float()
-
-#     _, _, h, w = x.size()
-#     ih, iw = (288, 800)
-#     dim_diff = np.abs(h - w)
-#     pad1, pad2 = int(dim_diff // 2), int(dim_diff - dim_diff // 2)
-#     pad = (pad1, pad2, 0, 0) if w <= h else (0, 0, pad1, pad2)
-#     x = F.pad(x, pad=pad, mode='constant', value=127.5) / 255.0
-#     x = F.upsample(x, size=(ih, iw), mode='bilinear')
-
-#     out = model.forward(x)
-#     out = F.softmax(out, dim=1)
-#     pred = out.data.cpu().numpy()
-#     print(pred)
-#     # # for num in range(len(pred)):
-#     # #     prob_map = (pred[num+1]*255).astype(int)
-#     # #     print(prob_map)
-#     # lane = GetLines(out)
-#     print(lane)
-
-def lane_detect(frame, model, writer):
-    global device
-    img = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
-    img = transform_img({'img': img})['img']
-    x = transform_to_net({'img': img})['img']
-    x.unsqueeze_(0)
-    if torch.cuda.is_available():
-        x = x.cuda()
-    seg_pred, exist_pred = model(x)[:2]
-    seg_pred = seg_pred.detach().cpu().numpy()
-    exist_pred = exist_pred.detach().cpu().numpy()
-    seg_pred = seg_pred[0]
-    exist = [1 if exist_pred[0, i] > 0.5 else 0 for i in range(4)]
-
-    img = cv2.cvtColor(img, cv2.COLOR_RGB2BGR)
-    lane_img = np.zeros_like(img)
-    color = np.array([[255, 125, 0], [0, 255, 0], [0, 0, 255], [0, 255, 255]], dtype='uint8')
-    coord_mask = np.argmax(seg_pred, axis=0)
-    for i in range(0, 4):
-        if exist_pred[0, i] > 0.5:
-            lane_img[coord_mask == (i + 1)] = color[i]
-    img = cv2.addWeighted(src1=lane_img, alpha=0.8, src2=img, beta=1., gamma=0.)
-    writer.write(img)
-
 # yolo wrapper, return list of bounding boxes and list of corresponding classes(id)
 def yolo_detect(frame, model, opt):
     global device
@@ -359,8 +321,15 @@ def track_video(opt):
         # print("!!! TYPE:", type(output_path), type(video_FourCC), type(video_fps), type(video_size))
         print(f"Loaded video: {output_path}, Size = {vid_width}x{vid_height},"
               f" fps = {video_fps}, total frame = {video_total_frame}")
+        if not video_fps == int(video_fps):
+            video_fps = int(video_fps)
+            print(f"Rounded fps to {video_fps}")
         out_writer = cv2.VideoWriter(output_path, video_FourCC, video_fps, (vid_width, vid_height))  
-
+# Testing purpose - init test video writer
+    output_test = True
+    if output_test:
+        test_output_path =  output_path.replace("output", "test")
+        test_writer = cv2.VideoWriter(test_output_path, video_FourCC, video_fps, (vid_width, vid_height))
     buffer_size = video_fps//2 # store half second of frames
     prev_frame = []
     # prev_frames = deque(maxlen=buffer_size)
@@ -381,43 +350,7 @@ def track_video(opt):
     yolo_model.load_darknet_weights(opt.weights_path)
     yolo_model.eval()
 
-
-
-    # init erfnet model
-    # elif args.dataset == 'CULane':
-    # num_class = 5
-    # ignore_label = 255
-    # lane_model = ERFNet(num_class)
-    # lane_model = torch.nn.DataParallel(lane_model).cuda()
-
-    # trained_weight = "ERFNet_CULane_PyTorch/trained/ERFNet_trained.tar"
-    # checkpoint = torch.load(trained_weight)
-    # torch.nn.Module.load_state_dict(lane_model, checkpoint['state_dict'])
-    # lane_model.eval()
-
-    # exp0 : 512, 288
-    # exp10 : 800, 288
-    input_size = (800, 288)
-    lane_model = SCNN(input_size=input_size, pretrained=False).to(device)
-    save_dict = torch.load("/content/MyDrive/vgg_SCNN_DULR_w9.pth", map_location=device)
-    lane_model.load_state_dict(save_dict['net'])
-    lane_model.eval()
-
-    mean=(0.3598, 0.3653, 0.3662) # CULane mean, std
-    std=(0.2573, 0.2663, 0.2756)
-    # Imagenet mean, std
-    # mean = (0.485, 0.456, 0.406)
-    # std = (0.229, 0.224, 0.225)
-    global transform_img, transform_to_net
-    transform_img = Resize(input_size)
-    transform_to_net = Compose(ToTensor(), Normalize(mean=mean, std=std))
-
-# Testing purpose - init test video writer
-    output_test = True
-    if output_test:
-        test_output_path =  output_path.replace("output", "test")
-        test_writer = cv2.VideoWriter(test_output_path, video_FourCC, video_fps, input_size)
-    # est = None
+    # lane_model = Lane_model(device)
 
     # start iter frames
     frame_no = 0
@@ -455,7 +388,6 @@ def track_video(opt):
 
                 out_test.write(test_img)
 
-        lane_detect(frame, lane_model, test_writer)
         # out_test.write(lane_img)
 
         bboxes, classes = yolo_detect(frame, yolo_model, opt)

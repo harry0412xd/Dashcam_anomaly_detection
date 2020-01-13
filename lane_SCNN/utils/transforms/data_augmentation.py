@@ -2,7 +2,7 @@ import random
 import numpy as np
 import cv2
 
-from lane.utils.transforms.transforms import CustomTransform
+from lane_SCNN.utils.transforms.transforms import CustomTransform
 
 
 class RandomFlip(CustomTransform):
