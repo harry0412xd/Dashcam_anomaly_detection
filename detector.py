@@ -6,7 +6,6 @@ from collections import deque
 
 import cv2
 import numpy as np
-
 import torch
 
 from lane_SCNN.wrapper import Lane_model
@@ -17,7 +16,6 @@ from yolov3.utils.datasets import *
 
 # from ERFNet_CULane_PyTorch.models.erfnet import *
 # from ERFNet_CULane_PyTorch.prob_to_lines import *
-device = None
 
 from sort import *
 
@@ -27,29 +25,63 @@ from sort import *
 #Video properties : 
 vid_width = 0
 vid_height = 0
-class_names = None
-detection_boxes = None
+
+device = None # cuda or cpu
+class_names = None # list of classes for yolo
+detection_boxes = None 
 detection_size = 0
 
-def detect_jaywalker(frame, recent_bboxes):
+
+def detect_jaywalker(recent_bboxes, mean_shift=[] frame):
+    if len(recent_bboxes)==0:
+      return
+    threshold = 0.5
     global vid_width, vid_height
     # Combined with lane detection could be better
     ROI = [(vid_width//4,vid_height), (vid_width//2,0), (vid_width*3//4, vid_height) ]
+    cv2.polylines(frame, [np.array(ROI, dtype=np.int32)], False, (255,0,0))
+    cv2.line(frame,(0, vid_height*2//5), (vid_width, vid_height*2//5), (255,0,0))
 
-
+    score = 0
+    max_score = len(recent_bboxes)*10
+    x_diff_total = 0
+    x_prev = 0
+    is_moving_right = 0
+    is_inside_ROI = False
+    cur_center_x = 0
+    cur_center_y = 0
     for bboxes_n_frameNum in recent_bboxes:
         left, top, right, bottom = bboxes_n_frameNum[0]
         offset = bboxes_n_frameNum[1]
         center_x, center_y = (left+right)//2, (top+bottom)//2
-
-        # color = max(0,255-offset*20)
-        # cv2.circle(frame, (center_x, center_y), 2, (0,0,color))
+        if x_prev == 0:
+            is_inside_ROI = inside_roi(center_x, center_y, ROI)
+            cur_center_x, cur_center_y = center_x, center_y
+        else:
+            x_diff = center_x-x_prev
+            if is_moving_right^(x_diff>0): #change direction
+                score -= 5
+            else:
+                score += (abs(x_diff)/vid_width)*10
+            is_moving_right = x_diff>0
+            x_diff_total += x_diff        
+        x_prev = center_x
     
-    # left_area = [(0,0), (0,vid_height), (vid_width//4,0)]
-    # right_area = [(vid_width,0), (vid_width,vid_height), (vid_width//4*3,0)]
-
-
-
+    score += abs(x_diff_total)/len(recent_bboxes)*30
+    
+    if is_inside_ROI:
+        if cur_center_x>(vid_height*2//5):
+            score += 30
+        else:
+            score *= 0.3
+    else:
+        score *= 0.01
+    # print(f"score: {score} / {max_score} ")
+    cv2.putText(frame, f"{(score/max_score):.2f} ", (cur_center_x-10, cur_center_y), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0,255,0), 2)
+    if score > threshold*max_score:
+        return True
+    return False
+    
 # retrieve bounding boxes for an object in future n frames given obj_id
 # return list of [bbox, x] , x = frame offset i.e. that frame is x frames after 
 def ret_bbox4obj(frames_infos, obj_id):
@@ -62,6 +94,18 @@ def ret_bbox4obj(frames_infos, obj_id):
     return bboxes_n_frameNum
           
 
+# get mean bbox shift
+def get_ms(frames_infos):
+
+    for i in range(len(frames_infos)-1):
+      id_to_info = frames_infos[i]
+      x_diff_total = 0
+      for info in id_to_info:
+        if class_names[info[0]]=="person":
+          x_diff_total += 
+
+
+
 def proc_frame(writer, frames, frames_infos):
     frame2proc = frames.popleft()
     out_frame = frame2proc.copy()
@@ -71,6 +115,8 @@ def proc_frame(writer, frames, frames_infos):
     # frame-wise task
     test_img, is_moving = detect_camera_moving(frame2proc, frames[0])
 
+
+    person_mean_shift = get_pms(frames_infos)
     # object-wise
     for obj_id in id_to_info:
         info = id_to_info[obj_id]
@@ -88,21 +134,19 @@ def proc_frame(writer, frames, frames_infos):
               # Detect lack of car distance
                 is_close = detect_close_distance(left, top, right, bottom)
                 ano_dict['close_distance'] = is_close
-                if is_close :
-                    print (f"Object {obj_id} is too close ")
+                # if is_close :
+                #     print (f"Object {obj_id} is too close ")
         # multi-frame detection insert here
             elif class_name=="person":
-                t_bboxes = ret_bbox4obj(frames_infos, obj_id)
-                detect_jaywalker(out_frame, t_bboxes)
+                # t_bboxes = ret_bbox4obj(frames_infos, obj_id)
+                # detect_jaywalker(out_frame, t_bboxes)
                 # print(f"person {obj_id} : {t_bboxes}")
-                # if detect_jaywalker(ret_bbox4obj(frames_infos, obj_id)):
-                    # ano_dict['jaywalker'] = True
-        # for future_frame in frames:
+                if detect_jaywalker(ret_bbox4obj(frames_infos, obj_id), out_frame):
+                    ano_dict['jaywalker'] = True
         draw_bbox(out_frame, ano_dict, left, top, right, bottom)
     writer.write(out_frame)
 
     
-
 # draw bounding box on image given label and coordinate
 def draw_bbox(image, ano_dict, left, top, right, bottom):
     global vid_height
@@ -114,17 +158,18 @@ def draw_bbox(image, ano_dict, left, top, right, bottom):
 
     ano_label = ""
     if ("close_distance" in ano_dict) and ano_dict["close_distance"]:
-        box_color = (0,0,255)
+        box_color = (70,255,255) # yellow
         ano_label += "Close distance "
     
     if ("jaywalker" in ano_dict) and ano_dict["jaywalker"]:
-        box_color = (0,0,255)
+        box_color = (0,123,255) #orange
         ano_label += "Jaywalker "
     
     cv2.rectangle(image, (left, top), (right, bottom), box_color, thickness)
     cv2.putText(image, label, (left, top-5), cv2.FONT_HERSHEY_SIMPLEX, font_size, (0,255,0), thickness)
     if not ano_label=="":
         cv2.putText(image, ano_label, ((right+left)//2, top-5), cv2.FONT_HERSHEY_SIMPLEX, font_size, (0,0,255), thickness)
+
 
 #omit small bboxes since they are not accurate and useful enought for detecting anomaly
 def omit_small_bboxes(bboxes,classes):
@@ -229,6 +274,7 @@ def get_detection_boxes():
 # detect whether the camera is moving, return img? and boolean
 def detect_camera_moving(cur_frame, prev_frame, should_return_img=False):
     if prev_frame is None:
+        print("Last frame")
         return False
     threshold = 0.015
     global detection_boxes, detection_size
@@ -284,8 +330,8 @@ def sec2length(time_sec):
 def yolo_detect(frame, model, opt):
     global device
     frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
-    x = torch.from_numpy(frame.transpose(2, 0, 1)).to(device)
-    x = x.unsqueeze(0).float()
+    x = torch.from_numpy(frame.transpose(2, 0, 1)).float().to(device)
+    x = x.unsqueeze(0)
     _, _, h, w = x.size()
 
     ih, iw = (opt.img_size, opt.img_size)
@@ -293,7 +339,8 @@ def yolo_detect(frame, model, opt):
     pad1, pad2 = int(dim_diff // 2), int(dim_diff - dim_diff // 2)
     pad = (pad1, pad2, 0, 0) if w <= h else (0, 0, pad1, pad2)
     x = F.pad(x, pad=pad, mode='constant', value=127.5) / 255.0
-    x = F.upsample(x, size=(ih, iw), mode='bilinear')
+    x = F.interpolate(x, size=(ih, iw), mode='bilinear')
+    # x = F.upsample(x, size=(ih, iw), mode='bilinear')
     with torch.no_grad():
         detections = model.forward(x)
         detections = non_max_suppression(detections, opt.conf_thres, opt.nms_thres)[0]
@@ -306,6 +353,20 @@ def yolo_detect(frame, model, opt):
            classes.append(int(cls_pred))
     return bboxes, classes
 
+# for testing
+def draw_test_img(test_img):
+    # draw the ROI of close dist detection
+    x1, y1 = vid_width//2, vid_height//2
+    x2, y2 = vid_width//8, vid_height
+    x3, y3 = vid_width*7//8, vid_height
+    pts = np.array([[x1,y1], [x2,y2], [x3,y3]], np.int32)
+    cv2.polylines(test_img, [pts], True, (255,0,0))
+
+    pts =[(0,vid_height), (vid_width,vid_height), (vid_width//2, vid_height//4) ]
+    pts = np.array(pts,  np.int32)
+    cv2.polylines(test_img, [pts], True, (0,0,255))
+
+    out_test.write(test_img)
 
 def track_video(opt):
     global device
@@ -339,26 +400,21 @@ def track_video(opt):
         if not video_fps == int(video_fps):
             video_fps = int(video_fps)
             print(f"Rounded fps to {video_fps}")
-        out_writer = cv2.VideoWriter(output_path, video_FourCC, video_fps, (vid_width, vid_height))  
-# Testing purpose - init test video writer
-    output_test = True
+        out_writer = cv2.VideoWriter(output_path, video_FourCC, video_fps, (vid_width, vid_height))
+        
+    output_test = True  
     if output_test:
         test_output_path =  output_path.replace("output", "test")
         test_writer = cv2.VideoWriter(test_output_path, video_FourCC, video_fps, (vid_width, vid_height))
-    # prev_frames = deque(maxlen=buffer_size)
-    # frames_info = deque(maxlen=buffer_size)
 
-    # global init
+  # global init
     get_detection_boxes()
     global class_names
     class_names = load_classes(opt.class_path)
-
-    # init SORT tracker
+  # init SORT tracker
     max_age = max(3,video_fps//2)
     mot_tracker = Sort(max_age=max_age, min_hits=1)
-
-    # init yolov3 model
-
+  # init yolov3 model
     yolo_model = Darknet(opt.model_def, img_size=opt.img_size).to(device)
     yolo_model.load_darknet_weights(opt.weights_path)
     yolo_model.eval()
@@ -367,48 +423,24 @@ def track_video(opt):
 
     # start iter frames
     frame_no = 0
-    buffer_size = video_fps
+    buffer_size = video_fps #store 1sec of frames
     prev_frames = deque()
     frames_infos = deque()
+
     while True:
         start = timer()
         success, frame = vid.read()
-        if not success:
+        if not success: #end of video
             break
         frame_no += 1
+
         out_frame = frame.copy()
 
-        if frame_no==1 :
-            is_moving = True # Always treat the first frame as moving
-            # speed = 0
-            # est = Speed_Est(frame)
-        else:
-            # speed = est.predict(frame)
-            # test_img, is_moving = detect_camera_moving(frame, prev_frame, detection_size, detection_boxes)
-
-            if False and output_test:
-                test_img, is_moving = detect_camera_moving(frame, prev_frame, detection_size, detection_boxes, output_test)
-
-                # draw the ROI of close dist detection
-                x1, y1 = vid_width//2, vid_height//2
-                x2, y2 = vid_width//8, vid_height
-                x3, y3 = vid_width*7//8, vid_height
-                pts = np.array([[x1,y1], [x2,y2], [x3,y3]], np.int32)
-                cv2.polylines(test_img, [pts], True, (255,0,0))
-
-                pts =[(0,vid_height), (vid_width,vid_height), (vid_width//2, vid_height//4) ]
-                pts = np.array(pts,  np.int32)
-                cv2.polylines(test_img, [pts], True, (0,0,255))
-
-                out_test.write(test_img)
-
-        # out_test.write(lane_img)
-
+        # Obj Detection
         bboxes, classes = yolo_detect(frame, yolo_model, opt)
         omitted_count = omit_small_bboxes(bboxes, classes)
-        msg = f"[{sec2length(frame_no//video_fps)}/{video_length}] [{frame_no}/{video_total_frame}]"+\
-                f"  Found {len(bboxes)} boxes  | {omitted_count} omitted  "
-
+        msg = f"[{sec2length(frame_no//video_fps)}/{video_length}]"+\
+              f"  Found {len(bboxes)} boxes  | {omitted_count} omitted "
 
         # tracker_infos is added to return link the class name & the object tracked
         trackers, tracker_infos = mot_tracker.update(np.array(bboxes), np.array(classes))
@@ -418,18 +450,17 @@ def track_video(opt):
             d = d.astype(np.int32) 
             left, top, right, bottom = int(d[0]), int(d[1]), int(d[2]), int(d[3])
             obj_id = d[4]
-            class_id = tracker_infos[c][0]
+            class_id, score = tracker_infos[c][0], tracker_infos[c][1]
             class_name = class_names[class_id]
-            score = tracker_infos[c][1]
             if score == -1: #detection is missing
               continue
 
             info = [class_id, score, [left, top, right, bottom]]
             id_to_info[obj_id] = info
 
+        # frame buffer proc
         if len(prev_frames)==buffer_size:
             proc_frame(out_writer, prev_frames, frames_infos)
-
         prev_frames.append(frame)
         frames_infos.append(id_to_info)
         
@@ -442,7 +473,10 @@ def track_video(opt):
                         fontScale=1.0, color=(255, 0, 0), thickness=2)
         print(msg)
 
-    out_writer.release()
+    
+
+    if isOutput:
+        out_writer.release()
     if output_test:
         test_writer.release()
 
@@ -450,16 +484,16 @@ def track_video(opt):
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
-    parser.add_argument("--image_folder", type=str, default="data/samples", help="path to dataset")
+    # parser.add_argument("--image_folder", type=str, default="data/samples", help="path to dataset")
     parser.add_argument("--model_def", type=str, default="model_data/bdd/bdd.cfg", help="path to model definition file")
     parser.add_argument("--weights_path", type=str, default="model_data/bdd/bdd.weights", help="path to weights file")
     parser.add_argument("--class_path", type=str, default="model_data/bdd/classes.txt", help="path to class label file")
     parser.add_argument("--conf_thres", type=float, default=0.55, help="object confidence threshold")
     parser.add_argument("--nms_thres", type=float, default=0.25, help="iou thresshold for non-maximum suppression")
-    parser.add_argument("--batch_size", type=int, default=1, help="size of the batches")
-    parser.add_argument("--n_cpu", type=int, default=0, help="number of cpu threads to use during batch generation")
+    # parser.add_argument("--batch_size", type=int, default=1, help="size of the batches")
+    # parser.add_argument("--n_cpu", type=int, default=0, help="number of cpu threads to use during batch generation")
     parser.add_argument("--img_size", type=int, default=416, help="size of each image dimension")
-    parser.add_argument("--checkpoint_model", type=str, help="path to checkpoint model")
+    # parser.add_argument("--checkpoint_model", type=str, help="path to checkpoint model")
 
     parser.add_argument("--input", nargs='?', type=str, default="",help = "Video input path")
     parser.add_argument("--output", nargs='?', type=str, default="",  help = "[Optional] Video output path")
