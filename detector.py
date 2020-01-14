@@ -31,13 +31,24 @@ class_names = None
 detection_boxes = None
 detection_size = 0
 
-def detect_jaywalker(recent_boxes):
-    center_x, center_y = (left+right)//2, (top+bottom)//2
+def detect_jaywalker(frame, recent_bboxes):
+    global vid_width, vid_height
+    # Combined with lane detection could be better
+    ROI = [(vid_width//4,vid_height), (vid_width//2,0), (vid_width*3//4, vid_height) ]
+
+
+    for bboxes_n_frameNum in recent_bboxes:
+        left, top, right, bottom = bboxes_n_frameNum[0]
+        offset = bboxes_n_frameNum[1]
+        center_x, center_y = (left+right)//2, (top+bottom)//2
+
+        # color = max(0,255-offset*20)
+        # cv2.circle(frame, (center_x, center_y), 2, (0,0,color))
+    
     # left_area = [(0,0), (0,vid_height), (vid_width//4,0)]
     # right_area = [(vid_width,0), (vid_width,vid_height), (vid_width//4*3,0)]
 
-    # Combined with lane detection would be better
-    ROI = [(0,vid_height), (vid_width,vid_height), (vid_width//2, vid_height//4) ]
+
 
 # retrieve bounding boxes for an object in future n frames given obj_id
 # return list of [bbox, x] , x = frame offset i.e. that frame is x frames after 
@@ -53,6 +64,7 @@ def ret_bbox4obj(frames_infos, obj_id):
 
 def proc_frame(writer, frames, frames_infos):
     frame2proc = frames.popleft()
+    out_frame = frame2proc.copy()
     id_to_info = frames_infos.popleft()
     global class_names
 
@@ -81,12 +93,13 @@ def proc_frame(writer, frames, frames_infos):
         # multi-frame detection insert here
             elif class_name=="person":
                 t_bboxes = ret_bbox4obj(frames_infos, obj_id)
-                print(f"person {obj_id} : {t_bboxes}")
+                detect_jaywalker(out_frame, t_bboxes)
+                # print(f"person {obj_id} : {t_bboxes}")
                 # if detect_jaywalker(ret_bbox4obj(frames_infos, obj_id)):
                     # ano_dict['jaywalker'] = True
         # for future_frame in frames:
-        draw_bbox(frame2proc, ano_dict, left, top, right, bottom)
-    writer.write(frame2proc)
+        draw_bbox(out_frame, ano_dict, left, top, right, bottom)
+    writer.write(out_frame)
 
     
 
@@ -215,6 +228,8 @@ def get_detection_boxes():
             
 # detect whether the camera is moving, return img? and boolean
 def detect_camera_moving(cur_frame, prev_frame, should_return_img=False):
+    if prev_frame is None:
+        return False
     threshold = 0.015
     global detection_boxes, detection_size
 
@@ -330,8 +345,6 @@ def track_video(opt):
     if output_test:
         test_output_path =  output_path.replace("output", "test")
         test_writer = cv2.VideoWriter(test_output_path, video_FourCC, video_fps, (vid_width, vid_height))
-    buffer_size = video_fps//2 # store half second of frames
-    prev_frame = []
     # prev_frames = deque(maxlen=buffer_size)
     # frames_info = deque(maxlen=buffer_size)
 
@@ -354,6 +367,7 @@ def track_video(opt):
 
     # start iter frames
     frame_no = 0
+    buffer_size = video_fps
     prev_frames = deque()
     frames_infos = deque()
     while True:
@@ -413,7 +427,7 @@ def track_video(opt):
             info = [class_id, score, [left, top, right, bottom]]
             id_to_info[obj_id] = info
 
-        if len(prev_frames)==10:
+        if len(prev_frames)==buffer_size:
             proc_frame(out_writer, prev_frames, frames_infos)
 
         prev_frames.append(frame)
