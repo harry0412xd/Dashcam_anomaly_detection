@@ -8,14 +8,13 @@ import cv2
 import numpy as np
 import torch
 
-from lane_SCNN.wrapper import Lane_model
+# from lane_SCNN.wrapper import Lane_model
+from Fast_SCNN.wrapper import *
 
 from yolov3.models import *
 from yolov3.utils.utils import *
 from yolov3.utils.datasets import *
 
-# from ERFNet_CULane_PyTorch.models.erfnet import *
-# from ERFNet_CULane_PyTorch.prob_to_lines import *
 
 from sort import *
 
@@ -173,16 +172,19 @@ def cal_weighted_mean(shift_list, left_count, right_count):
 
 
 
-def proc_frame(writer, frames, frames_infos):
+def proc_frame(writer, frames, frames_infos, test_writer=None):
     frame2proc = frames.popleft()
     out_frame = frame2proc.copy()
 
     id_to_info = frames_infos[0]
     global class_names
 
+
     # frame-wise task
-    test_img, is_moving = detect_camera_moving(frame2proc, frames[0])
-    left_mean, right_mean = get_mean_shift(frames_infos, out_frame)
+    _, is_moving = detect_camera_moving(frame2proc, frames[0])
+    # test_img, is_moving = detect_camera_moving(frame2proc, frames[0])
+
+    # left_mean, right_mean = get_mean_shift(frames_infos, out_frame)
     # object-wise
     for obj_id in id_to_info:
         info = id_to_info[obj_id]
@@ -203,12 +205,12 @@ def proc_frame(writer, frames, frames_infos):
                 # if is_close :
                 #     print (f"Object {obj_id} is too close ")
         # multi-frame detection insert here
-            elif class_name=="person":
+            # elif class_name=="person":
                 # t_bboxes = ret_bbox4obj(frames_infos, obj_id)
                 # detect_jaywalker(out_frame, t_bboxes)
                 # print(f"person {obj_id} : {t_bboxes}")
-                if detect_jaywalker(ret_bbox4obj(frames_infos, obj_id), out_frame):
-                    ano_dict['jaywalker'] = True
+                # if detect_jaywalker(ret_bbox4obj(frames_infos, obj_id), out_frame):
+                #     ano_dict['jaywalker'] = True
         draw_bbox(out_frame, ano_dict, left, top, right, bottom)
     writer.write(out_frame)
 
@@ -482,12 +484,16 @@ def track_video(opt):
   # init SORT tracker
     max_age = max(3,video_fps//2)
     mot_tracker = Sort(max_age=max_age, min_hits=1)
+    print("SORT initialized")
   # init yolov3 model
     yolo_model = Darknet(opt.model_def, img_size=opt.img_size).to(device)
     yolo_model.load_darknet_weights(opt.weights_path)
     yolo_model.eval()
+    print("YOLO model loaded")
 
     # lane_model = Lane_model(device)
+    seg_model = Seg_model(device)
+    print("Fast-SCNN model loaded")
 
     # start iter frames
     frame_no = 0
@@ -501,14 +507,15 @@ def track_video(opt):
         if not success: #end of video
             break
         frame_no += 1
-
-        out_frame = frame.copy()
-
+        seg_img = seg_model.detect(frame)
+        print(seg_img.shape)
+        test_writer.write(seg_img)
         # Obj Detection
         bboxes, classes = yolo_detect(frame, yolo_model, opt)
         omitted_count = omit_small_bboxes(bboxes, classes)
         msg = f"[{sec2length(frame_no//video_fps)}/{video_length}]"+\
               f"  Found {len(bboxes)} boxes  | {omitted_count} omitted "
+        
 
         # tracker_infos is added to return link the class name & the object tracked
         trackers, tracker_infos = mot_tracker.update(np.array(bboxes), np.array(classes))
@@ -528,17 +535,14 @@ def track_video(opt):
 
         # frame buffer proc
         if len(prev_frames)==buffer_size:
-            proc_frame(out_writer, prev_frames, frames_infos)
+            proc_frame(out_writer, prev_frames, frames_infos, test_writer)
         prev_frames.append(frame)
         frames_infos.append(id_to_info)
         
         end = timer()
-        if show_fps:
-            #calculate fps by 1sec / time consumed to process this frame
-            fps = str(round(1/(end-start),2))
-            msg += (f"--fps: {fps}")
-            cv2.putText(out_frame, text=fps, org=(3, 15), fontFace=cv2.FONT_HERSHEY_SIMPLEX,
-                        fontScale=1.0, color=(255, 0, 0), thickness=2)
+        #calculate fps by 1sec / time consumed to process this frame
+        fps = str(round(1/(end-start),2))
+        msg += (f"--fps: {fps}")
         print(msg)
 
     
