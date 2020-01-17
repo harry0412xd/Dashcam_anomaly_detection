@@ -9,7 +9,8 @@ import numpy as np
 import torch
 
 # from lane_SCNN.wrapper import Lane_model
-from Fast_SCNN.wrapper import *
+# from Fast_SCNN.wrapper import *
+from ERFNet_CULane_PyTorch.wrapper import *
 
 from yolov3.models import *
 from yolov3.utils.utils import *
@@ -492,8 +493,9 @@ def track_video(opt):
     print("YOLO model loaded")
 
     # lane_model = Lane_model(device)
-    seg_model = Seg_model(device)
-    print("Fast-SCNN model loaded")
+    # seg_model = Seg_model(device)
+    # print("Fast-SCNN model loaded")
+    erf_model = Erf_model(device)
 
     # start iter frames
     frame_no = 0
@@ -507,9 +509,10 @@ def track_video(opt):
         if not success: #end of video
             break
         frame_no += 1
-        seg_img = seg_model.detect(frame)
-        print(seg_img.shape)
-        test_writer.write(seg_img)
+        # seg_img = seg_model.detect(frame)
+        # print(seg_img.shape)
+        # test_writer.write(seg_img)
+        erf_model.detect(frame, frame_no)
         # Obj Detection
         bboxes, classes = yolo_detect(frame, yolo_model, opt)
         omitted_count = omit_small_bboxes(bboxes, classes)
