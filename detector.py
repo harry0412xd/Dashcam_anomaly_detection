@@ -31,9 +31,9 @@ class_names = None # list of classes for yolo
 detection_boxes = None 
 detection_size = 0
 
-def detect_jaywalker(recent_bboxes, frame):
+def detect_jaywalker(recent_bboxes, frame, mean_shift):
     global vid_height, vid_width
-    ROI = [(0,vid_height), (vid_width//2,vid_height*2//5), (vid_width, vid_height) ]
+    ROI = [(vid_width//10,vid_height), (vid_width//2,vid_height*3//7), (vid_width*9//10, vid_height) ]
     cv2.polylines(frame, [np.array(ROI, dtype=np.int32)], False, (255,0,0))
     cv2.line(frame,(0, vid_height//2), (vid_width, vid_height//2), (255,0,0))
     cv2.line(frame,(0, vid_height*7//10), (vid_width, vid_height*7//10), (255,0,0))
@@ -50,11 +50,18 @@ def detect_jaywalker(recent_bboxes, frame):
                 for i in range(len(recent_bboxes)-1):
                     left, top, right, bottom = recent_bboxes[i+1][0]
                     cx, cy = (left+right)//2, (top+bottom)//2
-                    dist += cx - center_x
+                    
+                    mean = mean_shift[0] if cx<vid_width//2 else mean_shift[1]
+                    mean = 0
+                    dist0 = cx - center_x
+                    if dist0 < 0 : #box is moving left
+                        dist += min(dist0 - mean, 0)
+                    elif dist0 > 0 : #box is moving right
+                        dist += max(dist0 - mean, 0)
                     if abs(dist)>max_dist:
                         max_dist = abs(dist)
                 cv2.putText(frame, f"{(max_dist/vid_width):.2f} ", (center_x-10, center_y), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0,255,0), 2)
-                if max_dist > vid_width//2:
+                if max_dist > vid_width*0.4:
                   return True
     return False
 
@@ -106,13 +113,74 @@ def proc_frame(writer, frames, frames_infos, test_writer=None):
                 # t_bboxes = ret_bbox4obj(frames_infos, obj_id)
                 # detect_jaywalker(out_frame, t_bboxes)
                 # print(f"person {obj_id} : {t_bboxes}")
-                if detect_jaywalker(ret_bbox4obj(frames_infos, obj_id), out_frame):
+                if detect_jaywalker(ret_bbox4obj(frames_infos, obj_id), out_frame, get_mean_shift(frames_infos, out_frame)):
                     ano_dict['jaywalker'] = True
         draw_bbox(out_frame, ano_dict, left, top, right, bottom)
     writer.write(out_frame)
 
     frames_infos.popleft()
 
+# get mean bbox shift
+def get_mean_shift(frames_infos, out_frame):
+    # seperate frame by left/right portion
+    lp_shift_list, rp_shift_list = [], []
+    lp_left_count, lp_right_count= 0, 0
+    rp_left_count, rp_right_count= 0, 0
+
+    id_list = [*frames_infos[0]] #what id to look for
+    for obj_id in id_list:
+        i = 1
+        while i< len(frames_infos) and not obj_id in frames_infos[i]: #find the next frame containing obj 
+            i += 1
+        if i == len(frames_infos): #not found
+            continue
+        _, _, box_cur = frames_infos[0][obj_id]
+        _, _, box_next = frames_infos[i][obj_id]
+        left, top, right, bottom = box_cur
+        left_next, top_next, right_next, bottom_next = box_next
+        x_diff = (right_next+left_next)//2 - (right+left)//2 
+        x_diff = x_diff/i  #diff per frame
+        # print(f"Obj {obj_id}: {x_diff}")
+        # cv2.putText(out_frame, f"{x_diff:.2f} ", ((right+left)//2, (top+bottom)//2), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0,255,0), 2)
+
+        if (right+left)>vid_width: #Object in right portion
+            if x_diff>0 :
+                rp_right_count += 1
+            elif x_diff<0 :
+                rp_left_count += 1
+            if not x_diff==0:
+                rp_shift_list.append(x_diff)
+        else:
+            if x_diff>0 :
+                lp_right_count += 1
+            elif x_diff<0 :
+                lp_left_count += 1
+            if not x_diff==0:
+                lp_shift_list.append(x_diff)
+
+    left_mean = cal_weighted_mean(lp_shift_list, lp_left_count, lp_right_count)
+    cv2.putText(out_frame, f"{left_mean:.2f} ", (20, 20), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0,255,0), 2)
+    right_mean = cal_weighted_mean(rp_shift_list, rp_left_count, rp_right_count)
+    cv2.putText(out_frame, f"{right_mean:.2f} ", (vid_width-50, 20), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0,255,0), 2)
+    return left_mean, right_mean
+
+
+def cal_weighted_mean(shift_list, left_count, right_count):
+    if (left_count+right_count)==0:
+        return 0
+    shift_total = 0
+    weight_left = left_count/(left_count+right_count)
+    weight_right = right_count/(left_count+right_count)
+    weight_total = 0
+    for n in shift_list:
+      if n>0:
+          weight_total += weight_right
+          shift_total += n * weight_right
+      else:
+          weight_total += weight_left  
+          shift_total += n * weight_left
+
+    return shift_total/weight_total
     
 # draw bounding box on image given label and coordinate
 def draw_bbox(image, ano_dict, left, top, right, bottom):
