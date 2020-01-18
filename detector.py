@@ -31,6 +31,25 @@ class_names = None # list of classes for yolo
 detection_boxes = None 
 detection_size = 0
 
+def detect_jaywalker(recent_bboxes, frame):
+    global vid_height
+    ROI = [(vid_width//4,vid_height), (vid_width//2,0), (vid_width*3//4, vid_height) ]
+    cv2.polylines(frame, [np.array(ROI, dtype=np.int32)], False, (255,0,0))
+    cv2.line(frame,(0, vid_height*3//5), (vid_width, vid_height*3//5), (255,0,0))
+    for bboxes_n_frameNum in recent_bboxes:
+        left, top, right, bottom = bboxes_n_frameNum[0]
+        frame_offset = bboxes_n_frameNum[1]
+        center_x, center_y = (left+right)//2, (top+bottom)//2
+
+        # bottom_center = (center_x, bottom)
+        if not bottom<vid_height*2//5:
+            if is_inside_ROI(center_x, bottom, ROI):
+                if bottom>vid_height*3//5 :
+            return true
+
+
+    if is_inside_ROI:
+
 def proc_frame(writer, frames, frames_infos, test_writer=None):
     frame2proc = frames.popleft()
     out_frame = frame2proc.copy()
