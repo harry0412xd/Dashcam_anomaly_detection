@@ -10,7 +10,7 @@ import torch
 
 # from lane_SCNN.wrapper import Lane_model
 # from Fast_SCNN.wrapper import *
-from ERFNet_CULane_PyTorch.wrapper import *
+# from ERFNet_CULane_PyTorch.wrapper import *
 
 from yolov3.models import *
 from yolov3.utils.utils import *
@@ -32,23 +32,42 @@ detection_boxes = None
 detection_size = 0
 
 def detect_jaywalker(recent_bboxes, frame):
-    global vid_height
-    ROI = [(vid_width//4,vid_height), (vid_width//2,0), (vid_width*3//4, vid_height) ]
+    global vid_height, vid_width
+    ROI = [(0,vid_height), (vid_width//2,vid_height*2//5), (vid_width, vid_height) ]
     cv2.polylines(frame, [np.array(ROI, dtype=np.int32)], False, (255,0,0))
-    cv2.line(frame,(0, vid_height*3//5), (vid_width, vid_height*3//5), (255,0,0))
-    for bboxes_n_frameNum in recent_bboxes:
-        left, top, right, bottom = bboxes_n_frameNum[0]
-        frame_offset = bboxes_n_frameNum[1]
-        center_x, center_y = (left+right)//2, (top+bottom)//2
+    cv2.line(frame,(0, vid_height//2), (vid_width, vid_height//2), (255,0,0))
+    cv2.line(frame,(0, vid_height*7//10), (vid_width, vid_height*7//10), (255,0,0))
+    left, top, right, bottom = recent_bboxes[0][0]
+    center_x, center_y = (left+right)//2, (top+bottom)//2
 
-        # bottom_center = (center_x, bottom)
-        if not bottom<vid_height*2//5:
-            if is_inside_ROI(center_x, bottom, ROI):
-                if bottom>vid_height*3//5 :
-            return true
+    # bottom_center = (center_x, bottom)
+    if not bottom<vid_height//2:
+        if inside_roi(center_x, bottom, ROI):
+            if bottom>vid_height*7//10 :
+                return True
+            else:
+                dist, max_dist = 0, 0
+                for i in range(len(recent_bboxes)-1):
+                    left, top, right, bottom = recent_bboxes[i+1][0]
+                    cx, cy = (left+right)//2, (top+bottom)//2
+                    dist += cx - center_x
+                    if abs(dist)>max_dist:
+                        max_dist = abs(dist)
+                cv2.putText(frame, f"{(max_dist/vid_width):.2f} ", (center_x-10, center_y), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0,255,0), 2)
+                if max_dist > vid_width//2:
+                  return True
+    return False
 
-
-    if is_inside_ROI:
+# retrieve bounding boxes for an object in future n frames given obj_id
+# return list of [bbox, x] , x = frame offset i.e. that frame is x frames after 
+def ret_bbox4obj(frames_infos, obj_id):
+    bboxes_n_frameNum = []
+    for i in range(len(frames_infos)):
+        id_to_info = frames_infos[i]
+        if obj_id in id_to_info:
+          _, _, bbox = id_to_info[obj_id]
+          bboxes_n_frameNum.append([bbox, i])
+    return bboxes_n_frameNum
 
 def proc_frame(writer, frames, frames_infos, test_writer=None):
     frame2proc = frames.popleft()
@@ -83,12 +102,12 @@ def proc_frame(writer, frames, frames_infos, test_writer=None):
                 # if is_close :
                 #     print (f"Object {obj_id} is too close ")
         # multi-frame detection insert here
-            # elif class_name=="person":
+            elif class_name=="person":
                 # t_bboxes = ret_bbox4obj(frames_infos, obj_id)
                 # detect_jaywalker(out_frame, t_bboxes)
                 # print(f"person {obj_id} : {t_bboxes}")
-                # if detect_jaywalker(ret_bbox4obj(frames_infos, obj_id), out_frame):
-                #     ano_dict['jaywalker'] = True
+                if detect_jaywalker(ret_bbox4obj(frames_infos, obj_id), out_frame):
+                    ano_dict['jaywalker'] = True
         draw_bbox(out_frame, ano_dict, left, top, right, bottom)
     writer.write(out_frame)
 
@@ -118,27 +137,6 @@ def draw_bbox(image, ano_dict, left, top, right, bottom):
     if not ano_label=="":
         cv2.putText(image, ano_label, ((right+left)//2, top-5), cv2.FONT_HERSHEY_SIMPLEX, font_size, (0,0,255), thickness)
 
-
-#omit small bboxes since they are not accurate and useful enought for detecting anomaly
-def omit_small_bboxes(bboxes,classes):
-    global vid_height
-    area_threshold = (vid_height//36)**2
-
-    omitted_count = 0
-    i = 0
-    while i<len(bboxes):
-        bbox = bboxes[i]
-        width = bbox[2] - bbox[0]
-        height = bbox[3] - bbox[1]
-        if width*height<area_threshold:
-            # print(f"{classes[i]} {width}x{height}")
-            del bboxes[i]
-            del classes[i]
-            omitted_count +=1
-        else:
-            i += 1
-    # print(f"Omitted {omitted_count} boxes due to small size")
-    return omitted_count
 
 # To check whether a point(x,y) is within a triangle area of interest
 # by computer the 3 traingles form with any 2 point & (x,y)
@@ -274,6 +272,29 @@ def sec2length(time_sec):
         s= "0"+str(s)
     return f"{m}:{s}" 
 
+#omit small bboxes since they are not accurate and useful enought for detecting anomaly
+def omit_small_bboxes(bboxes,classes):
+    global vid_height
+    area_threshold = (vid_height//36)**2
+
+    omitted_count = 0
+    i = 0
+    while i<len(bboxes):
+        bbox = bboxes[i]
+        width = bbox[2] - bbox[0]
+        height = bbox[3] - bbox[1]
+        class_name = class_names[classes[i]]
+        if (class_name=="car" or class_name=="bus" or class_name=="truck")\
+            and width*height<area_threshold:
+            # print(f"{classes[i]} {width}x{height}")
+            del bboxes[i]
+            del classes[i]
+            omitted_count +=1
+        else:
+            i += 1
+    # print(f"Omitted {omitted_count} boxes due to small size")
+    return omitted_count
+    
 # yolo wrapper, return list of bounding boxes and list of corresponding classes(id)
 def yolo_detect(frame, model, opt):
     global device
@@ -372,7 +393,7 @@ def track_video(opt):
     # lane_model = Lane_model(device)
     # seg_model = Seg_model(device)
     # print("Fast-SCNN model loaded")
-    erf_model = Erf_model(device)
+    # erf_model = Erf_model(device)
 
     # start iter frames
     frame_no = 0
@@ -389,7 +410,8 @@ def track_video(opt):
         # seg_img = seg_model.detect(frame)
         # print(seg_img.shape)
         # test_writer.write(seg_img)
-        erf_model.detect(frame, frame_no)
+        # erf_model.detect(frame, frame_no)
+
         # Obj Detection
         bboxes, classes = yolo_detect(frame, yolo_model, opt)
         omitted_count = omit_small_bboxes(bboxes, classes)

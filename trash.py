@@ -61,18 +61,7 @@ def detect_jaywalker(recent_bboxes, frame, mean_shift):
     if score > threshold*max_score:
         return True
     return False
-    
-# retrieve bounding boxes for an object in future n frames given obj_id
-# return list of [bbox, x] , x = frame offset i.e. that frame is x frames after 
-def ret_bbox4obj(frames_infos, obj_id):
-    bboxes_n_frameNum = []
-    for i in range(len(frames_infos)):
-        id_to_info = frames_infos[i]
-        if obj_id in id_to_info:
-          _, _, bbox = id_to_info[obj_id]
-          bboxes_n_frameNum.append([bbox, i])
-    return bboxes_n_frameNum
-          
+              
 
 # get mean bbox shift
 def get_mean_shift(frames_infos, out_frame):
