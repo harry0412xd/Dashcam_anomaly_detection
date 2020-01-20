@@ -11,6 +11,8 @@ import torch
 # from lane_SCNN.wrapper import Lane_model
 # from Fast_SCNN.wrapper import *
 # from ERFNet_CULane_PyTorch.wrapper import *
+from acdetect import Accident_detector
+accident_detector = None
 
 from yolov3.models import *
 from yolov3.utils.utils import *
@@ -81,7 +83,7 @@ def proc_frame(writer, frames, frames_infos, test_writer=None):
     out_frame = frame2proc.copy()
 
     id_to_info = frames_infos[0]
-    global class_names
+    global class_names, accident_detector
 
 
     # frame-wise task
@@ -106,6 +108,8 @@ def proc_frame(writer, frames, frames_infos, test_writer=None):
               # Detect lack of car distance
                 is_close = detect_close_distance(left, top, right, bottom)
                 ano_dict['close_distance'] = is_close
+                if accident_detector.detect(frame2proc ,[left, top, right, bottom]):
+                    ano_dict['accident'] = True
                 # if is_close :
                 #     print (f"Object {obj_id} is too close ")
         # multi-frame detection insert here
@@ -199,7 +203,8 @@ def draw_bbox(image, ano_dict, left, top, right, bottom):
     if ("jaywalker" in ano_dict) and ano_dict["jaywalker"]:
         box_color = (0,123,255) #orange
         ano_label += "Jaywalker "
-    
+    if ("accident" in ano_dict) and ano_dict["accident"]:
+         box_color = (0,0,255)
     cv2.rectangle(image, (left, top), (right, bottom), box_color, thickness)
     cv2.putText(image, label, (left, top-5), cv2.FONT_HERSHEY_SIMPLEX, font_size, (0,255,0), thickness)
     if not ano_label=="":
@@ -457,7 +462,8 @@ def track_video(opt):
     yolo_model.load_darknet_weights(opt.weights_path)
     yolo_model.eval()
     print("YOLO model loaded")
-
+    global accident_detector
+    accident_detector = Accident_detector(device)
     # lane_model = Lane_model(device)
     # seg_model = Seg_model(device)
     # print("Fast-SCNN model loaded")
