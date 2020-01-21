@@ -84,7 +84,7 @@ def proc_frame(writer, frames, frames_infos, test_writer=None):
 
     id_to_info = frames_infos[0]
     global class_names, accident_detector
-
+    global vid_width, vid_height
 
     # frame-wise task
     _, is_moving = detect_camera_moving(frame2proc, frames[0])
@@ -108,8 +108,15 @@ def proc_frame(writer, frames, frames_infos, test_writer=None):
               # Detect lack of car distance
                 is_close = detect_close_distance(left, top, right, bottom)
                 ano_dict['close_distance'] = is_close
-                if accident_detector.detect(frame2proc ,[left, top, right, bottom]):
-                    ano_dict['accident'] = True
+
+                if right-left>150 and bottom-top>150:
+                    p = vid_width//100
+                    left2, top2, right2, bottom2 = max(left-p,0), max(top-p,0),\
+                                                  min(right+p, vid_width), min(bottom+p, vid_height) 
+                    if accident_detector.detect(frame2proc ,[left2, top2, right2, bottom2]):
+                        ano_dict['accident'] = True
+                    else:
+                        ano_dict['accident'] = False
                 # if is_close :
                 #     print (f"Object {obj_id} is too close ")
         # multi-frame detection insert here
@@ -204,7 +211,9 @@ def draw_bbox(image, ano_dict, left, top, right, bottom):
         box_color = (0,123,255) #orange
         ano_label += "Jaywalker "
     if ("accident" in ano_dict) and ano_dict["accident"]:
-         box_color = (0,0,255)
+        box_color = (0,0,255)
+    elif ("accident" in ano_dict): 
+        box_color = (255,255,255)
     cv2.rectangle(image, (left, top), (right, bottom), box_color, thickness)
     cv2.putText(image, label, (left, top-5), cv2.FONT_HERSHEY_SIMPLEX, font_size, (0,255,0), thickness)
     if not ano_label=="":
