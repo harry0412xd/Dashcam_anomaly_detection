@@ -109,8 +109,10 @@ def proc_frame(writer, frames, frames_infos, test_writer=None):
                 is_close = detect_close_distance(left, top, right, bottom)
                 ano_dict['close_distance'] = is_close
 
-                if right-left>150 and bottom-top>150:
-                    p = vid_width//100
+
+                ac_size_thres = vid_height//10
+                if (right-left)>ac_size_thres and (bottom-top)>ac_size_thres:
+                    p = ac_size_thres//10
                     left2, top2, right2, bottom2 = max(left-p,0), max(top-p,0),\
                                                   min(right+p, vid_width), min(bottom+p, vid_height) 
                     if accident_detector.detect(frame2proc ,[left2, top2, right2, bottom2]):
