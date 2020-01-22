@@ -46,12 +46,17 @@ class Accident_detector():
         #     prob = torch.softmax(output, dim=1)[0, idx].item()
         #     print('{label:<20} ({p:.2f}%)'.format(label=labels_map[idx], p=prob*100))
 
-        class_id = torch.topk(output, k=1).indices.squeeze(0)
-        prob = torch.softmax(output, dim=1)[0, class_id].item()
-        # print('{label:<20} ({p:.2f}%)'.format(label=labels_map[class_id], p=prob*100))
-        if class_id==0 and prob>0.6:
-            return True,'{label:<20} ({p:.2f}%)'.format(label=labels_map[class_id], p=prob*100)
-        return False, '{label:<20} ({p:.2f}%)'.format(label=labels_map[class_id], p=prob*100)
+        # class_id = torch.topk(output, k=1).indices.squeeze(0)
+        # prob = torch.softmax(output, dim=1)[0, class_id].item()
+
+        # is damaged car prob
+        prob = torch.softmax(output, dim=1)[0, 0].item()
+        return prob 
+
+        # # print('{label:<20} ({p:.2f}%)'.format(label=labels_map[class_id], p=prob*100))
+        # if class_id==0 and prob>0.6:
+        #     return True,'{label} ({p:.2f}%)'.format(label=labels_map[class_id], p=prob*100)
+        # return False, '{label} ({p:.2f}%)'.format(label=labels_map[class_id], p=prob*100)
 
 
 

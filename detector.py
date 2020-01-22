@@ -33,6 +33,120 @@ class_names = None # list of classes for yolo
 detection_boxes = None 
 detection_size = 0
 
+
+def proc_frame(writer, frames, frames_infos, test_writer=None):
+    frame2proc = frames.popleft()
+    out_frame = frame2proc.copy()
+
+    id_to_info = frames_infos[0]
+    global class_names, accident_detector
+    global vid_width, vid_height
+
+    _, is_moving = detect_camera_moving(frame2proc, frames[0])
+    # test_img, is_moving = detect_camera_moving(frame2proc, frames[0])
+
+    left_mean, right_mean = get_mean_shift(frames_infos, out_frame)
+    # object-wise
+    for obj_id in id_to_info:
+        info = id_to_info[obj_id]
+        class_id, score, bbox = info
+        left, top, right, bottom = bbox
+
+        class_name = class_names[class_id]
+        label = f'{class_name} {obj_id} : {score:.2f}'
+        # print (f"  {label} at {left},{top}, {right},{bottom}")
+        ano_dict = {"label": label}
+
+        if class_name=="car" or class_name=="bus" or class_name=="truck":
+            # damaged car - image classifier
+            ac_size_thres = vid_height//10
+            if (right-left)>ac_size_thres or (bottom-top)>ac_size_thres:
+                p = ac_size_thres//5
+                left2, top2, right2, bottom2 = max(left-p,0), max(top-p,0),\
+                                              min(right+p, vid_width), min(bottom+p, vid_height) 
+                # ano_dict['accident'], label = accident_detector.detect(frame2proc ,[left2, top2, right2, bottom2])
+                crashed_prob = accident_detector.detect(frame2proc ,[left2, top2, right2, bottom2])
+                if crashed_prob>0.65:
+                    ano_dict['accident'] = True
+                cv2.putText(out_frame, f'{crashed_prob:.2f}', ((right+left)//2, (bottom+top)//2), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0,255,0), 2)
+
+            if is_moving:
+                cv2.putText(out_frame, "moving", (vid_width//2, vid_height-30), cv2.FONT_HERSHEY_SIMPLEX, 0.6, (0,255,0), 2)
+                # Detect lack of car distance
+                is_close = detect_close_distance(left, top, right, bottom)
+                ano_dict['close_distance'] = is_close
+                
+        elif class_name=="person":
+            if is_moving and detect_jaywalker(ret_bbox4obj(frames_infos, obj_id), out_frame, (left_mean, right_mean)):
+                ano_dict['jaywalker'] = True
+
+        draw_bbox(out_frame, ano_dict, left, top, right, bottom)
+    # --- frame loop end
+
+    writer.write(out_frame)
+    frames_infos.popleft()
+
+
+def retrieve_all_car_info(all_info):
+    car_list = []
+    for obj_id in id_to_info:
+        info = id_to_info[obj_id]
+        class_id, _, bbox = info
+        class_name = class_names[class_id]
+        if class_name=="car" or class_name=="bus" or class_name=="truck":
+            car_list.append((obj_id, bbox))
+    return car_list
+
+# car list [(obj_id, bbox),]
+def detect_car_collision(car_list):
+    collision_list = []
+    while len(car_list)>1:
+        id1, bbox1 = car_list[0]
+
+        i = 1 # the index for the second box 
+        found = False
+        while i<len(car_list):
+            id2, bbox2 = car_list[i]
+            # if they have about the same bottom(height)
+            if abs(bbox1[3]-bbox2[3])/vid_height<0.02:
+                iou = compute_iou(bbox1, bbox2)
+                if iou > 0.2:
+                  collision_list.append(id1)
+                  collision_list.append(id2)
+                  car_list.remove(i)
+                  car_list.remove(0)
+                  found = True
+                  break
+        if found:
+            break
+            
+
+
+
+def compute_iou(boxA, boxB):
+	# determine the (x, y)-coordinates of the intersection rectangle
+	xA = max(boxA[0], boxB[0])
+	yA = max(boxA[1], boxB[1])
+	xB = min(boxA[2], boxB[2])
+	yB = min(boxA[3], boxB[3])
+
+	# compute the area of intersection rectangle
+	interArea = max(0, xB - xA + 1) * max(0, yB - yA + 1)
+
+	# compute the area of both the prediction and ground-truth
+	# rectangles
+	boxAArea = (boxA[2] - boxA[0] + 1) * (boxA[3] - boxA[1] + 1)
+	boxBArea = (boxB[2] - boxB[0] + 1) * (boxB[3] - boxB[1] + 1)
+
+	# compute the intersection over union by taking the intersection
+	# area and dividing it by the sum of prediction + ground-truth
+	# areas - the interesection area
+	iou = interArea / float(boxAArea + boxBArea - interArea)
+
+	# return the intersection over union value
+	return iou
+
+
 def detect_jaywalker(recent_bboxes, frame, mean_shift):
     global vid_height, vid_width
     ROI = [(vid_width//10,vid_height), (vid_width//2,vid_height*3//7), (vid_width*9//10, vid_height) ]
@@ -67,6 +181,7 @@ def detect_jaywalker(recent_bboxes, frame, mean_shift):
                   return True
     return False
 
+
 # retrieve bounding boxes for an object in future n frames given obj_id
 # return list of [bbox, x] , x = frame offset i.e. that frame is x frames after 
 def ret_bbox4obj(frames_infos, obj_id):
@@ -78,57 +193,6 @@ def ret_bbox4obj(frames_infos, obj_id):
           bboxes_n_frameNum.append([bbox, i])
     return bboxes_n_frameNum
 
-def proc_frame(writer, frames, frames_infos, test_writer=None):
-    frame2proc = frames.popleft()
-    out_frame = frame2proc.copy()
-
-    id_to_info = frames_infos[0]
-    global class_names, accident_detector
-    global vid_width, vid_height
-
-    # frame-wise task
-    _, is_moving = detect_camera_moving(frame2proc, frames[0])
-    # test_img, is_moving = detect_camera_moving(frame2proc, frames[0])
-
-    # left_mean, right_mean = get_mean_shift(frames_infos, out_frame)
-    # object-wise
-    for obj_id in id_to_info:
-        info = id_to_info[obj_id]
-        class_id, score, bbox = info
-        left, top, right, bottom = bbox
-
-        class_name = class_names[class_id]
-        label = f'{class_name} {obj_id} : {score:.2f}'
-        # print (f"  {label} at {left},{top}, {right},{bottom}")
-        ano_dict = {"label": label}
-
-        ac_size_thres = vid_height//10
-        if (right-left)>ac_size_thres or (bottom-top)>ac_size_thres:
-            p = ac_size_thres//5
-            left2, top2, right2, bottom2 = max(left-p,0), max(top-p,0),\
-                                          min(right+p, vid_width), min(bottom+p, vid_height) 
-            ano_dict['accident'], label = accident_detector.detect(frame2proc ,[left2, top2, right2, bottom2])
-            cv2.putText(out_frame, label, ((right+left)//2, (bottom+top)//2), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0,255,0), 2)
-
-        # single frame detection:
-        if is_moving:
-            cv2.putText(out_frame, "moving", (vid_width//2, vid_height-30), cv2.FONT_HERSHEY_SIMPLEX, 0.6, (0,255,0), 2)
-            if class_name=="car" or class_name=="bus" or class_name=="truck":
-              # Detect lack of car distance
-                is_close = detect_close_distance(left, top, right, bottom)
-                ano_dict['close_distance'] = is_close
-
-        # multi-frame detection insert here
-            elif class_name=="person":
-                # t_bboxes = ret_bbox4obj(frames_infos, obj_id)
-                # detect_jaywalker(out_frame, t_bboxes)
-                # print(f"person {obj_id} : {t_bboxes}")
-                if detect_jaywalker(ret_bbox4obj(frames_infos, obj_id), out_frame, get_mean_shift(frames_infos, out_frame)):
-                    ano_dict['jaywalker'] = True
-        draw_bbox(out_frame, ano_dict, left, top, right, bottom)
-    writer.write(out_frame)
-
-    frames_infos.popleft()
 
 # get mean bbox shift
 def get_mean_shift(frames_infos, out_frame):
@@ -211,8 +275,8 @@ def draw_bbox(image, ano_dict, left, top, right, bottom):
         ano_label += "Jaywalker "
     if ("accident" in ano_dict) and ano_dict["accident"]:
         box_color = (0,0,255)
-    elif ("accident" in ano_dict): 
-        box_color = (255,255,255)
+    # elif ("accident" in ano_dict): 
+    #     box_color = (255,255,255)
     cv2.rectangle(image, (left, top), (right, bottom), box_color, thickness)
     cv2.putText(image, label, (left, top-5), cv2.FONT_HERSHEY_SIMPLEX, font_size, (0,255,0), thickness)
     if not ano_label=="":
