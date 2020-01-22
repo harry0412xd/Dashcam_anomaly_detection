@@ -13,8 +13,9 @@ class Accident_detector():
     def __init__(self, device):
         self.device = device
 
-        self.model = EfficientNet.from_name('efficientnet-b4').to(device)
-        checkpoint=torch.load('/content/MyDrive/cls_model/21Jan - new dataset/model_best.pth.tar')
+        self.model = EfficientNet.from_name('efficientnet-b4', override_params={'num_classes': 2}).to(device)
+        checkpoint=torch.load('/content/MyDrive/cls_model/22jan/model_best2.pth.tar')
+        print(checkpoint['epoch'])
         self.model.load_state_dict(checkpoint['state_dict'])
 
         self.transform = transforms.Compose([
@@ -26,10 +27,8 @@ class Accident_detector():
         self.model.eval()
 
     def detect(self, frame, bbox):
-        # labels_map = ["damaged","whole"]
+        
         left, top, right, bottom = bbox
-        left = max(0, left)
-        top = max(0, top)
         cropped_img = frame[top:bottom, left:right]
         img_RGB = cv2.cvtColor(cropped_img,cv2.COLOR_BGR2RGB)
 
@@ -42,6 +41,7 @@ class Accident_detector():
             output = self.model(x)
 
         # print('-----')
+        labels_map = ["damaged","whole"]
         # for idx in torch.topk(output, k=2).indices.squeeze(0).tolist():
         #     prob = torch.softmax(output, dim=1)[0, idx].item()
         #     print('{label:<20} ({p:.2f}%)'.format(label=labels_map[idx], p=prob*100))
@@ -49,9 +49,10 @@ class Accident_detector():
         class_id = torch.topk(output, k=1).indices.squeeze(0)
         prob = torch.softmax(output, dim=1)[0, class_id].item()
         # print('{label:<20} ({p:.2f}%)'.format(label=labels_map[class_id], p=prob*100))
-        if class_id==0 and prob>0.7:
-            return True
-        return False
+        if class_id==0 and prob>0.6:
+            return True,'{label:<20} ({p:.2f}%)'.format(label=labels_map[class_id], p=prob*100)
+        return False, '{label:<20} ({p:.2f}%)'.format(label=labels_map[class_id], p=prob*100)
+
 
 
 
