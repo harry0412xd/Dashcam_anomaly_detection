@@ -13,13 +13,13 @@ class Accident_detector():
     def __init__(self, device):
         self.device = device
 
-        self.model = EfficientNet.from_name('efficientnet-b4', override_params={'num_classes': 2}).to(device)
-        checkpoint=torch.load('/content/MyDrive/cls_model/22jan/model_best2.pth.tar')
+        self.model = EfficientNet.from_name('efficientnet-b3', override_params={'num_classes': 2}).to(device)
+        checkpoint=torch.load('/content/MyDrive/cls_model/22jan/checkpoint_b3.pth.tar')
         print(checkpoint['epoch'])
         self.model.load_state_dict(checkpoint['state_dict'])
 
         self.transform = transforms.Compose([
-            transforms.Resize((224, 224)),
+            transforms.Resize((300, 300)),
             transforms.ToTensor(),
             transforms.Normalize([0.485, 0.456, 0.406], [0.229, 0.224, 0.225]),
         ])

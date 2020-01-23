@@ -35,6 +35,7 @@ detection_size = 0
 
 
 def proc_frame(writer, frames, frames_infos, test_writer=None):
+    start = timer()
     frame2proc = frames.popleft()
     out_frame = frame2proc.copy()
 
@@ -42,10 +43,14 @@ def proc_frame(writer, frames, frames_infos, test_writer=None):
     global class_names, accident_detector
     global vid_width, vid_height
 
+    # Detect whether the camera is moving
     _, is_moving = detect_camera_moving(frame2proc, frames[0])
     # test_img, is_moving = detect_camera_moving(frame2proc, frames[0])
 
+    #compute the average shift in pixel of bounding box, in left/right half of the frame
     left_mean, right_mean = get_mean_shift(frames_infos, out_frame)
+
+    collision_id_list = detect_car_collision(retrieve_all_car_info(frames_infos[0]))
     # object-wise
     for obj_id in id_to_info:
         info = id_to_info[obj_id]
@@ -58,17 +63,22 @@ def proc_frame(writer, frames, frames_infos, test_writer=None):
         ano_dict = {"label": label}
 
         if class_name=="car" or class_name=="bus" or class_name=="truck":
+
             # damaged car - image classifier
             ac_size_thres = vid_height//10
-            if (right-left)>ac_size_thres or (bottom-top)>ac_size_thres:
+            if False and (right-left)>ac_size_thres or (bottom-top)>ac_size_thres:
                 p = ac_size_thres//5
                 left2, top2, right2, bottom2 = max(left-p,0), max(top-p,0),\
                                               min(right+p, vid_width), min(bottom+p, vid_height) 
                 # ano_dict['accident'], label = accident_detector.detect(frame2proc ,[left2, top2, right2, bottom2])
                 crashed_prob = accident_detector.detect(frame2proc ,[left2, top2, right2, bottom2])
-                if crashed_prob>0.65:
-                    ano_dict['accident'] = True
+                if crashed_prob>0.85:
+                    ano_dict['damaged'] = True
                 cv2.putText(out_frame, f'{crashed_prob:.2f}', ((right+left)//2, (bottom+top)//2), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0,255,0), 2)
+
+            # Car collision
+            if obj_id in collision_id_list:
+                ano_dict['collision'] = True
 
             if is_moving:
                 cv2.putText(out_frame, "moving", (vid_width//2, vid_height-30), cv2.FONT_HERSHEY_SIMPLEX, 0.6, (0,255,0), 2)
@@ -85,12 +95,15 @@ def proc_frame(writer, frames, frames_infos, test_writer=None):
 
     writer.write(out_frame)
     frames_infos.popleft()
+    end = timer()
+    return (end-start)*1000
+
 
 
 def retrieve_all_car_info(all_info):
     car_list = []
-    for obj_id in id_to_info:
-        info = id_to_info[obj_id]
+    for obj_id in all_info:
+        info = all_info[obj_id]
         class_id, _, bbox = info
         class_name = class_names[class_id]
         if class_name=="car" or class_name=="bus" or class_name=="truck":
@@ -98,30 +111,41 @@ def retrieve_all_car_info(all_info):
     return car_list
 
 # car list [(obj_id, bbox),]
+# return list of obj_id (car that is colliding)
 def detect_car_collision(car_list):
     collision_list = []
+    global vid_width
     while len(car_list)>1:
         id1, bbox1 = car_list[0]
-
+        box1_width, box1_height = bbox1[2]-bbox1[0], bbox1[3]-bbox1[1]
+        if box1_width > vid_width//6:
+            iou_thres = 0.1
+        elif box1_width > vid_width//10:
+            iou_thres = 0.2
+        else:
+            iou_thres = 0.3
+        # horizontal/perpendicular
+        if box1_width/(box1_height)>1.5:
+            height_thres = 0.007
+        else:
+            height_thres = 0.02
         i = 1 # the index for the second box 
-        found = False
+        has_match = False
         while i<len(car_list):
             id2, bbox2 = car_list[i]
             # if they have about the same bottom(height)
-            if abs(bbox1[3]-bbox2[3])/vid_height<0.02:
-                iou = compute_iou(bbox1, bbox2)
-                if iou > 0.2:
-                  collision_list.append(id1)
+            if (abs(bbox1[3]-bbox2[3])/vid_height) < height_thres :
+                if compute_iou(bbox1, bbox2) > iou_thres:
                   collision_list.append(id2)
-                  car_list.remove(i)
-                  car_list.remove(0)
-                  found = True
-                  break
-        if found:
-            break
+                  del car_list[i]
+                  has_match = True
+                  i -= 1 # compensate the effect of removing element
+            i += 1 #proceed to next box2
+        if has_match:
+            collision_list.append(id1)
+        del car_list[0] #remove box1 anyway
+    return collision_list
             
-
-
 
 def compute_iou(boxA, boxB):
 	# determine the (x, y)-coordinates of the intersection rectangle
@@ -263,18 +287,25 @@ def draw_bbox(image, ano_dict, left, top, right, bottom):
     font_size = vid_height/1080
     label = ano_dict["label"]
     # (B,G,R)
-    box_color = (0,255,0) # Use greem as normal 
+    box_color = (0,255,0) # Use green as normal 
 
     ano_label = ""
     if ("close_distance" in ano_dict) and ano_dict["close_distance"]:
         box_color = (70,255,255) # yellow
-        ano_label += "Close distance "
+        ano_label += "Close "
     
     if ("jaywalker" in ano_dict) and ano_dict["jaywalker"]:
         box_color = (0,123,255) #orange
         ano_label += "Jaywalker "
-    if ("accident" in ano_dict) and ano_dict["accident"]:
+
+    # if ("damaged" in ano_dict) and ano_dict["damaged"]:
+    #     box_color = (0,0,255)
+    #     ano_label += "Damaged "
+
+    if ("collision" in ano_dict) and ano_dict["collision"]:
         box_color = (0,0,255)
+        ano_label += "Collision "
+
     # elif ("accident" in ano_dict): 
     #     box_color = (255,255,255)
     cv2.rectangle(image, (left, top), (right, bottom), box_color, thickness)
@@ -542,7 +573,7 @@ def track_video(opt):
     # erf_model = Erf_model(device)
 
     # start iter frames
-    frame_no = 0
+    in_frame_no, proc_frame_no = 0, 1
     buffer_size = video_fps #store 1sec of frames
     prev_frames = deque()
     frames_infos = deque()
@@ -552,7 +583,7 @@ def track_video(opt):
         success, frame = vid.read()
         if not success: #end of video
             break
-        frame_no += 1
+        in_frame_no += 1
         # seg_img = seg_model.detect(frame)
         # print(seg_img.shape)
         # test_writer.write(seg_img)
@@ -583,7 +614,8 @@ def track_video(opt):
 
         # frame buffer proc
         if len(prev_frames)==buffer_size:
-            proc_frame(out_writer, prev_frames, frames_infos, test_writer)
+            proc_ms = proc_frame(out_writer, prev_frames, frames_infos, test_writer)
+            proc_frame_no += 1
         prev_frames.append(frame)
         frames_infos.append(id_to_info)
         
@@ -592,6 +624,7 @@ def track_video(opt):
         fps = str(round(1/(end-start),2))
         msg += (f"--fps: {fps}")
         print(msg)
+        print(f">> Processing frame {proc_frame_no}, time: {proc_ms}")
 
     
 
