@@ -66,7 +66,8 @@ def proc_frame(writer, frames, frames_infos, test_writer=None):
 
             # damaged car - image classifier
             ac_size_thres = vid_height//10
-            if False and (right-left)>ac_size_thres or (bottom-top)>ac_size_thres:
+            if False:
+            # if (right-left)>ac_size_thres or (bottom-top)>ac_size_thres:
                 p = ac_size_thres//5
                 left2, top2, right2, bottom2 = max(left-p,0), max(top-p,0),\
                                               min(right+p, vid_width), min(bottom+p, vid_height) 
@@ -119,27 +120,43 @@ def detect_car_collision(car_list):
         id1, bbox1 = car_list[0]
         box1_width, box1_height = bbox1[2]-bbox1[0], bbox1[3]-bbox1[1]
         if box1_width > vid_width//6:
-            iou_thres = 0.1
+            iou_thres = 0.05
         elif box1_width > vid_width//10:
-            iou_thres = 0.2
+            iou_thres = 0.07
+        elif box1_width > vid_width//16:
+            iou_thres = 0.15
         else:
-            iou_thres = 0.3
-        # horizontal/perpendicular
+            iou_thres = 0.25
+        # horizontal/perpendicular/side
         if box1_width/(box1_height)>1.5:
-            height_thres = 0.007
+            is_side1 = True
         else:
-            height_thres = 0.02
+            is_side1 = False
         i = 1 # the index for the second box 
         has_match = False
         while i<len(car_list):
             id2, bbox2 = car_list[i]
+            box2_width, box2_height = bbox2[2]-bbox2[0], bbox2[3]-bbox2[1]
+            if box2_width/(box2_height)>1.5:
+                is_side2 = True
+            else:
+                is_side2 = False
+
+            if is_side1 and is_side2:
+                height_thres = 0.007
+            else:
+                height_thres = 0.02
+
             # if they have about the same bottom(height)
-            if (abs(bbox1[3]-bbox2[3])/vid_height) < height_thres :
-                if compute_iou(bbox1, bbox2) > iou_thres:
-                  collision_list.append(id2)
-                  del car_list[i]
-                  has_match = True
-                  i -= 1 # compensate the effect of removing element
+            if (abs(bbox1[3]-bbox2[3])/vid_height) < height_thres or \ #bottom
+               (abs(bbox1[1]-bbox2[1])/vid_height) < height_thres: #top
+                iou = compute_iou(bbox1, bbox2)
+                if iou > iou_thres and \
+                   iou <0.6: # to exclude some false positive due to detection fault
+                    collision_list.append(id2)
+                    del car_list[i]
+                    has_match = True
+                    i -= 1 # compensate the effect of removing element
             i += 1 #proceed to next box2
         if has_match:
             collision_list.append(id1)
@@ -592,10 +609,7 @@ def track_video(opt):
         # Obj Detection
         bboxes, classes = yolo_detect(frame, yolo_model, opt)
         omitted_count = omit_small_bboxes(bboxes, classes)
-        msg = f"[{sec2length(frame_no//video_fps)}/{video_length}]"+\
-              f"  Found {len(bboxes)} boxes  | {omitted_count} omitted "
-        
-
+      
         # tracker_infos is added to return link the class name & the object tracked
         trackers, tracker_infos = mot_tracker.update(np.array(bboxes), np.array(classes))
 
@@ -620,11 +634,14 @@ def track_video(opt):
         frames_infos.append(id_to_info)
         
         end = timer()
+        msg = f"[{sec2length(in_frame_no//video_fps)}/{video_length}]"+\
+        f"  Found {len(bboxes)} boxes  | {omitted_count} omitted "
         #calculate fps by 1sec / time consumed to process this frame
         fps = str(round(1/(end-start),2))
         msg += (f"--fps: {fps}")
         print(msg)
-        print(f">> Processing frame {proc_frame_no}, time: {proc_ms}")
+        if proc_frame_no>1:
+            print(f">> Processing frame {proc_frame_no}, time: {proc_ms:.2f}ms")
 
     
 
