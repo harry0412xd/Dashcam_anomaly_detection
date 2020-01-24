@@ -554,7 +554,7 @@ def track_video(opt):
     video_total_frame = int(vid.get(cv2.CAP_PROP_FRAME_COUNT))
     video_length = sec2length(video_total_frame//video_fps)
     # init video writer
-    video_FourCC = cv2.VideoWriter_fourcc(*'mp4v')
+    video_FourCC = cv2.VideoWriter_fourcc(*'H264')
     isOutput = True if output_path != "" else False
     if isOutput:
         # print("!!! TYPE:", type(output_path), type(video_FourCC), type(video_fps), type(video_size))
