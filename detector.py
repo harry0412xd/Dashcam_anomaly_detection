@@ -66,12 +66,12 @@ def proc_frame(writer, frames, frames_infos, test_writer=None):
 
             # damaged car - image classifier
             ac_size_thres = vid_height//10
-            if False:
-            # if (right-left)>ac_size_thres or (bottom-top)>ac_size_thres:
-                p = ac_size_thres//5
-                left2, top2, right2, bottom2 = max(left-p,0), max(top-p,0),\
-                                              min(right+p, vid_width), min(bottom+p, vid_height) 
-                # ano_dict['accident'], label = accident_detector.detect(frame2proc ,[left2, top2, right2, bottom2])
+            # if False:
+            if (right-left)>ac_size_thres or (bottom-top)>ac_size_thres:
+                x_pad, y_pad = (right-left)//10, (bottom-top)//10
+
+                left2, top2, right2, bottom2 = max(left-x_pad,0), max(top-y_pad,0),\
+                                              min(right+x_pad, vid_width), min(bottom+y_pad, vid_height) 
                 crashed_prob = accident_detector.detect(frame2proc ,[left2, top2, right2, bottom2])
                 if crashed_prob>0.85:
                     ano_dict['damaged'] = True
@@ -119,14 +119,15 @@ def detect_car_collision(car_list):
     while len(car_list)>1:
         id1, bbox1 = car_list[0]
         box1_width, box1_height = bbox1[2]-bbox1[0], bbox1[3]-bbox1[1]
-        if box1_width > vid_width//6:
-            iou_thres = 0.05
-        elif box1_width > vid_width//10:
-            iou_thres = 0.07
-        elif box1_width > vid_width//16:
-            iou_thres = 0.15
-        else:
-            iou_thres = 0.25
+        # if box1_width > vid_width//6:
+        #     iou_thres = 0.05
+        # elif box1_width > vid_width//10:
+        #     iou_thres = 0.07
+        # elif box1_width > vid_width//16:
+        #     iou_thres = 0.15
+        # else:
+        #     iou_thres = 0.25
+        iou_thres = 0.1
         # horizontal/perpendicular/side
         if box1_width/(box1_height)>1.5:
             is_side1 = True
@@ -143,13 +144,13 @@ def detect_car_collision(car_list):
                 is_side2 = False
 
             if is_side1 and is_side2:
-                height_thres = 0.007
+                height_thres = 0.01
             else:
-                height_thres = 0.02
+                height_thres = 0.05
 
             # if they have about the same bottom(height)
-            if (abs(bbox1[3]-bbox2[3])/vid_height) < height_thres or \ #bottom
-               (abs(bbox1[1]-bbox2[1])/vid_height) < height_thres: #top
+            if (abs(bbox1[3]-bbox2[3])/box1_height) < height_thres or \
+               (abs(bbox1[1]-bbox2[1])/box1_height) < height_thres and (abs(bbox1[0]-bbox2[0])/box1_width <0.1 or abs(bbox1[2]-bbox2[2])/box1_width < 0.1): #top
                 iou = compute_iou(bbox1, bbox2)
                 if iou > iou_thres and \
                    iou <0.6: # to exclude some false positive due to detection fault
@@ -315,9 +316,9 @@ def draw_bbox(image, ano_dict, left, top, right, bottom):
         box_color = (0,123,255) #orange
         ano_label += "Jaywalker "
 
-    # if ("damaged" in ano_dict) and ano_dict["damaged"]:
-    #     box_color = (0,0,255)
-    #     ano_label += "Damaged "
+    if ("damaged" in ano_dict) and ano_dict["damaged"]:
+        box_color = (123,0,255)
+        ano_label += "Damaged "
 
     if ("collision" in ano_dict) and ano_dict["collision"]:
         box_color = (0,0,255)
