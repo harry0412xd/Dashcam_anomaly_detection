@@ -68,14 +68,14 @@ def proc_frame(writer, frames, frames_infos, test_writer=None):
             ac_size_thres = vid_height//10
             # if False:
             if (right-left)>ac_size_thres or (bottom-top)>ac_size_thres:
-                x_pad, y_pad = (right-left)//10, (bottom-top)//10
-
+                x_pad, y_pad = (right-left)//16, (bottom-top)//14
+                # x_pad, y_pad = 0,0
                 left2, top2, right2, bottom2 = max(left-x_pad,0), max(top-y_pad,0),\
-                                              min(right+x_pad, vid_width), min(bottom+y_pad, vid_height) 
-                crashed_prob = accident_detector.detect(frame2proc ,[left2, top2, right2, bottom2])
-                if crashed_prob>0.85:
+                                                  min(right+x_pad, vid_width), min(bottom+y_pad, vid_height) 
+                det_class, prob = accident_detector.detect(frame2proc ,[left2, top2, right2, bottom2])
+                if det_class=="damaged" and prob>0.85:
                     ano_dict['damaged'] = True
-                cv2.putText(out_frame, f'{crashed_prob:.2f}', ((right+left)//2, (bottom+top)//2), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0,255,0), 2)
+                cv2.putText(out_frame, f'{det_class} {prob:.2f}', ((right+left)//2, (bottom+top)//2), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0,255,0), 2)
 
             # Car collision
             if obj_id in collision_id_list:
@@ -554,7 +554,7 @@ def track_video(opt):
     video_total_frame = int(vid.get(cv2.CAP_PROP_FRAME_COUNT))
     video_length = sec2length(video_total_frame//video_fps)
     # init video writer
-    video_FourCC = cv2.VideoWriter_fourcc(*'H264')
+    video_FourCC = cv2.VideoWriter_fourcc(*'mp4v')
     isOutput = True if output_path != "" else False
     if isOutput:
         # print("!!! TYPE:", type(output_path), type(video_FourCC), type(video_fps), type(video_size))

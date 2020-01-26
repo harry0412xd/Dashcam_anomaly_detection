@@ -13,8 +13,8 @@ class Accident_detector():
     def __init__(self, device):
         self.device = device
 
-        self.model = EfficientNet.from_name('efficientnet-b4', override_params={'num_classes': 2}).to(device)
-        checkpoint=torch.load("/content/MyDrive/cls_model/23jan/checkpoint_b4_2.pth.tar")
+        self.model = EfficientNet.from_name('efficientnet-b4', override_params={'num_classes': 3}).to(device)
+        checkpoint=torch.load("/content/MyDrive/cls_model/26jan/model_best2.pth.tar")
         print(checkpoint['epoch'])
         self.model.load_state_dict(checkpoint['state_dict'])
 
@@ -41,19 +41,21 @@ class Accident_detector():
             output = self.model(x)
 
         # print('-----')
-        labels_map = ["damaged","whole"]
+        labels_map = ["whole", "damaged", "FAS"]
         # for idx in torch.topk(output, k=2).indices.squeeze(0).tolist():
         #     prob = torch.softmax(output, dim=1)[0, idx].item()
         #     print('{label:<20} ({p:.2f}%)'.format(label=labels_map[idx], p=prob*100))
 
-        # class_id = torch.topk(output, k=1).indices.squeeze(0)
-        # prob = torch.softmax(output, dim=1)[0, class_id].item()
 
-        # is damaged car prob
-        prob = torch.softmax(output, dim=1)[0, 0].item()
-        return prob 
 
-        # # print('{label:<20} ({p:.2f}%)'.format(label=labels_map[class_id], p=prob*100))
+        # # is damaged car prob
+        # prob = torch.softmax(output, dim=1)[0, 0].item()
+        # return prob 
+
+        class_id = torch.topk(output, k=1).indices.squeeze(0)
+        prob = torch.softmax(output, dim=1)[0, class_id].item()
+        print('{label:<20} ({p:.2f}%)'.format(label=labels_map[class_id], p=prob*100))
+        return labels_map[class_id], prob
         # if class_id==0 and prob>0.6:
         #     return True,'{label} ({p:.2f}%)'.format(label=labels_map[class_id], p=prob*100)
         # return False, '{label} ({p:.2f}%)'.format(label=labels_map[class_id], p=prob*100)
