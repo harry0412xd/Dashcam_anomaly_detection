@@ -9,19 +9,25 @@ from torchvision import transforms
 
 import timm
 
-class Accident_detector():
+class Damage_detector():
     def __init__(self, device):
-        checkpoint_path = '/content/MyDrive/cls_model/20200128-101245-resnet50-224/checkpoint-182.pth.tar'
-        model = timm.create_model('resnet50', num_classes=2, checkpoint_path = checkpoint_path)
+        checkpoint_path = '/content/MyDrive/cls_model/20200129-125816-gluon_seresnext101_32x4d-224/model_best.pth.tar'
+        model = timm.create_model('gluon_seresnext101_32x4d', num_classes=2, checkpoint_path = checkpoint_path)
         model.to(device)
         model.eval()
         self.device = device
         self.model = model
         self.transform = transforms.Compose([
-            transforms.Resize((380, 380)),
+            transforms.Resize((224, 224)),
             transforms.ToTensor(),
             transforms.Normalize([0.485, 0.456, 0.406], [0.229, 0.224, 0.225]),
         ])
+        self.labels_map = ["whole", "damaged"]
+
+    def get_damaged_prop(output):
+        # is damaged car prob
+        prob = torch.softmax(output, dim=1)[0, 1].item()
+        return prob 
 
     def detect(self, frame, bbox):
         
@@ -36,24 +42,20 @@ class Accident_detector():
         x = img.unsqueeze(0).to(self.device)
         with torch.no_grad():
             output = self.model(x)
+        return "damaged", get_damaged_prop(output)
 
         # print('-----')
-        labels_map = ["whole", "damaged"]
         # for idx in torch.topk(output, k=2).indices.squeeze(0).tolist():
         #     prob = torch.softmax(output, dim=1)[0, idx].item()
         #     print('{label:<20} ({p:.2f}%)'.format(label=labels_map[idx], p=prob*100))
 
-        # # is damaged car prob
-        # prob = torch.softmax(output, dim=1)[0, 0].item()
-        # return prob 
+
 
         class_id = torch.topk(output, k=1).indices.squeeze(0)
         prob = torch.softmax(output, dim=1)[0, class_id].item()
         # print('{label:<20} ({p:.2f}%)'.format(label=labels_map[class_id], p=prob*100))
         return labels_map[class_id], prob
-        # if class_id==0 and prob>0.6:
-        #     return True,'{label} ({p:.2f}%)'.format(label=labels_map[class_id], p=prob*100)
-        # return False, '{label} ({p:.2f}%)'.format(label=labels_map[class_id], p=prob*100)
+
 
 
 

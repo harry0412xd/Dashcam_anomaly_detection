@@ -11,8 +11,8 @@ import torch
 # from lane_SCNN.wrapper import Lane_model
 # from Fast_SCNN.wrapper import *
 # from ERFNet_CULane_PyTorch.wrapper import *
-from acdetect import Accident_detector
-accident_detector = None
+from damage_detector import Damage_detector
+dmg_det = None
 
 from yolov3.models import *
 from yolov3.utils.utils import *
@@ -33,6 +33,7 @@ class_names = None # list of classes for yolo
 detection_boxes = None 
 detection_size = 0
 
+smooth_dict = {}
 
 def proc_frame(writer, frames, frames_infos, test_writer=None):
     start = timer()
@@ -43,14 +44,20 @@ def proc_frame(writer, frames, frames_infos, test_writer=None):
     global class_names, accident_detector
     global vid_width, vid_height
 
-    # Detect whether the camera is moving
-    _, is_moving = detect_camera_moving(frame2proc, frames[0])
-    # test_img, is_moving = detect_camera_moving(frame2proc, frames[0])
+    if 'is_moving' in smooth_dict and smooth_dict['is_moving'] >0:
+        smooth_dict['is_moving'] -= 1
+        is_moving = True
+    else:
+        # Detect whether the camera is moving
+        _, is_moving = detect_camera_moving(frame2proc, frames[0])
+        smooth_dict['is_moving'] = 3
+        # TODO : make it into config file
 
     #compute the average shift in pixel of bounding box, in left/right half of the frame
     left_mean, right_mean = get_mean_shift(frames_infos, out_frame)
 
     collision_id_list = detect_car_collision(retrieve_all_car_info(frames_infos[0]))
+
     # object-wise
     for obj_id in id_to_info:
         info = id_to_info[obj_id]
@@ -65,21 +72,29 @@ def proc_frame(writer, frames, frames_infos, test_writer=None):
         if class_name=="car" or class_name=="bus" or class_name=="truck":
 
             # damaged car - image classifier
-            ac_size_thres = vid_height//10
+            dmg_size_thres = vid_height//10
             # if False:
-            if (right-left)>ac_size_thres or (bottom-top)>ac_size_thres:
-                x_pad, y_pad = (right-left)//16, (bottom-top)//14
+            if (right-left)>dmg_size_thres or (bottom-top)>dmg_size_thres:
+                if (right-left)/(bottom-top) >1.3:
+                    x_pad, y_pad = (right-left)//6, (bottom-top)//24
+                x_pad, y_pad = (right-left)//24, (bottom-top)//24
                 # x_pad, y_pad = 0,0
                 left2, top2, right2, bottom2 = max(left-x_pad,0), max(top-y_pad,0),\
                                                   min(right+x_pad, vid_width), min(bottom+y_pad, vid_height) 
-                det_class, prob = accident_detector.detect(frame2proc ,[left2, top2, right2, bottom2])
+                det_class, prob = dmg_det.detect(frame2proc ,[left2, top2, right2, bottom2])
                 if det_class=="damaged" and prob>0.85:
                     ano_dict['damaged'] = True
                 cv2.putText(out_frame, f'{det_class} {prob:.2f}', ((right+left)//2, (bottom+top)//2), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0,255,0), 2)
 
             # Car collision
+            obj_col_key = f"{obj_id}_col"
+            if obj_col_key in smooth_dict and smooth_dict[obj_col_key] > 0:
+                ano_dict['collision'] = True
+                smooth_dict[obj_col_key] -=1
+                
             if obj_id in collision_id_list:
                 ano_dict['collision'] = True
+
 
             if is_moving:
                 cv2.putText(out_frame, "moving", (vid_width//2, vid_height-30), cv2.FONT_HERSHEY_SIMPLEX, 0.6, (0,255,0), 2)
