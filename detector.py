@@ -45,14 +45,14 @@ def proc_frame(writer, frames, frames_infos, test_writer=None):
     global class_names, damage_detector, smooth_dict
     global vid_width, vid_height, vid_fps
 
-    if 'is_moving' in smooth_dict and smooth_dict['is_moving'] >0:
+      # Detect whether the camera is moving
+    _, is_moving = detect_camera_moving(frame2proc, frames[0])
+    if is_moving:
+        smooth_dict['is_moving'] = 1
+    elif 'is_moving' in smooth_dict and smooth_dict['is_moving'] >0:
         smooth_dict['is_moving'] -= 1
         is_moving = True
-    else:
-        # Detect whether the camera is moving
-        _, is_moving = detect_camera_moving(frame2proc, frames[0])
-        smooth_dict['is_moving'] = 3
-        # TODO : make it into config file
+
 
     #compute the average shift in pixel of bounding box, in left/right half of the frame
     left_mean, right_mean = get_mean_shift(frames_infos, out_frame)
@@ -89,12 +89,13 @@ def proc_frame(writer, frames, frames_infos, test_writer=None):
 
             # Car collision
             obj_col_key = f"{obj_id}_col"
-            if obj_col_key in smooth_dict and smooth_dict[obj_col_key] > 0:
-                ano_dict['collision'] = True
-                smooth_dict[obj_col_key] -= 1
-            elif obj_id in collision_id_list:
+            if obj_id in collision_id_list:
                 ano_dict['collision'] = True
                 smooth_dict[obj_col_key] = vid_fps//6
+            elif if obj_col_key in smooth_dict and smooth_dict[obj_col_key] > 0:
+                ano_dict['collision'] = True
+                smooth_dict[obj_col_key] -= 1
+
 
 
             if is_moving:
