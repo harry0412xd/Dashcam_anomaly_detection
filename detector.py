@@ -27,6 +27,7 @@ from sort import *
 #Video properties : 
 vid_width = 0
 vid_height = 0
+vid_fps = 0
 
 device = None # cuda or cpu
 class_names = None # list of classes for yolo
@@ -37,12 +38,12 @@ smooth_dict = {}
 
 def proc_frame(writer, frames, frames_infos, test_writer=None):
     start = timer()
+
     frame2proc = frames.popleft()
     out_frame = frame2proc.copy()
-
     id_to_info = frames_infos[0]
-    global class_names, accident_detector
-    global vid_width, vid_height
+    global class_names, accident_detector, smooth_dict
+    global vid_width, vid_height, vid_fps
 
     if 'is_moving' in smooth_dict and smooth_dict['is_moving'] >0:
         smooth_dict['is_moving'] -= 1
@@ -90,10 +91,10 @@ def proc_frame(writer, frames, frames_infos, test_writer=None):
             obj_col_key = f"{obj_id}_col"
             if obj_col_key in smooth_dict and smooth_dict[obj_col_key] > 0:
                 ano_dict['collision'] = True
-                smooth_dict[obj_col_key] -=1
-                
-            if obj_id in collision_id_list:
+                smooth_dict[obj_col_key] -= 1
+            elif obj_id in collision_id_list:
                 ano_dict['collision'] = True
+                smooth_dict[obj_col_key] = vid_fps//6
 
 
             if is_moving:
@@ -130,21 +131,16 @@ def retrieve_all_car_info(all_info):
 # return list of obj_id (car that is colliding)
 def detect_car_collision(car_list):
     collision_list = []
-    global vid_width
+    global vid_width,vid_height
     while len(car_list)>1:
         id1, bbox1 = car_list[0]
         box1_width, box1_height = bbox1[2]-bbox1[0], bbox1[3]-bbox1[1]
-        # if box1_width > vid_width//6:
-        #     iou_thres = 0.05
-        # elif box1_width > vid_width//10:
-        #     iou_thres = 0.07
-        # elif box1_width > vid_width//16:
-        #     iou_thres = 0.15
-        # else:
-        #     iou_thres = 0.25
-        # iou_thres = 0.1
 
-        # horizontal/perpendicular/side
+        # ignore small box
+        if box1_height<vid_height//18
+            del car_list[0]
+            continue
+
         if box1_width/(box1_height)>1.5:
             is_side1 = True
         else:
@@ -579,10 +575,10 @@ def track_video(opt):
     if not vid.isOpened():
         raise IOError("Couldn't open webcam or video")
     # get video prop
-    global vid_width, vid_height
+    global vid_width, vid_height, vid_fps
     vid_width = int(vid.get(cv2.CAP_PROP_FRAME_WIDTH))
     vid_height = int(vid.get(cv2.CAP_PROP_FRAME_HEIGHT))
-    video_fps = vid.get(cv2.CAP_PROP_FPS)
+    vid_fps = vid.get(cv2.CAP_PROP_FPS)
     video_total_frame = int(vid.get(cv2.CAP_PROP_FRAME_COUNT))
     video_length = sec2length(video_total_frame//video_fps)
     # init video writer
