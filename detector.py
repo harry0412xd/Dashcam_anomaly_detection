@@ -127,7 +127,8 @@ def detect_car_collision(car_list):
         #     iou_thres = 0.15
         # else:
         #     iou_thres = 0.25
-        iou_thres = 0.1
+        # iou_thres = 0.1
+
         # horizontal/perpendicular/side
         if box1_width/(box1_height)>1.5:
             is_side1 = True
@@ -144,16 +145,27 @@ def detect_car_collision(car_list):
                 is_side2 = False
 
             if is_side1 and is_side2:
-                height_thres = 0.01
+                height_thres = 0.02
             else:
-                height_thres = 0.05
-
+                height_thres = 0.1
+# (abs(bbox1[1]-bbox2[1])/box1_height) < height_thres 
             # if they have about the same bottom(height)
-            if (abs(bbox1[3]-bbox2[3])/box1_height) < height_thres or \
-               (abs(bbox1[1]-bbox2[1])/box1_height) < height_thres and (abs(bbox1[0]-bbox2[0])/box1_width <0.1 or abs(bbox1[2]-bbox2[2])/box1_width < 0.1): #top
+            # 1: two sided car i.e. left/right potion of bbox overlap
+            # 2: two forward car left/right side crash
+
+            if (abs(bbox1[3]-bbox2[3])/box1_height) < height_thres: #similar y-level bottom
+                if bbox2[2]>bbox1[0] or bbox1[1]>bbox2[0] or bbox2[3]>bbox1[1] or bbox1[3]>bbox2[1]:
+                    is_checked = True
+                    iou_thres = 0.1
+            # back car crash into front car, y-axis may not be similar
+            elif bbox2[3]>bbox1[1] or bbox1[3]>bbox2[1]:
+                is_checked = True
+                iou_thres = 0.4
+                
+            if is_checked:   
                 iou = compute_iou(bbox1, bbox2)
                 if iou > iou_thres and \
-                   iou <0.6: # to exclude some false positive due to detection fault
+                    iou <0.6: # to exclude some false positive due to detection fault
                     collision_list.append(id2)
                     del car_list[i]
                     has_match = True
@@ -226,9 +238,14 @@ def detect_jaywalker(recent_bboxes, frame, mean_shift):
 
 # retrieve bounding boxes for an object in future n frames given obj_id
 # return list of [bbox, x] , x = frame offset i.e. that frame is x frames after 
-def ret_bbox4obj(frames_infos, obj_id):
+def ret_bbox4obj(frames_infos, obj_id, length=None):
     bboxes_n_frameNum = []
-    for i in range(len(frames_infos)):
+    if length == None:
+        length = len(frames_infos)
+    else:
+        length = min(len(frames_infos), length)
+
+    for i in range(length):
         id_to_info = frames_infos[i]
         if obj_id in id_to_info:
           _, _, bbox = id_to_info[obj_id]
