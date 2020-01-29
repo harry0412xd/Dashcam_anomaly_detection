@@ -24,11 +24,6 @@ class Damage_detector():
         ])
         self.labels_map = ["whole", "damaged"]
 
-    def get_damaged_prop(output):
-        # is damaged car prob
-        prob = torch.softmax(output, dim=1)[0, 1].item()
-        return prob 
-
     def detect(self, frame, bbox):
         
         left, top, right, bottom = bbox
@@ -51,12 +46,15 @@ class Damage_detector():
 
 
 
-        class_id = torch.topk(output, k=1).indices.squeeze(0)
-        prob = torch.softmax(output, dim=1)[0, class_id].item()
-        # print('{label:<20} ({p:.2f}%)'.format(label=labels_map[class_id], p=prob*100))
-        return labels_map[class_id], prob
+        # class_id = torch.topk(output, k=1).indices.squeeze(0)
+        # prob = torch.softmax(output, dim=1)[0, class_id].item()
+        # # print('{label:<20} ({p:.2f}%)'.format(label=labels_map[class_id], p=prob*100))
+        # return labels_map[class_id], prob
 
-
+def get_damaged_prop(output):
+    # is damaged car prob
+    prob = torch.softmax(output, dim=1)[0, 1].item()
+    return prob 
 
 
 

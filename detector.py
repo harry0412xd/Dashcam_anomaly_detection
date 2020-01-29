@@ -12,7 +12,7 @@ import torch
 # from Fast_SCNN.wrapper import *
 # from ERFNet_CULane_PyTorch.wrapper import *
 from damage_detector import Damage_detector
-dmg_det = None
+damage_detector = None
 
 from yolov3.models import *
 from yolov3.utils.utils import *
@@ -42,7 +42,7 @@ def proc_frame(writer, frames, frames_infos, test_writer=None):
     frame2proc = frames.popleft()
     out_frame = frame2proc.copy()
     id_to_info = frames_infos[0]
-    global class_names, accident_detector, smooth_dict
+    global class_names, damage_detector, smooth_dict
     global vid_width, vid_height, vid_fps
 
     if 'is_moving' in smooth_dict and smooth_dict['is_moving'] >0:
@@ -82,7 +82,7 @@ def proc_frame(writer, frames, frames_infos, test_writer=None):
                 # x_pad, y_pad = 0,0
                 left2, top2, right2, bottom2 = max(left-x_pad,0), max(top-y_pad,0),\
                                                   min(right+x_pad, vid_width), min(bottom+y_pad, vid_height) 
-                det_class, prob = dmg_det.detect(frame2proc ,[left2, top2, right2, bottom2])
+                det_class, prob = damage_detector.detect(frame2proc ,[left2, top2, right2, bottom2])
                 if det_class=="damaged" and prob>0.85:
                     ano_dict['damaged'] = True
                 cv2.putText(out_frame, f'{det_class} {prob:.2f}', ((right+left)//2, (bottom+top)//2), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0,255,0), 2)
@@ -137,7 +137,7 @@ def detect_car_collision(car_list):
         box1_width, box1_height = bbox1[2]-bbox1[0], bbox1[3]-bbox1[1]
 
         # ignore small box
-        if box1_height<vid_height//18
+        if box1_height<vid_height//18:
             del car_list[0]
             continue
 
@@ -580,30 +580,30 @@ def track_video(opt):
     vid_height = int(vid.get(cv2.CAP_PROP_FRAME_HEIGHT))
     vid_fps = vid.get(cv2.CAP_PROP_FPS)
     video_total_frame = int(vid.get(cv2.CAP_PROP_FRAME_COUNT))
-    video_length = sec2length(video_total_frame//video_fps)
+    video_length = sec2length(video_total_frame//vid_fps)
     # init video writer
     video_FourCC = cv2.VideoWriter_fourcc(*'mp4v')
     isOutput = True if output_path != "" else False
     if isOutput:
-        # print("!!! TYPE:", type(output_path), type(video_FourCC), type(video_fps), type(video_size))
+        # print("!!! TYPE:", type(output_path), type(video_FourCC), type(vid_fps), type(video_size))
         print(f"Loaded video: {output_path}, Size = {vid_width}x{vid_height},"
-              f" fps = {video_fps}, total frame = {video_total_frame}")
-        if not video_fps == int(video_fps):
-            video_fps = int(video_fps)
-            print(f"Rounded fps to {video_fps}")
-        out_writer = cv2.VideoWriter(output_path, video_FourCC, video_fps, (vid_width, vid_height))
+              f" fps = {vid_fps}, total frame = {video_total_frame}")
+        if not vid_fps == int(vid_fps):
+            vid_fps = int(vid_fps)
+            print(f"Rounded fps to {vid_fps}")
+        out_writer = cv2.VideoWriter(output_path, video_FourCC, vid_fps, (vid_width, vid_height))
         
     output_test = True  
     if output_test:
         test_output_path =  output_path.replace("output", "test")
-        test_writer = cv2.VideoWriter(test_output_path, video_FourCC, video_fps, (vid_width, vid_height))
+        test_writer = cv2.VideoWriter(test_output_path, video_FourCC, vid_fps, (vid_width, vid_height))
 
   # global init
     get_detection_boxes()
     global class_names
     class_names = load_classes(opt.class_path)
   # init SORT tracker
-    max_age = max(3,video_fps//2)
+    max_age = max(3,vid_fps//2)
     mot_tracker = Sort(max_age=max_age, min_hits=1)
     print("SORT initialized")
   # init yolov3 model
@@ -611,8 +611,8 @@ def track_video(opt):
     yolo_model.load_darknet_weights(opt.weights_path)
     yolo_model.eval()
     print("YOLO model loaded")
-    global accident_detector
-    accident_detector = Accident_detector(device)
+    global damage_detector
+    damage_detector = Damage_detector(device)
     # lane_model = Lane_model(device)
     # seg_model = Seg_model(device)
     # print("Fast-SCNN model loaded")
@@ -620,7 +620,7 @@ def track_video(opt):
 
     # start iter frames
     in_frame_no, proc_frame_no = 0, 1
-    buffer_size = video_fps #store 1sec of frames
+    buffer_size = vid_fps #store 1sec of frames
     prev_frames = deque()
     frames_infos = deque()
 
@@ -663,7 +663,7 @@ def track_video(opt):
         frames_infos.append(id_to_info)
         
         end = timer()
-        msg = f"[{sec2length(in_frame_no//video_fps)}/{video_length}]"+\
+        msg = f"[{sec2length(in_frame_no//vid_fps)}/{video_length}]"+\
         f"  Found {len(bboxes)} boxes  | {omitted_count} omitted "
         #calculate fps by 1sec / time consumed to process this frame
         fps = str(round(1/(end-start),2))
