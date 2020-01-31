@@ -73,26 +73,38 @@ def proc_frame(writer, frames, frames_infos, test_writer=None):
         if class_name=="car" or class_name=="bus" or class_name=="truck":
 
             # damaged car - image classifier
-            dmg_size_thres = vid_height//10
-            # if False:
-            if (right-left)>dmg_size_thres or (bottom-top)>dmg_size_thres:
-                if (right-left)/(bottom-top) >1.3:
-                    x_pad, y_pad = (right-left)//6, (bottom-top)//24
-                x_pad, y_pad = (right-left)//24, (bottom-top)//24
-                # x_pad, y_pad = 0,0
-                left2, top2, right2, bottom2 = max(left-x_pad,0), max(top-y_pad,0),\
-                                                  min(right+x_pad, vid_width), min(bottom+y_pad, vid_height) 
-                det_class, prob = damage_detector.detect(frame2proc ,[left2, top2, right2, bottom2])
-                if det_class=="damaged" and prob>0.85:
-                    ano_dict['damaged'] = True
-                cv2.putText(out_frame, f'{det_class} {prob:.2f}', ((right+left)//2, (bottom+top)//2), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0,255,0), 2)
+            # [frame_count, dmg_prop]
+            DAMAGE_SKIP_NUM = 6
+
+            obj_dmg_key = f"{obj_id}_dmg"
+            if obj_dmg_key in smooth_dict and smooth_dict[obj_dmg_key][0]>0:
+                smooth_dict[obj_dmg_key][0] -= 1
+                dmg_prob = smooth_dict[obj_dmg_key][1]
+            else: 
+                dmg_size_thres = vid_height//24
+                # if False:
+                if (right-left)>dmg_size_thres or (bottom-top)>dmg_size_thres:
+                    if (right-left)/(bottom-top) >1.3:
+                        x_pad, y_pad = (right-left)//3, (bottom-top)//12
+                    x_pad, y_pad = (right-left)//12, (bottom-top)//12
+                    # x_pad, y_pad = 0,0
+                    left2, top2, right2, bottom2 = max(left-x_pad,0), max(top-y_pad,0),\
+                                                      min(right+x_pad, vid_width), min(bottom+y_pad, vid_height) 
+                    det_class, dmg_prob = damage_detector.detect(frame2proc ,[left2, top2, right2, bottom2])
+                    smooth_dict[obj_dmg_key] = [DAMAGE_SKIP_NUM, dmg_prob]
+                else:
+                    dmg_prob = 0
+
+            if dmg_prob>0.85:
+                ano_dict['damaged'] = True
+                cv2.putText(out_frame, f'{dmg_prob:.2f}', ((right+left)//2, (bottom+top)//2), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0,255,0), 2)
 
             # Car collision
             obj_col_key = f"{obj_id}_col"
             if obj_id in collision_id_list:
                 ano_dict['collision'] = True
                 smooth_dict[obj_col_key] = vid_fps//6
-            elif if obj_col_key in smooth_dict and smooth_dict[obj_col_key] > 0:
+            elif obj_col_key in smooth_dict and smooth_dict[obj_col_key] > 0:
                 ano_dict['collision'] = True
                 smooth_dict[obj_col_key] -= 1
 

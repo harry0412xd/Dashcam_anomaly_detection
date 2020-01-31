@@ -11,8 +11,8 @@ import timm
 
 class Damage_detector():
     def __init__(self, device):
-        checkpoint_path = '/content/MyDrive/cls_model/20200129-125816-gluon_seresnext101_32x4d-224/model_best.pth.tar'
-        model = timm.create_model('gluon_seresnext101_32x4d', num_classes=2, checkpoint_path = checkpoint_path)
+        checkpoint_path = '/content/MyDrive/cls_model/train/20200131-094030-seresnext101_32x4d-224/model_best.pth.tar'
+        model = timm.create_model('seresnext101_32x4d', num_classes=2, checkpoint_path = checkpoint_path)
         model.to(device)
         model.eval()
         self.device = device
@@ -23,6 +23,7 @@ class Damage_detector():
             transforms.Normalize([0.485, 0.456, 0.406], [0.229, 0.224, 0.225]),
         ])
         self.labels_map = ["whole", "damaged"]
+        self.count = 0
 
     def detect(self, frame, bbox):
         
@@ -37,7 +38,15 @@ class Damage_detector():
         x = img.unsqueeze(0).to(self.device)
         with torch.no_grad():
             output = self.model(x)
-        return "damaged", get_damaged_prop(output)
+        damaged_prop = get_damaged_prop(output)
+
+        
+        self.count +=1
+        cv2.putText(cropped_img, f"{damaged_prop:.2f} ", ((right-left)//2, (bottom-top)//2), cv2.FONT_HERSHEY_SIMPLEX, 0.6, (0,255,0), 2)
+        cv2.imwrite(f'/content/test/{self.count:04}.jpg', cropped_img)
+
+
+        return "damaged", damaged_prop
 
         # print('-----')
         # for idx in torch.topk(output, k=2).indices.squeeze(0).tolist():
