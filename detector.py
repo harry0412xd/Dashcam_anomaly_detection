@@ -50,7 +50,7 @@ def proc_frame(writer, frames, frames_infos, test_writer=None):
     global vid_width, vid_height, vid_fps
 
     # Detect whether the camera is moving
-    if len(frames)>0
+    if len(frames)>0:
         _, is_moving = detect_camera_moving(frame2proc, frames[0])
     else: #last frame
         is_moving = False
@@ -83,19 +83,20 @@ def proc_frame(writer, frames, frames_infos, test_writer=None):
             # damaged car - image classifier
             # [frame_count, dmg_prop]
             DAMAGE_SKIP_NUM = 6
-
             obj_dmg_key = f"{obj_id}_dmg"
             if obj_dmg_key in smooth_dict and smooth_dict[obj_dmg_key][0]>0:
                 smooth_dict[obj_dmg_key][0] -= 1
                 dmg_prob = smooth_dict[obj_dmg_key][1]
+
             else: 
                 # 720p : 90px | 1080p: 135px
-                dmg_height_thres, dmg_width_thres = vid_height//8, vid_height//16
-                # if False:
+                dmg_height_thres, dmg_width_thres = vid_height//12, vid_width//24
                 if (bottom-top)>dmg_height_thres and (right-left)>dmg_width_thres:
                     if (right-left)/(bottom-top) >1.3:
                         x_pad, y_pad = (right-left)//6, (bottom-top)//12
-                    x_pad, y_pad = (right-left)//12, (bottom-top)//12
+                    else:
+                        x_pad, y_pad = (right-left)//12, (bottom-top)//12
+
                     # x_pad, y_pad = 0,0
                     left2, top2, right2, bottom2 = max(left-x_pad,0), max(top-y_pad,0),\
                                                       min(right+x_pad, vid_width), min(bottom+y_pad, vid_height)
@@ -106,7 +107,7 @@ def proc_frame(writer, frames, frames_infos, test_writer=None):
                 else:
                     dmg_prob = 0
 
-            if dmg_prob>0.8:
+            if dmg_prob>0.85:
                 ano_dict['damaged'] = True
                 cv2.putText(out_frame, f'{dmg_prob:.2f}', ((right+left)//2, (bottom+top)//2), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0,255,0), 2)
 
