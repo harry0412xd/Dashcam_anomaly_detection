@@ -18,10 +18,7 @@ from yolov3.models import *
 from yolov3.utils.utils import *
 from yolov3.utils.datasets import *
 
-
 from sort import *
-
-# from utils.speed_est.speed_est import Speed_Est
 
 #Global Variable
 #Video properties : 
@@ -34,6 +31,13 @@ class_names = None # list of classes for yolo
 detection_boxes = None 
 detection_size = 0
 
+# Use to smoothen some detection
+# extend the collision highlight 
+#   key = {obj_id}_col, value = no. of frames marked as col
+# extend the moving status 
+#   key = is_moving, value = no. of frames marked as moving
+# Skip damage checking for some frames 
+#   key = {obj_id}_dmg, value = no. of frames
 smooth_dict = {}
 
 def proc_frame(writer, frames, frames_infos, test_writer=None):
@@ -45,8 +49,12 @@ def proc_frame(writer, frames, frames_infos, test_writer=None):
     global class_names, damage_detector, smooth_dict
     global vid_width, vid_height, vid_fps
 
-      # Detect whether the camera is moving
-    _, is_moving = detect_camera_moving(frame2proc, frames[0])
+    # Detect whether the camera is moving
+    if len(frames)>0
+        _, is_moving = detect_camera_moving(frame2proc, frames[0])
+    else: #last frame
+        is_moving = False
+    
     if is_moving:
         smooth_dict['is_moving'] = 1
     elif 'is_moving' in smooth_dict and smooth_dict['is_moving'] >0:
@@ -81,21 +89,24 @@ def proc_frame(writer, frames, frames_infos, test_writer=None):
                 smooth_dict[obj_dmg_key][0] -= 1
                 dmg_prob = smooth_dict[obj_dmg_key][1]
             else: 
-                dmg_size_thres = vid_height//24
+                # 720p : 90px | 1080p: 135px
+                dmg_height_thres, dmg_width_thres = vid_height//8, vid_height//16
                 # if False:
-                if (right-left)>dmg_size_thres or (bottom-top)>dmg_size_thres:
+                if (bottom-top)>dmg_height_thres and (right-left)>dmg_width_thres:
                     if (right-left)/(bottom-top) >1.3:
-                        x_pad, y_pad = (right-left)//3, (bottom-top)//12
+                        x_pad, y_pad = (right-left)//6, (bottom-top)//12
                     x_pad, y_pad = (right-left)//12, (bottom-top)//12
                     # x_pad, y_pad = 0,0
                     left2, top2, right2, bottom2 = max(left-x_pad,0), max(top-y_pad,0),\
-                                                      min(right+x_pad, vid_width), min(bottom+y_pad, vid_height) 
-                    det_class, dmg_prob = damage_detector.detect(frame2proc ,[left2, top2, right2, bottom2])
+                                                      min(right+x_pad, vid_width), min(bottom+y_pad, vid_height)
+
+                    # Pass obj_id to output test image
+                    det_class, dmg_prob = damage_detector.detect(frame2proc ,[left2, top2, right2, bottom2], obj_id=obj_id)
                     smooth_dict[obj_dmg_key] = [DAMAGE_SKIP_NUM, dmg_prob]
                 else:
                     dmg_prob = 0
 
-            if dmg_prob>0.85:
+            if dmg_prob>0.8:
                 ano_dict['damaged'] = True
                 cv2.putText(out_frame, f'{dmg_prob:.2f}', ((right+left)//2, (bottom+top)//2), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0,255,0), 2)
 
@@ -685,6 +696,11 @@ def track_video(opt):
         if proc_frame_no>1:
             print(f">> Processing frame {proc_frame_no}, time: {proc_ms:.2f}ms")
 
+    # Process the remaining frames in buffer
+    while len(frames_infos)>0:
+        proc_ms = proc_frame(out_writer, prev_frames, frames_infos, test_writer)
+        proc_frame_no += 1
+        print(f">> Processing frame {proc_frame_no}, time: {proc_ms:.2f}ms")
     
 
     if isOutput:

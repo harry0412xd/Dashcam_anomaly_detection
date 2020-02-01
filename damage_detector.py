@@ -11,7 +11,7 @@ import timm
 
 class Damage_detector():
     def __init__(self, device):
-        checkpoint_path = '/content/MyDrive/cls_model/train/20200131-094030-seresnext101_32x4d-224/model_best.pth.tar'
+        checkpoint_path = '/content/MyDrive/cls_model/train/20200131-191254-seresnext101_32x4d-224/model_best.pth.tar'
         model = timm.create_model('seresnext101_32x4d', num_classes=2, checkpoint_path = checkpoint_path)
         model.to(device)
         model.eval()
@@ -23,9 +23,9 @@ class Damage_detector():
             transforms.Normalize([0.485, 0.456, 0.406], [0.229, 0.224, 0.225]),
         ])
         self.labels_map = ["whole", "damaged"]
-        self.count = 0
+        self.test_counter = {}
 
-    def detect(self, frame, bbox):
+    def detect(self, frame, bbox, obj_id=None):
         
         left, top, right, bottom = bbox
         cropped_img = frame[top:bottom, left:right]
@@ -40,10 +40,13 @@ class Damage_detector():
             output = self.model(x)
         damaged_prop = get_damaged_prop(output)
 
-        
-        self.count +=1
-        cv2.putText(cropped_img, f"{damaged_prop:.2f} ", ((right-left)//2, (bottom-top)//2), cv2.FONT_HERSHEY_SIMPLEX, 0.6, (0,255,0), 2)
-        cv2.imwrite(f'/content/test/{self.count:04}.jpg', cropped_img)
+        if obj_id:
+            if not obj_id in self.test_counter:
+                self.test_counter[f'{obj_id}'] = 0
+            self.test_counter[f'{obj_id}'] += 1
+            counter = self.test_counter[f'{obj_id}']
+            cv2.putText(cropped_img, f"{damaged_prop:.2f} ", ((right-left)//2, (bottom-top)//2), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0,255,0), 2)
+            cv2.imwrite(f'/content/test/obj{obj_id:04}_{counter:02}.jpg', cropped_img)
 
 
         return "damaged", damaged_prop
