@@ -51,7 +51,11 @@ def proc_frame(writer, frames, frames_infos, test_writer=None):
 
     # Detect whether the camera is moving
     if len(frames)>0:
-        _, is_moving = detect_camera_moving(frame2proc, frames[0])
+        if test_writer:
+            test_frame, is_moving = detect_camera_moving(frame2proc, frames[0], True)
+
+        else:
+            _, is_moving = detect_camera_moving(frame2proc, frames[0])
     else: #last frame
         is_moving = False
     
@@ -102,14 +106,15 @@ def proc_frame(writer, frames, frames_infos, test_writer=None):
                                                       min(right+x_pad, vid_width), min(bottom+y_pad, vid_height)
 
                     # Pass obj_id to output test image
-                    det_class, dmg_prob = damage_detector.detect(frame2proc ,[left2, top2, right2, bottom2], obj_id=obj_id)
+                    # det_class, dmg_prob = damage_detector.detect(frame2proc ,[left2, top2, right2, bottom2], obj_id=obj_id)
+                    det_class, dmg_prob = damage_detector.detect(frame2proc ,[left2, top2, right2, bottom2])
                     smooth_dict[obj_dmg_key] = [DAMAGE_SKIP_NUM, dmg_prob]
                 else:
                     dmg_prob = 0
 
-            if dmg_prob>0.85:
+            if dmg_prob>0.9:
                 ano_dict['damaged'] = True
-                cv2.putText(out_frame, f'{dmg_prob:.2f}', ((right+left)//2, (bottom+top)//2), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0,255,0), 2)
+            cv2.putText(out_frame, f'{dmg_prob:.2f}', ((right+left)//2, (bottom+top)//2), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0,255,0), 2)
 
             # Car collision
             obj_col_key = f"{obj_id}_col"
@@ -120,10 +125,7 @@ def proc_frame(writer, frames, frames_infos, test_writer=None):
                 ano_dict['collision'] = True
                 smooth_dict[obj_col_key] -= 1
 
-
-
             if is_moving:
-                cv2.putText(out_frame, "moving", (vid_width//2, vid_height-30), cv2.FONT_HERSHEY_SIMPLEX, 0.6, (0,255,0), 2)
                 # Detect lack of car distance
                 is_close = detect_close_distance(left, top, right, bottom)
                 ano_dict['close_distance'] = is_close
@@ -135,7 +137,12 @@ def proc_frame(writer, frames, frames_infos, test_writer=None):
         draw_bbox(out_frame, ano_dict, left, top, right, bottom)
     # --- frame loop end
 
+    if is_moving:
+        cv2.putText(out_frame, "moving", (vid_width//2, vid_height-30), cv2.FONT_HERSHEY_SIMPLEX, 0.6, (0,255,0), 2)
+
     writer.write(out_frame)
+    if test_writer:
+        test_writer.write(test_frame)
     frames_infos.popleft()
     end = timer()
     return (end-start)*1000
@@ -328,9 +335,9 @@ def get_mean_shift(frames_infos, out_frame):
                 lp_shift_list.append(x_diff)
 
     left_mean = cal_weighted_mean(lp_shift_list, lp_left_count, lp_right_count)
-    cv2.putText(out_frame, f"{left_mean:.2f} ", (20, 20), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0,255,0), 2)
+    # cv2.putText(out_frame, f"{left_mean:.2f} ", (20, 20), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0,255,0), 2)
     right_mean = cal_weighted_mean(rp_shift_list, rp_left_count, rp_right_count)
-    cv2.putText(out_frame, f"{right_mean:.2f} ", (vid_width-50, 20), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0,255,0), 2)
+    # cv2.putText(out_frame, f"{right_mean:.2f} ", (vid_width-50, 20), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0,255,0), 2)
     return left_mean, right_mean
 
 
@@ -380,9 +387,9 @@ def draw_bbox(image, ano_dict, left, top, right, bottom):
     # elif ("accident" in ano_dict): 
     #     box_color = (255,255,255)
     cv2.rectangle(image, (left, top), (right, bottom), box_color, thickness)
-    cv2.putText(image, label, (left, top-5), cv2.FONT_HERSHEY_SIMPLEX, font_size, (0,255,0), thickness)
-    if not ano_label=="":
-        cv2.putText(image, ano_label, ((right+left)//2, top-5), cv2.FONT_HERSHEY_SIMPLEX, font_size, (0,0,255), thickness)
+    # cv2.putText(image, label, (left, top-5), cv2.FONT_HERSHEY_SIMPLEX, font_size, (0,255,0), thickness)
+    # if not ano_label=="":
+        # cv2.putText(image, ano_label, ((right+left)//2, top-5), cv2.FONT_HERSHEY_SIMPLEX, font_size, (0,0,255), thickness)
 
 
 # To check whether a point(x,y) is within a triangle area of interest
@@ -390,9 +397,6 @@ def draw_bbox(image, ano_dict, left, top, right, bottom):
 # and check if the total area of the 3 traingles equal to the triangle of interest
 def inside_roi(x,y, pts):
     global vid_height, vid_width
-    # x1, y1 = vid_width//2, vid_height//2
-    # x2, y2 = vid_width//8, vid_height
-    # x3, y3 = vid_width*7//8, vid_height
     x1, y1 = pts[0]
     x2, y2 = pts[1]
     x3, y3 = pts[2]
@@ -469,7 +473,7 @@ def detect_camera_moving(cur_frame, prev_frame, should_return_img=False):
     if prev_frame is None:
         print("Last frame")
         return False
-    threshold = 0.015
+    threshold = 0.01
     global detection_boxes, detection_size
 
     if should_return_img:
@@ -487,7 +491,7 @@ def detect_camera_moving(cur_frame, prev_frame, should_return_img=False):
         box_prev = cv2.cvtColor(box_prev, cv2.COLOR_BGR2GRAY)
 
         diff = cv2.absdiff(box_cur, box_prev)
-        ret, result = cv2.threshold(diff, 40, 255, cv2.THRESH_BINARY)
+        ret, result = cv2.threshold(diff, 25, 255, cv2.THRESH_BINARY)
         percentage = cv2.countNonZero(result)/detection_size
         if percentage>threshold:
             count+=1
@@ -501,7 +505,7 @@ def detect_camera_moving(cur_frame, prev_frame, should_return_img=False):
             cv2.putText(return_img, label, ((left+right)//2, (top+bottom)//2), cv2.FONT_HERSHEY_SIMPLEX, 1.0, (0,255,0), 2)
 
     # 8 boxes in total
-    is_moving = count>3
+    is_moving = count>2
     if is_moving:
         # testing purpose
         if should_return_img:
@@ -607,7 +611,7 @@ def track_video(opt):
     video_total_frame = int(vid.get(cv2.CAP_PROP_FRAME_COUNT))
     video_length = sec2length(video_total_frame//vid_fps)
     # init video writer
-    video_FourCC = cv2.VideoWriter_fourcc(*'mp4v')
+    video_FourCC = cv2.VideoWriter_fourcc(*'x264')
     isOutput = True if output_path != "" else False
     if isOutput:
         # print("!!! TYPE:", type(output_path), type(video_FourCC), type(vid_fps), type(video_size))
@@ -618,10 +622,12 @@ def track_video(opt):
             print(f"Rounded fps to {vid_fps}")
         out_writer = cv2.VideoWriter(output_path, video_FourCC, vid_fps, (vid_width, vid_height))
         
-    output_test = True  
+    output_test = opt.test
     if output_test:
         test_output_path =  output_path.replace("output", "test")
         test_writer = cv2.VideoWriter(test_output_path, video_FourCC, vid_fps, (vid_width, vid_height))
+    else:
+        test_writer = None
 
   # global init
     get_detection_boxes()
@@ -636,29 +642,22 @@ def track_video(opt):
     yolo_model.load_darknet_weights(opt.weights_path)
     yolo_model.eval()
     print("YOLO model loaded")
+
     global damage_detector
     damage_detector = Damage_detector(device)
-    # lane_model = Lane_model(device)
-    # seg_model = Seg_model(device)
-    # print("Fast-SCNN model loaded")
-    # erf_model = Erf_model(device)
 
-    # start iter frames
-    in_frame_no, proc_frame_no = 0, 1
+    # Buffer
     buffer_size = vid_fps #store 1sec of frames
     prev_frames = deque()
     frames_infos = deque()
-
+    
+    # start iter frames
+    in_frame_no, proc_frame_no = 0, 1
     while True:
         start = timer()
         success, frame = vid.read()
         if not success: #end of video
             break
-        in_frame_no += 1
-        # seg_img = seg_model.detect(frame)
-        # print(seg_img.shape)
-        # test_writer.write(seg_img)
-        # erf_model.detect(frame, frame_no)
 
         # Obj Detection
         bboxes, classes = yolo_detect(frame, yolo_model, opt)
@@ -726,6 +725,7 @@ if __name__ == '__main__':
 
     parser.add_argument("--input", nargs='?', type=str, default="",help = "Video input path")
     parser.add_argument("--output", nargs='?', type=str, default="",  help = "[Optional] Video output path")
+    parser.add_argument('--test', action='store_true', default=False, help = "[Optional]Output testing video")
     opt = parser.parse_args()
 
     track_video(opt)
