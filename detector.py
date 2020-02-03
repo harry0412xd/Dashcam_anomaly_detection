@@ -141,7 +141,7 @@ def proc_frame(writer, frames, frames_infos, test_writer=None):
         cv2.putText(out_frame, "moving", (vid_width//2, vid_height-30), cv2.FONT_HERSHEY_SIMPLEX, 0.6, (0,255,0), 2)
 
     writer.write(out_frame)
-    if test_writer:
+    if test_writer and test_frame:
         test_writer.write(test_frame)
     frames_infos.popleft()
     end = timer()
@@ -658,7 +658,7 @@ def track_video(opt):
         success, frame = vid.read()
         if not success: #end of video
             break
-
+        in_frame_no += 1
         # Obj Detection
         bboxes, classes = yolo_detect(frame, yolo_model, opt)
         omitted_count = omit_small_bboxes(bboxes, classes)
