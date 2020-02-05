@@ -11,8 +11,8 @@ import timm
 
 class Damage_detector():
     def __init__(self, device):
-        checkpoint_path = '/content/MyDrive/cls_model/train/20200131-191254-seresnext101_32x4d-224/checkpoint-232.pth.tar'
-        model = timm.create_model('seresnext101_32x4d', num_classes=2, checkpoint_path = checkpoint_path)
+        checkpoint_path = '/content/MyDrive/cls_model/20200128-101245-resnet50-224/checkpoint-137.pth.tar'
+        model = timm.create_model('resnet50', num_classes=2, checkpoint_path = checkpoint_path)
         model.to(device)
         model.eval()
         self.device = device

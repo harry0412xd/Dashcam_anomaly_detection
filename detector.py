@@ -86,7 +86,7 @@ def proc_frame(writer, frames, frames_infos, test_writer=None):
 
             # damaged car - image classifier
             # [frame_count, dmg_prop]
-            do_dmg_det = False
+            do_dmg_det = True
             if do_dmg_det:
                 DAMAGE_SKIP_NUM = 6
                 obj_dmg_key = f"{obj_id}_dmg"
@@ -392,9 +392,9 @@ def draw_bbox(image, ano_dict, left, top, right, bottom):
         ano_label += "Collision "
 
     cv2.rectangle(image, (left, top), (right, bottom), box_color, thickness)
-    cv2.putText(image, label, (left, top-5), cv2.FONT_HERSHEY_SIMPLEX, font_size, (0,255,0), thickness)
-    if not ano_label=="":
-        cv2.putText(image, ano_label, ((right+left)//2, top-5), cv2.FONT_HERSHEY_SIMPLEX, font_size, (0,0,255), thickness)
+    # cv2.putText(image, label, (left, top-5), cv2.FONT_HERSHEY_SIMPLEX, font_size, (0,255,0), thickness)
+    # if not ano_label=="":
+        # cv2.putText(image, ano_label, ((right+left)//2, top-5), cv2.FONT_HERSHEY_SIMPLEX, font_size, (0,0,255), thickness)
 
 
 # To check whether a point(x,y) is within a triangle area of interest
@@ -683,15 +683,16 @@ def track_video(opt):
         #calculate fps by 1sec / time consumed to process this frame
         fps = str(round(1/(end-start),2))
         msg += (f"--fps: {fps}")
-        print(msg)
-        if proc_frame_no>1:
-            print(f">> Processing frame {proc_frame_no}, time: {proc_ms:.2f}ms")
+        # print(msg)
+
+        # if proc_frame_no>1:
+            # print(f">> Processing frame {proc_frame_no}, time: {proc_ms:.2f}ms")
 
     # Process the remaining frames in buffer
     while len(frames_infos)>0:
         proc_ms = proc_frame(out_writer, prev_frames, frames_infos, test_writer)
         proc_frame_no += 1
-        print(f">> Processing frame {proc_frame_no}, time: {proc_ms:.2f}ms")
+        # print(f">> Processing frame {proc_frame_no}, time: {proc_ms:.2f}ms")
     
 
     if isOutput:
