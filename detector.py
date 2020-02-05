@@ -8,9 +8,6 @@ import cv2
 import numpy as np
 import torch
 
-# from lane_SCNN.wrapper import Lane_model
-# from Fast_SCNN.wrapper import *
-# from ERFNet_CULane_PyTorch.wrapper import *
 from damage_detector import Damage_detector
 damage_detector = None
 
@@ -19,6 +16,8 @@ from yolov3.utils.utils import *
 from yolov3.utils.datasets import *
 
 from sort import *
+
+import detector_config as DC
 
 #Global Variable
 #Video properties : 
@@ -247,17 +246,24 @@ def compute_iou(boxA, boxB):
 
 def detect_jaywalker(recent_bboxes, frame, mean_shift):
     global vid_height, vid_width
-    ROI = [(vid_width//10,vid_height), (vid_width//2,vid_height*3//7), (vid_width*9//10, vid_height) ]
+
+    # ROI = [(vid_width//10,vid_height), (vid_width//2,vid_height*3//7), (vid_width*9//10, vid_height) ]
+    ROI = [(0,vid_height), (vid_width//2,vid_height*5//14), (vid_width, vid_height) ]
+    y_thers_close = int(vid_height*0.65)
+    y_thers_medium = int(vid_height*0.45)
+
+    # draw demo line
     cv2.polylines(frame, [np.array(ROI, dtype=np.int32)], False, (255,0,0))
-    cv2.line(frame,(0, vid_height//2), (vid_width, vid_height//2), (255,0,0))
-    cv2.line(frame,(0, vid_height*7//10), (vid_width, vid_height*7//10), (255,0,0))
+    cv2.line(frame,(0, y_thers_close), (vid_width, y_thers_close), (255,0,0))
+    cv2.line(frame,(0, y_thers_medium), (vid_width, y_thers_medium), (255,0,0))
+
     left, top, right, bottom = recent_bboxes[0][0]
     center_x, center_y = (left+right)//2, (top+bottom)//2
 
-    # bottom_center = (center_x, bottom)
-    if not bottom<vid_height//2:
+    # in checking range
+    if bottom > y_thers_medium:
         if inside_roi(center_x, bottom, ROI):
-            if bottom>vid_height*7//10 :
+            if bottom > y_thers_close :
                 return True
             else:
                 dist, max_dist = 0, 0
@@ -385,12 +391,10 @@ def draw_bbox(image, ano_dict, left, top, right, bottom):
         box_color = (0,0,255)
         ano_label += "Collision "
 
-    # elif ("accident" in ano_dict): 
-    #     box_color = (255,255,255)
     cv2.rectangle(image, (left, top), (right, bottom), box_color, thickness)
-    # cv2.putText(image, label, (left, top-5), cv2.FONT_HERSHEY_SIMPLEX, font_size, (0,255,0), thickness)
-    # if not ano_label=="":
-        # cv2.putText(image, ano_label, ((right+left)//2, top-5), cv2.FONT_HERSHEY_SIMPLEX, font_size, (0,0,255), thickness)
+    cv2.putText(image, label, (left, top-5), cv2.FONT_HERSHEY_SIMPLEX, font_size, (0,255,0), thickness)
+    if not ano_label=="":
+        cv2.putText(image, ano_label, ((right+left)//2, top-5), cv2.FONT_HERSHEY_SIMPLEX, font_size, (0,0,255), thickness)
 
 
 # To check whether a point(x,y) is within a triangle area of interest
@@ -536,8 +540,8 @@ def omit_small_bboxes(bboxes,classes):
         width = bbox[2] - bbox[0]
         height = bbox[3] - bbox[1]
         class_name = class_names[classes[i]]
-        if (class_name=="car" or class_name=="bus" or class_name=="truck")\
-            and width*height<area_threshold:
+        if ((class_name=="car" or class_name=="bus" or class_name=="truck") and 
+            width*height<area_threshold) or class_name=="traffic light" or class_name=="traffic sign":
             # print(f"{classes[i]} {width}x{height}")
             del bboxes[i]
             del classes[i]
@@ -574,36 +578,20 @@ def yolo_detect(frame, model, opt):
            classes.append(int(cls_pred))
     return bboxes, classes
 
-# for testing
-def draw_test_img(test_img):
-    # draw the ROI of close dist detection
-    x1, y1 = vid_width//2, vid_height//2
-    x2, y2 = vid_width//8, vid_height
-    x3, y3 = vid_width*7//8, vid_height
-    pts = np.array([[x1,y1], [x2,y2], [x3,y3]], np.int32)
-    cv2.polylines(test_img, [pts], True, (255,0,0))
-
-    pts =[(0,vid_height), (vid_width,vid_height), (vid_width//2, vid_height//4) ]
-    pts = np.array(pts,  np.int32)
-    cv2.polylines(test_img, [pts], True, (0,0,255))
-
-    out_test.write(test_img)
 
 def track_video(opt):
     global device
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     device_name = torch.cuda.get_device_name(0)
-    print(f"Using cuda device: {device_name}")
+    print(f"Using device: {device_name}")
     
-    # testing flag here:
-    show_fps = True
-
     # load video
     video_path = opt.input
     output_path = opt.output
     vid = cv2.VideoCapture(video_path)
     if not vid.isOpened():
         raise IOError("Couldn't open webcam or video")
+
     # get video prop
     global vid_width, vid_height, vid_fps
     vid_width = int(vid.get(cv2.CAP_PROP_FRAME_WIDTH))
@@ -611,6 +599,7 @@ def track_video(opt):
     vid_fps = vid.get(cv2.CAP_PROP_FPS)
     video_total_frame = int(vid.get(cv2.CAP_PROP_FRAME_COUNT))
     video_length = sec2length(video_total_frame//vid_fps)
+
     # init video writer
     video_FourCC = cv2.VideoWriter_fourcc(*'x264')
     isOutput = True if output_path != "" else False
@@ -622,7 +611,8 @@ def track_video(opt):
             vid_fps = int(vid_fps)
             print(f"Rounded fps to {vid_fps}")
         out_writer = cv2.VideoWriter(output_path, video_FourCC, vid_fps, (vid_width, vid_height))
-        
+    
+    # testing
     output_test = opt.test
     if output_test:
         test_output_path =  output_path.replace("output", "test")
@@ -714,9 +704,9 @@ def track_video(opt):
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
     # parser.add_argument("--image_folder", type=str, default="data/samples", help="path to dataset")
-    parser.add_argument("--model_def", type=str, default="model_data/bdd/bdd.cfg", help="path to model definition file")
-    parser.add_argument("--weights_path", type=str, default="model_data/bdd/bdd.weights", help="path to weights file")
-    parser.add_argument("--class_path", type=str, default="model_data/bdd/classes.txt", help="path to class label file")
+    parser.add_argument("--model_def", type=str, default="model_data/YOLOv3_bdd/bdd.cfg", help="path to model definition file")
+    parser.add_argument("--weights_path", type=str, default="model_data/YOLOv3_bdd/bdd.weights", help="path to weights file")
+    parser.add_argument("--class_path", type=str, default="model_data/YOLOv3_bdd/classes.txt", help="path to class label file")
     parser.add_argument("--conf_thres", type=float, default=0.55, help="object confidence threshold")
     parser.add_argument("--nms_thres", type=float, default=0.25, help="iou thresshold for non-maximum suppression")
     # parser.add_argument("--batch_size", type=int, default=1, help="size of the batches")

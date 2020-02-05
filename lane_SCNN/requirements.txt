@@ -1,4 +1,0 @@
-numpy
-opencv-python
-torch>=0.4.1
-torchvision
