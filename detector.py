@@ -69,7 +69,7 @@ def proc_frame(writer, frames, frames_infos, test_writer=None):
     #compute the average shift in pixel of bounding box, in left/right half of the frame
     left_mean, right_mean = get_mean_shift(frames_infos, out_frame)
 
-    collision_id_list = detect_car_collision(retrieve_all_car_info(frames_infos[0]))
+    collision_id_list = detect_car_collision(retrieve_all_car_info(frames_infos[0]), out_frame)
 
     # object-wise
     for obj_id in id_to_info:
@@ -157,7 +157,7 @@ def retrieve_all_car_info(all_info):
 
 # car list [(obj_id, bbox),]
 # return list of obj_id (car that is colliding)
-def detect_car_collision(car_list):
+def detect_car_collision(car_list, out_frame):
     collision_list = []
     global vid_width,vid_height
     while len(car_list)>1:
@@ -190,8 +190,12 @@ def detect_car_collision(car_list):
             is_checked = False
             if is_side1 and is_side2:
                 height_thres = DC.COLL_HEIGHT_THRES_STRICT
+                iou_thres = 0.05
             else:  # is_side1 NOR is_side2:
                 height_thres = DC.COLL_HEIGHT_THRES
+                if is_side1 or is_side2:
+                    iou_thres = 0.1
+                iou_thres = 0.15
 
             test_flag = False
             if is_side1 != is_side2 :
@@ -209,7 +213,6 @@ def detect_car_collision(car_list):
                 if (abs(bottom1-bottom2) / box1_height) < height_thres and \
                    (right1>right2 and left1>left2) or (right2>right1 and left2>left1):
                         is_checked = True
-                        iou_thres = 0.1
 
                 # elif (abs(top1-top2) / box1_height) < (DC.COLL_HEIGHT_THRES_STRICT) and \
                 #      (right1>right2 and left1>left2) or (right2>right1 and left2>left1):
@@ -218,6 +221,8 @@ def detect_car_collision(car_list):
        
             if is_checked:   
                 iou = compute_iou(bbox1, bbox2)
+                cv2.putText(out_frame, f'{iou:.2f}'), ((right1+left1)//2, (top1+bottom1)//2), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0,255,0), 2)
+                cv2.putText(out_frame, f'{iou:.2f}', ((right2+left2)//2, (top2+bottom2)//2), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0,255,0), 2)
                 if iou > iou_thres and iou < DC.IOU_FALSE_THERS: # to exclude some false positive due to detection fault
                     collision_list.append(id2)
                     del car_list[i]
