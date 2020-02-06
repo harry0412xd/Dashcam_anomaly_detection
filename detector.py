@@ -84,8 +84,7 @@ def proc_frame(writer, frames, frames_infos, test_writer=None):
 
         if class_name=="car" or class_name=="bus" or class_name=="truck":
 
-            do_dmg_det = True
-            if do_dmg_det:
+            if opt.dmg_det:
                 DAMAGE_SKIP_NUM = 6
                 obj_dmg_key = f"{obj_id}_dmg"
                 if obj_dmg_key in smooth_dict and smooth_dict[obj_dmg_key][0]>0:
@@ -187,24 +186,26 @@ def detect_car_collision(car_list):
                 is_side2 = True
             else:
                 is_side2 = False
-            
+                
+            is_checked = False
             if is_side1 ^ is_side2 :
-                if abs(box1_height-box2_height)/box2_height < height_thres and #similar height
+                        #similar height
+                if abs(box1_height-box2_height)/box2_height < height_thres and \
                    (bottom2>top1 or bottom1>top2): # back car crash into front car, y-axis may not be similar
                     is_checked = True
                     iou_thres = 0.4
             else:
 
                 if is_side1 and is_side2:
-                    height_thres = COLL_HEIGHT_THRES/5
+                    height_thres = DC.COLL_HEIGHT_THRES/5
                 else:  # is_side1 NOR is_side2:
-                    height_thres = COLL_HEIGHT_THRES
+                    height_thres = DC.COLL_HEIGHT_THRES
 
                 # if they have about the same bottom(height)
                 # 1: two sided car i.e. left/right potion of bbox overlap
                 # 2: two forward car left/right side crash
                 if (abs(bottom1-bottom2) / box1_height) < height_thres: #similar y-level bottom
-                    if (right1>right2 and left1>left2) or
+                    if (right1>right2 and left1>left2) or \
                       (right2>right1 and left2>left1):
                         is_checked = True
                         iou_thres = 0.1
@@ -440,7 +441,7 @@ def detect_close_distance(left, top, right, bottom):
             frame_center_x = box_center_x
 
         dist = euclidean_distance(box_center_x,frame_center_x,bottom,vid_height)
-        if dist<(vid_height//3) and 
+        if dist<(vid_height//3) and \
            (right-left)>(vid_width//5): # To prevent some false positive caused by camera angle
             # print(f"distance = {dist}")
             return True
@@ -720,6 +721,7 @@ if __name__ == '__main__':
     parser.add_argument("--input", nargs='?', type=str, default="",help = "Video input path")
     parser.add_argument("--output", nargs='?', type=str, default="",  help = "[Optional] Video output path")
     parser.add_argument('--test', action='store_true', default=False, help = "[Optional]Output testing video")
+    parser.add_argument('--dmg_det', action='store_true', default=False, help = "[Optional]do damage classification")
     opt = parser.parse_args()
 
     track_video(opt)
