@@ -541,7 +541,7 @@ def sec2length(time_sec):
 def omit_small_bboxes(bboxes,classes):
     global vid_height
     # area_threshold = (vid_height//36)**2
-    width_threshold, height_threshold = vid_width//24, vid_height//16
+    width_threshold, height_threshold = vid_width//24, vid_height//18
 
 
 
