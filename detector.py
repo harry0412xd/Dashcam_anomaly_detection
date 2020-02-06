@@ -190,39 +190,37 @@ def detect_car_collision(car_list, out_frame):
             is_checked = False
             if is_side1 and is_side2:
                 height_thres = DC.COLL_HEIGHT_THRES_STRICT
-                iou_thres = 0.05
+                iou_thres = 0.1
             else:  # is_side1 NOR is_side2:
                 height_thres = DC.COLL_HEIGHT_THRES
                 if is_side1 or is_side2:
-                    iou_thres = 0.1
-                iou_thres = 0.15
+                    iou_thres = 0.15
+                else:
+                    iou_thres = 0.15
 
-            test_flag = False
-            if is_side1 != is_side2 :
+                    
+            # if they have about the same bottom(height)
+            # 1: two sided car i.e. left/right potion of bbox overlap
+            # 2: two forward car left/right side crash
+            if (abs(bottom1-bottom2) / box1_height) < height_thres and \
+                ((right1>right2 and left1>left2) or (right2>right1 and left2>left1)):
+                    is_checked = True
 
+            # elif (abs(top1-top2) / box1_height) < (DC.COLL_HEIGHT_THRES_STRICT) and \
+            #      (right1>right2 and left1>left2) or (right2>right1 and left2>left1):
+            #         is_checked = True
+            #         iou_thres = 0.25
+       
+            elif (is_side1 != is_side2):
                         #similar height
                 if abs(box1_height-box2_height)/box2_height < height_thres and \
-                   (bottom2>bottom1 and top2>top1) or (bottom1>bottom2 and top1>top2): # back car crash into front car, y-axis may not be similar
+                   ((bottom2>bottom1 and top2>top1) or (bottom1>bottom2 and top1>top2)): # back car crash into front car, y-axis may not be similar
                     is_checked = True
                     iou_thres = 0.25
-                    
-            else:
-                # if they have about the same bottom(height)
-                # 1: two sided car i.e. left/right potion of bbox overlap
-                # 2: two forward car left/right side crash
-                if (abs(bottom1-bottom2) / box1_height) < height_thres and \
-                   (right1>right2 and left1>left2) or (right2>right1 and left2>left1):
-                        is_checked = True
 
-                # elif (abs(top1-top2) / box1_height) < (DC.COLL_HEIGHT_THRES_STRICT) and \
-                #      (right1>right2 and left1>left2) or (right2>right1 and left2>left1):
-                #         is_checked = True
-                #         iou_thres = 0.25
-       
             if is_checked:   
                 iou = compute_iou(bbox1, bbox2)
-                cv2.putText(out_frame, f'{iou:.2f}', ((right1+left1)//2, (top1+bottom1)//2), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0,255,0), 2)
-                cv2.putText(out_frame, f'{iou:.2f}', ((right2+left2)//2, (top2+bottom2)//2), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0,255,0), 2)
+                cv2.putText(out_frame, f'{iou:.2f}', ((right1+left1+right2+left2)//4, (top1+bottom1+top2+bottom2)//4), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0,255,0), 2)
                 if iou > iou_thres and iou < DC.IOU_FALSE_THERS: # to exclude some false positive due to detection fault
                     collision_list.append(id2)
                     del car_list[i]

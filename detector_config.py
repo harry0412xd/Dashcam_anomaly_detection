@@ -1,5 +1,5 @@
 # Width/height >1.5 : the side of the car is facing the camera 
-IS_SIDE_RATIO = 1.5
+IS_SIDE_RATIO = 1.8
 
 
 # ---------------------------------------
@@ -9,7 +9,7 @@ COLL_IGNORE_DENOMINATOR = 18
 
 # 
 COLL_HEIGHT_THRES = 0.1
-COLL_HEIGHT_THRES_STRICT = 0.02
+COLL_HEIGHT_THRES_STRICT = 0.05
 
 IOU_FALSE_THERS = 0.6
 # Camera Moving Detection
