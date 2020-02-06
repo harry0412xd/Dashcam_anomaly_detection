@@ -84,8 +84,6 @@ def proc_frame(writer, frames, frames_infos, test_writer=None):
 
         if class_name=="car" or class_name=="bus" or class_name=="truck":
 
-            # damaged car - image classifier
-            # [frame_count, dmg_prop]
             do_dmg_det = True
             if do_dmg_det:
                 DAMAGE_SKIP_NUM = 6
@@ -98,7 +96,7 @@ def proc_frame(writer, frames, frames_infos, test_writer=None):
                     # 720p : 90px | 1080p: 135px
                     dmg_height_thres, dmg_width_thres = vid_height//12, vid_width//24
                     if (bottom-top)>dmg_height_thres and (right-left)>dmg_width_thres:
-                        if (right-left)/(bottom-top) >1.3:
+                        if (right-left)/(bottom-top) > DC.IS_SIDE_RATIO :
                             x_pad, y_pad = (right-left)//6, (bottom-top)//12
                         else:
                             x_pad, y_pad = (right-left)//12, (bottom-top)//12
@@ -148,7 +146,6 @@ def proc_frame(writer, frames, frames_infos, test_writer=None):
     return (end-start)*1000
 
 
-
 def retrieve_all_car_info(all_info):
     car_list = []
     for obj_id in all_info:
@@ -166,49 +163,55 @@ def detect_car_collision(car_list):
     global vid_width,vid_height
     while len(car_list)>1:
         id1, bbox1 = car_list[0]
-        box1_width, box1_height = bbox1[2]-bbox1[0], bbox1[3]-bbox1[1]
+        left1, top1, right1, bottom1 = bbox1
+        box1_width, box1_height = right1-left1, bottom1-top1
 
         # ignore small box
-        if box1_height<vid_height//18:
+        if box1_height<vid_height // DC.COLL_IGNORE_DENOMINATOR:
             del car_list[0]
             continue
 
-        if box1_width/(box1_height)>1.5:
+        if box1_width/(box1_height) > DC.IS_SIDE_RATIO:
             is_side1 = True
         else:
             is_side1 = False
+
         i = 1 # the index for the second box 
         has_match = False
         while i<len(car_list):
             id2, bbox2 = car_list[i]
-            box2_width, box2_height = bbox2[2]-bbox2[0], bbox2[3]-bbox2[1]
-            if box2_width/(box2_height)>1.5:
+            left2, top2, right2, bottom2 = bbox1
+            box2_width, box2_height = right2-left2, bottom2-top2
+
+            if box2_width/(box2_height)> DC.IS_SIDE_RATIO:
                 is_side2 = True
             else:
                 is_side2 = False
-
-            if is_side1 and is_side2:
-                height_thres = 0.02
-            else:
-                height_thres = 0.1
-# (abs(bbox1[1]-bbox2[1])/box1_height) < height_thres 
-            # if they have about the same bottom(height)
-            # 1: two sided car i.e. left/right potion of bbox overlap
-            # 2: two forward car left/right side crash
-
-            if (abs(bbox1[3]-bbox2[3])/box1_height) < height_thres: #similar y-level bottom
-                if bbox2[2]>bbox1[0] or bbox1[1]>bbox2[0] or bbox2[3]>bbox1[1] or bbox1[3]>bbox2[1]:
+            
+            if is_side1 ^ is_side2 :
+                if abs(box1_height-box2_height)/box2_height < height_thres and #similar height
+                   (bottom2>top1 or bottom1>top2): # back car crash into front car, y-axis may not be similar
                     is_checked = True
-                    iou_thres = 0.1
-            # back car crash into front car, y-axis may not be similar
-            elif bbox2[3]>bbox1[1] or bbox1[3]>bbox2[1]:
-                is_checked = True
-                iou_thres = 0.4
-                
+                    iou_thres = 0.4
+            else:
+
+                if is_side1 and is_side2:
+                    height_thres = COLL_HEIGHT_THRES/5
+                else:  # is_side1 NOR is_side2:
+                    height_thres = COLL_HEIGHT_THRES
+
+                # if they have about the same bottom(height)
+                # 1: two sided car i.e. left/right potion of bbox overlap
+                # 2: two forward car left/right side crash
+                if (abs(bottom1-bottom2) / box1_height) < height_thres: #similar y-level bottom
+                    if (right1>right2 and left1>left2) or
+                      (right2>right1 and left2>left1):
+                        is_checked = True
+                        iou_thres = 0.1
+       
             if is_checked:   
                 iou = compute_iou(bbox1, bbox2)
-                if iou > iou_thres and \
-                    iou <0.6: # to exclude some false positive due to detection fault
+                if iou > iou_thres and iou < DC.IOU_FALSE_THERS: # to exclude some false positive due to detection fault
                     collision_list.append(id2)
                     del car_list[i]
                     has_match = True
@@ -421,10 +424,8 @@ def euclidean_distance(x1,x2,y1,y2):
     return math.sqrt( (x2-x1)**2 + (y2-y1)**2)
 
 def detect_close_distance(left, top, right, bottom):
-    global vid_height, vid_width
-    pts = [(vid_width//2, vid_height//2), 
-          (vid_width//8, vid_height),
-          (vid_width*7//8, vid_height) ]
+    global vid_width, vid_height
+    pts = DC.get_roi_for_distance_detect(vid_width, vid_height)
 
     # ignore roi if the bbox is too big
     # since its center is hard to be within the roi
@@ -439,7 +440,8 @@ def detect_close_distance(left, top, right, bottom):
             frame_center_x = box_center_x
 
         dist = euclidean_distance(box_center_x,frame_center_x,bottom,vid_height)
-        if dist<(vid_height//3) :
+        if dist<(vid_height//3) and 
+           (right-left)>(vid_width//5): # To prevent some false positive caused by camera angle
             # print(f"distance = {dist}")
             return True
     return False
