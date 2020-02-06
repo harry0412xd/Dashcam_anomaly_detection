@@ -170,7 +170,7 @@ def detect_car_collision(car_list):
             del car_list[0]
             continue
 
-        if box1_width/(box1_height) > DC.IS_SIDE_RATIO:
+        if box1_width/box1_height > DC.IS_SIDE_RATIO:
             is_side1 = True
         else:
             is_side1 = False
@@ -179,39 +179,41 @@ def detect_car_collision(car_list):
         has_match = False
         while i<len(car_list):
             id2, bbox2 = car_list[i]
-            left2, top2, right2, bottom2 = bbox1
+            left2, top2, right2, bottom2 = bbox2
             box2_width, box2_height = right2-left2, bottom2-top2
 
-            if box2_width/(box2_height)> DC.IS_SIDE_RATIO:
+            if box2_width/box2_height > DC.IS_SIDE_RATIO:
                 is_side2 = True
             else:
                 is_side2 = False
-                
+
             is_checked = False
-            if is_side1 ^ is_side2 :
+            if is_side1 and is_side2:
+                height_thres = DC.COLL_HEIGHT_THRES/5
+            else:  # is_side1 NOR is_side2:
+                height_thres = DC.COLL_HEIGHT_THRES
+
+            if is_side1 != is_side2 :
+
                         #similar height
                 if abs(box1_height-box2_height)/box2_height < height_thres and \
                    (bottom2>top1 or bottom1>top2): # back car crash into front car, y-axis may not be similar
                     is_checked = True
                     iou_thres = 0.4
             else:
-
-                if is_side1 and is_side2:
-                    height_thres = DC.COLL_HEIGHT_THRES/5
-                else:  # is_side1 NOR is_side2:
-                    height_thres = DC.COLL_HEIGHT_THRES
-
                 # if they have about the same bottom(height)
                 # 1: two sided car i.e. left/right potion of bbox overlap
                 # 2: two forward car left/right side crash
-                if (abs(bottom1-bottom2) / box1_height) < height_thres: #similar y-level bottom
-                    if (right1>right2 and left1>left2) or \
-                      (right2>right1 and left2>left1):
+                if (abs(bottom1-bottom2) / box1_height) < height_thres and \
+                    (right1>right2 and left1>left2) or \
+                    (right2>right1 and left2>left1):
                         is_checked = True
                         iou_thres = 0.1
        
             if is_checked:   
                 iou = compute_iou(bbox1, bbox2)
+                if iou >0.01:
+                    print(f'{id1}-{id2} : {iou}')
                 if iou > iou_thres and iou < DC.IOU_FALSE_THERS: # to exclude some false positive due to detection fault
                     collision_list.append(id2)
                     del car_list[i]
@@ -396,7 +398,7 @@ def draw_bbox(image, ano_dict, left, top, right, bottom):
         ano_label += "Collision "
 
     cv2.rectangle(image, (left, top), (right, bottom), box_color, thickness)
-    # cv2.putText(image, label, (left, top-5), cv2.FONT_HERSHEY_SIMPLEX, font_size, (0,255,0), thickness)
+    cv2.putText(image, label, (left, top-5), cv2.FONT_HERSHEY_SIMPLEX, font_size, (0,255,0), thickness)
     # if not ano_label=="":
         # cv2.putText(image, ano_label, ((right+left)//2, top-5), cv2.FONT_HERSHEY_SIMPLEX, font_size, (0,0,255), thickness)
 
