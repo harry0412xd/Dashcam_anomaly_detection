@@ -221,7 +221,7 @@ def detect_car_collision(car_list, out_frame):
        
             if is_checked:   
                 iou = compute_iou(bbox1, bbox2)
-                cv2.putText(out_frame, f'{iou:.2f}'), ((right1+left1)//2, (top1+bottom1)//2), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0,255,0), 2)
+                cv2.putText(out_frame, f'{iou:.2f}', ((right1+left1)//2, (top1+bottom1)//2), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0,255,0), 2)
                 cv2.putText(out_frame, f'{iou:.2f}', ((right2+left2)//2, (top2+bottom2)//2), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0,255,0), 2)
                 if iou > iou_thres and iou < DC.IOU_FALSE_THERS: # to exclude some false positive due to detection fault
                     collision_list.append(id2)
