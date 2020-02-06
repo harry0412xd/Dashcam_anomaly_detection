@@ -200,8 +200,7 @@ def detect_car_collision(car_list):
                 if abs(box1_height-box2_height)/box2_height < height_thres and \
                    (bottom2>bottom1 and top2>top1) or (bottom1>bottom2 and top1>top2): # back car crash into front car, y-axis may not be similar
                     is_checked = True
-                    iou_thres = 0.3
-                    test_flag = True
+                    iou_thres = 0.25
                     
             else:
                 # if they have about the same bottom(height)
@@ -219,8 +218,6 @@ def detect_car_collision(car_list):
        
             if is_checked:   
                 iou = compute_iou(bbox1, bbox2)
-                if test_flag:
-                    print(f'{id1}_{id2}  {iou}')
                 if iou > iou_thres and iou < DC.IOU_FALSE_THERS: # to exclude some false positive due to detection fault
                     collision_list.append(id2)
                     del car_list[i]
@@ -699,10 +696,12 @@ def track_video(opt):
         #calculate fps by 1sec / time consumed to process this frame
         fps = str(round(1/(end-start),2))
         msg += (f"--fps: {fps}")
-        # print(msg)
 
-        # if proc_frame_no>1:
-            # print(f">> Processing frame {proc_frame_no}, time: {proc_ms:.2f}ms")
+        if in_frame_no%50 == 0:
+            print(msg)
+
+        if proc_frame_no%50 == 0:
+            print(f">> Processing frame {proc_frame_no}, time: {proc_ms:.2f}ms")
 
     # Process the remaining frames in buffer
     while len(frames_infos)>0:
