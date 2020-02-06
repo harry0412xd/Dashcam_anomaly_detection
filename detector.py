@@ -189,31 +189,38 @@ def detect_car_collision(car_list):
 
             is_checked = False
             if is_side1 and is_side2:
-                height_thres = DC.COLL_HEIGHT_THRES/5
+                height_thres = DC.COLL_HEIGHT_THRES_STRICT
             else:  # is_side1 NOR is_side2:
                 height_thres = DC.COLL_HEIGHT_THRES
 
+            test_flag = False
             if is_side1 != is_side2 :
 
                         #similar height
                 if abs(box1_height-box2_height)/box2_height < height_thres and \
-                   (bottom2>top1 or bottom1>top2): # back car crash into front car, y-axis may not be similar
+                   (bottom2>bottom1 and top2>top1) or (bottom1>bottom2 and top1>top2): # back car crash into front car, y-axis may not be similar
                     is_checked = True
-                    iou_thres = 0.4
+                    iou_thres = 0.3
+                    test_flag = True
+                    
             else:
                 # if they have about the same bottom(height)
                 # 1: two sided car i.e. left/right potion of bbox overlap
                 # 2: two forward car left/right side crash
                 if (abs(bottom1-bottom2) / box1_height) < height_thres and \
-                    (right1>right2 and left1>left2) or \
-                    (right2>right1 and left2>left1):
+                   (right1>right2 and left1>left2) or (right2>right1 and left2>left1):
                         is_checked = True
                         iou_thres = 0.1
+
+                # elif (abs(top1-top2) / box1_height) < (DC.COLL_HEIGHT_THRES_STRICT) and \
+                #      (right1>right2 and left1>left2) or (right2>right1 and left2>left1):
+                #         is_checked = True
+                #         iou_thres = 0.25
        
             if is_checked:   
                 iou = compute_iou(bbox1, bbox2)
-                if iou >0.01:
-                    print(f'{id1}-{id2} : {iou}')
+                if test_flag:
+                    print(f'{id1}_{id2}  {iou}')
                 if iou > iou_thres and iou < DC.IOU_FALSE_THERS: # to exclude some false positive due to detection fault
                     collision_list.append(id2)
                     del car_list[i]
@@ -398,7 +405,7 @@ def draw_bbox(image, ano_dict, left, top, right, bottom):
         ano_label += "Collision "
 
     cv2.rectangle(image, (left, top), (right, bottom), box_color, thickness)
-    cv2.putText(image, label, (left, top-5), cv2.FONT_HERSHEY_SIMPLEX, font_size, (0,255,0), thickness)
+    # cv2.putText(image, label, (left, top-5), cv2.FONT_HERSHEY_SIMPLEX, font_size, (0,255,0), thickness)
     # if not ano_label=="":
         # cv2.putText(image, ano_label, ((right+left)//2, top-5), cv2.FONT_HERSHEY_SIMPLEX, font_size, (0,0,255), thickness)
 
@@ -536,7 +543,10 @@ def sec2length(time_sec):
 #omit small bboxes since they are not accurate and useful enought for detecting anomaly
 def omit_small_bboxes(bboxes,classes):
     global vid_height
-    area_threshold = (vid_height//36)**2
+    # area_threshold = (vid_height//36)**2
+    width_threshold, height_threshold = vid_width//16, vid_height//10
+
+
 
     omitted_count = 0
     i = 0
@@ -546,7 +556,8 @@ def omit_small_bboxes(bboxes,classes):
         height = bbox[3] - bbox[1]
         class_name = class_names[classes[i]]
         if ((class_name=="car" or class_name=="bus" or class_name=="truck") and 
-            width*height<area_threshold) or class_name=="traffic light" or class_name=="traffic sign":
+            (width<width_threshold or height<height_threshold)) or \
+            class_name=="traffic light" or class_name=="traffic sign":
             # print(f"{classes[i]} {width}x{height}")
             del bboxes[i]
             del classes[i]
