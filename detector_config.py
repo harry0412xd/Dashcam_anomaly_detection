@@ -1,5 +1,5 @@
-# Width/height >1.5 : the side of the car is facing the camera 
-IS_SIDE_RATIO = 1.8
+# Width/height > IS_SIDE_RATIO : the side of the car is facing the camera 
+IS_SIDE_RATIO = 1.6
 
 
 # ---------------------------------------

@@ -11,8 +11,8 @@ import timm
 
 class Damage_detector():
     def __init__(self, device):
-        checkpoint_path = '/content/MyDrive/cls_model/20200128-101245-resnet50-224/checkpoint-137.pth.tar'
-        model = timm.create_model('resnet50', num_classes=2, checkpoint_path = checkpoint_path)
+        checkpoint_path = '/content/MyDrive/cls_model/train/20200209-031457-resnext101_32x4d-224/model_best.pth.tar'
+        model = timm.create_model('resnext101_32x4d', num_classes=2, checkpoint_path = checkpoint_path)
         model.to(device)
         model.eval()
         self.device = device
@@ -41,10 +41,11 @@ class Damage_detector():
         damaged_prop = get_damaged_prop(output)
 
         if obj_id:
-            if not obj_id in self.test_counter:
-                self.test_counter[f'{obj_id}'] = 0
-            self.test_counter[f'{obj_id}'] += 1
-            counter = self.test_counter[f'{obj_id}']
+            key = str(obj_id)
+            if not (key in self.test_counter):
+                self.test_counter[key] = 0
+            self.test_counter[key] += 1
+            counter = self.test_counter[key]
             cv2.putText(cropped_img, f"{damaged_prop:.2f} ", ((right-left)//2, (bottom-top)//2), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0,255,0), 2)
             cv2.imwrite(f'/content/test/obj{obj_id:04}_{counter:02}.jpg', cropped_img)
 

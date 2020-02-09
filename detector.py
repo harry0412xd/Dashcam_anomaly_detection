@@ -85,7 +85,7 @@ def proc_frame(writer, frames, frames_infos, test_writer=None):
         if class_name=="car" or class_name=="bus" or class_name=="truck":
 
             if opt.dmg_det:
-                DAMAGE_SKIP_NUM = 6
+                DAMAGE_SKIP_NUM = 2
                 obj_dmg_key = f"{obj_id}_dmg"
                 if obj_dmg_key in smooth_dict and smooth_dict[obj_dmg_key][0]>0:
                     smooth_dict[obj_dmg_key][0] -= 1
@@ -100,18 +100,18 @@ def proc_frame(writer, frames, frames_infos, test_writer=None):
                         else:
                             x_pad, y_pad = (right-left)//12, (bottom-top)//12
 
-                        # x_pad, y_pad = 0,0
+                        x_pad, y_pad = 0,0
                         left2, top2, right2, bottom2 = max(left-x_pad,0), max(top-y_pad,0),\
                                                           min(right+x_pad, vid_width), min(bottom+y_pad, vid_height)
 
                         # Pass obj_id to output test image
-                        # det_class, dmg_prob = damage_detector.detect(frame2proc ,[left2, top2, right2, bottom2], obj_id=obj_id)
-                        det_class, dmg_prob = damage_detector.detect(frame2proc ,[left2, top2, right2, bottom2])
+                        det_class, dmg_prob = damage_detector.detect(frame2proc ,[left2, top2, right2, bottom2], obj_id=obj_id)
+                        # det_class, dmg_prob = damage_detector.detect(frame2proc ,[left2, top2, right2, bottom2])
                         smooth_dict[obj_dmg_key] = [DAMAGE_SKIP_NUM, dmg_prob]
                     else:
                         dmg_prob = 0
 
-                if dmg_prob>0.9:
+                if dmg_prob>=0.88:
                     ano_dict['damaged'] = True
                 cv2.putText(out_frame, f'{dmg_prob:.2f}', ((right+left)//2, (bottom+top)//2), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0,255,0), 2)
 
@@ -190,13 +190,13 @@ def detect_car_collision(car_list, out_frame):
             is_checked = False
             if is_side1 and is_side2:
                 height_thres = DC.COLL_HEIGHT_THRES_STRICT
-                iou_thres = 0.1
+                iou_thres = 0.06
             else:  # is_side1 NOR is_side2:
                 height_thres = DC.COLL_HEIGHT_THRES
                 if is_side1 or is_side2:
-                    iou_thres = 0.15
+                    iou_thres = 0.09
                 else:
-                    iou_thres = 0.15
+                    iou_thres = 0.12
 
                     
             # if they have about the same bottom(height)
@@ -405,9 +405,9 @@ def draw_bbox(image, ano_dict, left, top, right, bottom):
         ano_label += "Collision "
 
     cv2.rectangle(image, (left, top), (right, bottom), box_color, thickness)
-    # cv2.putText(image, label, (left, top-5), cv2.FONT_HERSHEY_SIMPLEX, font_size, (0,255,0), thickness)
-    # if not ano_label=="":
-        # cv2.putText(image, ano_label, ((right+left)//2, top-5), cv2.FONT_HERSHEY_SIMPLEX, font_size, (0,0,255), thickness)
+    cv2.putText(image, label, (left, top-5), cv2.FONT_HERSHEY_SIMPLEX, font_size, (0,255,0), thickness)
+    if not ano_label=="":
+        cv2.putText(image, ano_label, ((right+left)//2, top-5), cv2.FONT_HERSHEY_SIMPLEX, font_size, (0,0,255), thickness)
 
 
 # To check whether a point(x,y) is within a triangle area of interest
@@ -617,7 +617,7 @@ def track_video(opt):
     video_length = sec2length(video_total_frame//vid_fps)
 
     # init video writer
-    video_FourCC = cv2.VideoWriter_fourcc(*'x264')
+    video_FourCC = cv2.VideoWriter_fourcc(*'mp4v')
     isOutput = True if output_path != "" else False
     if isOutput:
         # print("!!! TYPE:", type(output_path), type(video_FourCC), type(vid_fps), type(video_size))
