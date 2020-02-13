@@ -11,8 +11,8 @@ import timm
 
 class Damage_detector():
     def __init__(self, device):
-        checkpoint_path = '/content/MyDrive/cls_model/train/20200211-154322-resnext101_32x8d-224/checkpoint-71.pth.tar'
-        model = timm.create_model('resnext101_32x8d', num_classes=2, checkpoint_path = checkpoint_path)
+        checkpoint_path = '/content/MyDrive/cls_model/train/20200209-152119-gluon_seresnext101_32x4d-224/checkpoint-69.pth.tar'
+        model = timm.create_model('gluon_seresnext101_32x4d', num_classes=2, checkpoint_path = checkpoint_path)
         model.to(device)
         model.eval()
         self.device = device
@@ -22,7 +22,7 @@ class Damage_detector():
             transforms.ToTensor(),
             transforms.Normalize([0.485, 0.456, 0.406], [0.229, 0.224, 0.225]),
         ])
-        self.labels_map = ["whole", "damaged"]
+
         self.test_counter = {}
 
     def detect(self, frame, bbox, obj_id=None):
@@ -40,6 +40,7 @@ class Damage_detector():
             output = self.model(x)
         damaged_prop = get_damaged_prop(output)
 
+        # testing purpose : save the input image with prop printed
         if obj_id:
             key = str(obj_id)
             if not (key in self.test_counter):
@@ -48,31 +49,15 @@ class Damage_detector():
             counter = self.test_counter[key]
             cv2.putText(cropped_img, f"{damaged_prop:.2f} ", ((right-left)//2, (bottom-top)//2), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0,0,255), 2)
             cv2.putText(cropped_img, f"{get_whole_prop(output):.2f} ", ((right-left)//2, (bottom-top)//2 - 15), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0,255,0), 2)
-            
             cv2.imwrite(f'/content/test/obj{obj_id:04}_{counter:02}.jpg', cropped_img)
 
+        return damaged_prop
 
-        return "damaged", damaged_prop
-
-        # print('-----')
-        # for idx in torch.topk(output, k=2).indices.squeeze(0).tolist():
-        #     prob = torch.softmax(output, dim=1)[0, idx].item()
-        #     print('{label:<20} ({p:.2f}%)'.format(label=labels_map[idx], p=prob*100))
-
-
-
-        # class_id = torch.topk(output, k=1).indices.squeeze(0)
-        # prob = torch.softmax(output, dim=1)[0, class_id].item()
-        # # print('{label:<20} ({p:.2f}%)'.format(label=labels_map[class_id], p=prob*100))
-        # return labels_map[class_id], prob
 
 def get_damaged_prop(output):
     # is damaged car prob
     prob = torch.softmax(output, dim=1)[0, 1].item()
     return prob 
 
-def get_whole_prop(output):
-    prob = torch.softmax(output, dim=1)[0, 0].item()
-    return prob     
 
 

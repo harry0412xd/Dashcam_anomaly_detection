@@ -84,8 +84,9 @@ def proc_frame(writer, frames, frames_infos, test_writer=None):
 
         if class_name=="car" or class_name=="bus" or class_name=="truck":
 
+# damage detection
             if opt.dmg_det:
-                DAMAGE_SKIP_NUM = 2
+                # DAMAGE_SKIP_NUM = 2
                 obj_dmg_key = f"{obj_id}_dmg"
                 if obj_dmg_key in smooth_dict and smooth_dict[obj_dmg_key][0]>0:
                     smooth_dict[obj_dmg_key][0] -= 1
@@ -105,17 +106,32 @@ def proc_frame(writer, frames, frames_infos, test_writer=None):
                                                           min(right+x_pad, vid_width), min(bottom+y_pad, vid_height)
 
                         # Pass obj_id to output test image
-                        # det_class, dmg_prob = damage_detector.detect(frame2proc ,[left2, top2, right2, bottom2], obj_id=obj_id)
-                        det_class, dmg_prob = damage_detector.detect(frame2proc ,[left2, top2, right2, bottom2])
-                        smooth_dict[obj_dmg_key] = [DAMAGE_SKIP_NUM, dmg_prob]
+                        # dmg_prob = damage_detector.detect(frame2proc ,[left2, top2, right2, bottom2], obj_id=obj_id)
+                        dmg_prob = damage_detector.detect(frame2proc ,[left2, top2, right2, bottom2])
+
+                        # smooth indication and skip checking to make faster
+                        if dmg_prob>0.97:
+                            skip_num = 12
+                        elif dmg_prob>0.95:
+                            skip_num = 6
+                        else:
+                            skip_num = 3
+                        smooth_dict[obj_dmg_key] = [skip_num, dmg_prob]
+
                     else:
                         dmg_prob = 0
 
-                if dmg_prob>=0.88:
+                if dmg_prob>=0.9:
                     ano_dict['damaged'] = True
                 cv2.putText(out_frame, f'{dmg_prob:.2f}', ((right+left)//2, (bottom+top)//2), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0,255,0), 2)
+# ----damage detection end
 
-            # Car collision
+
+            if detect_car_spin(ret_bbox4obj(frames_infos, obj_id), out_frame):
+                ano_dict['lost_control'] = True
+
+
+# Car collision
             obj_col_key = f"{obj_id}_col"
             if obj_id in collision_id_list:
                 ano_dict['collision'] = True
@@ -123,15 +139,21 @@ def proc_frame(writer, frames, frames_infos, test_writer=None):
             elif obj_col_key in smooth_dict and smooth_dict[obj_col_key] > 0:
                 ano_dict['collision'] = True
                 smooth_dict[obj_col_key] -= 1
+# ----Car collision end
 
+# Car distance 
             if is_moving:
                 # Detect lack of car distance
                 is_close = detect_close_distance(left, top, right, bottom)
                 ano_dict['close_distance'] = is_close
-                
+# ----Car distance end
+
+# Jaywalker
         elif class_name=="person":
-            if is_moving and detect_jaywalker(ret_bbox4obj(frames_infos, obj_id), out_frame, (left_mean, right_mean)):
+            if is_moving and detect_jaywalker(ret_bbox4obj(frames_infos, obj_id), (left_mean, right_mean), out_frame):
                 ano_dict['jaywalker'] = True
+# ----Jaywalker end
+
 
         draw_bbox(out_frame, ano_dict, left, top, right, bottom)
     # --- frame loop end
@@ -143,7 +165,6 @@ def proc_frame(writer, frames, frames_infos, test_writer=None):
     frames_infos.popleft()
     end = timer()
     return (end-start)*1000
-
 
 def retrieve_all_car_info(all_info):
     car_list = []
@@ -231,6 +252,101 @@ def detect_car_collision(car_list, out_frame):
         del car_list[0] #remove box1 anyway
     return collision_list
             
+# input: boxes of a car
+def detect_car_spin(recent_bboxes, out_frame=None):
+    change_counter = 0
+
+    # current
+    left0, top0, right0, bottom0 = recent_bboxes[0][0]
+    prev_width, prev_height = right0-left0, bottom0-top0
+    prev_ratio = prev_width/prev_height
+    prev_is_side = prev_ratio> DC.IS_SIDE_RATIO
+    prev_offset, prev_rate, max_rate = 0, 0, 0
+
+    # future
+    for i in range(len(recent_bboxes)-2):
+        frame_offset = recent_bboxes[i+1][1]
+        left, top, right, bottom = recent_bboxes[i+1][0]
+        width, height = right-left, bottom-top
+
+        
+        frame_diff = frame_offset - prev_offset
+        # interval between two boxes >1
+        if frame_diff>1:
+            width_change = (width-prev_width)/frame_diff
+            height_change = (height-prev_height)/frame_diff
+            # the 1st should be the biggest
+            ratio = (prev_width+width_change)/(prev_height+height_change)
+        else:
+            ratio = width/height
+
+        # check if the car change its direction frequently
+        is_side = ratio> DC.IS_SIDE_RATIO
+        if is_side^prev_is_side: #changed
+            change_counter +=1
+            if change_counter>1:
+                return True
+
+        # check if the car change its direction too fast
+        rate = ratio/prev_ratio
+        max_rate = max(rate, prev_rate)
+
+        # mark as prev
+        prev_width, prev_height = width, height
+        prev_ratio = ratio
+        prev_is_side = is_side
+        prev_offset = frame_offset
+        prev_rate = rate
+    
+    if out_frame is not None:
+        cv2.putText(out_frame, f"{max_rate:.2f}", ((left0+right0)//2 , (top0+bottom0)//2 + 15), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (255,0,0), 2)
+
+    return False
+
+
+
+def detect_jaywalker(recent_bboxes, mean_shift, out_frame=None):
+    global vid_height, vid_width
+
+    # ROI = [(vid_width//10,vid_height), (vid_width//2,vid_height*3//7), (vid_width*9//10, vid_height) ]
+    ROI = [(0,vid_height), (vid_width//2,vid_height*5//14), (vid_width, vid_height) ]
+    y_thers_close = int(vid_height*0.65)
+    y_thers_medium = int(vid_height*0.45)
+
+    # draw demo line
+    if out_frame is not None:
+        cv2.polylines(out_frame, [np.array(ROI, dtype=np.int32)], False, (255,0,0))
+        cv2.line(out_frame,(0, y_thers_close), (vid_width, y_thers_close), (255,0,0))
+        cv2.line(out_frame,(0, y_thers_medium), (vid_width, y_thers_medium), (255,0,0))
+
+        left, top, right, bottom = recent_bboxes[0][0]
+        center_x, center_y = (left+right)//2, (top+bottom)//2
+
+    # in checking range
+    if bottom > y_thers_medium:
+        if inside_roi(center_x, bottom, ROI):
+            if bottom > y_thers_close :
+                return True
+            else:
+                dist, max_dist = 0, 0
+                for i in range(len(recent_bboxes)-1):
+                    left, top, right, bottom = recent_bboxes[i+1][0]
+                    cx, cy = (left+right)//2, (top+bottom)//2
+                    
+                    mean = mean_shift[0] if cx<vid_width//2 else mean_shift[1]
+                    mean = 0
+                    dist0 = cx - center_x
+                    if dist0 < 0 : #box is moving left
+                        dist += min(dist0 - mean, 0)
+                    elif dist0 > 0 : #box is moving right
+                        dist += max(dist0 - mean, 0)
+                    if abs(dist)>max_dist:
+                        max_dist = abs(dist)
+                if out_frame is not None:
+                    cv2.putText(out_frame, f"{(max_dist/vid_width):.2f} ", (center_x-10, center_y), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0,255,0), 2)
+                if max_dist > vid_width*0.4:
+                  return True
+    return False
 
 def compute_iou(boxA, boxB):
 	# determine the (x, y)-coordinates of the intersection rectangle
@@ -254,48 +370,6 @@ def compute_iou(boxA, boxB):
 
 	# return the intersection over union value
 	return iou
-
-
-def detect_jaywalker(recent_bboxes, frame, mean_shift):
-    global vid_height, vid_width
-
-    # ROI = [(vid_width//10,vid_height), (vid_width//2,vid_height*3//7), (vid_width*9//10, vid_height) ]
-    ROI = [(0,vid_height), (vid_width//2,vid_height*5//14), (vid_width, vid_height) ]
-    y_thers_close = int(vid_height*0.65)
-    y_thers_medium = int(vid_height*0.45)
-
-    # draw demo line
-    cv2.polylines(frame, [np.array(ROI, dtype=np.int32)], False, (255,0,0))
-    cv2.line(frame,(0, y_thers_close), (vid_width, y_thers_close), (255,0,0))
-    cv2.line(frame,(0, y_thers_medium), (vid_width, y_thers_medium), (255,0,0))
-
-    left, top, right, bottom = recent_bboxes[0][0]
-    center_x, center_y = (left+right)//2, (top+bottom)//2
-
-    # in checking range
-    if bottom > y_thers_medium:
-        if inside_roi(center_x, bottom, ROI):
-            if bottom > y_thers_close :
-                return True
-            else:
-                dist, max_dist = 0, 0
-                for i in range(len(recent_bboxes)-1):
-                    left, top, right, bottom = recent_bboxes[i+1][0]
-                    cx, cy = (left+right)//2, (top+bottom)//2
-                    
-                    mean = mean_shift[0] if cx<vid_width//2 else mean_shift[1]
-                    mean = 0
-                    dist0 = cx - center_x
-                    if dist0 < 0 : #box is moving left
-                        dist += min(dist0 - mean, 0)
-                    elif dist0 > 0 : #box is moving right
-                        dist += max(dist0 - mean, 0)
-                    if abs(dist)>max_dist:
-                        max_dist = abs(dist)
-                cv2.putText(frame, f"{(max_dist/vid_width):.2f} ", (center_x-10, center_y), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0,255,0), 2)
-                if max_dist > vid_width*0.4:
-                  return True
-    return False
 
 
 # retrieve bounding boxes for an object in future n frames given obj_id
@@ -396,11 +470,15 @@ def draw_bbox(image, ano_dict, left, top, right, bottom):
         ano_label += "Jaywalker "
 
     if ("damaged" in ano_dict) and ano_dict["damaged"]:
-        box_color = (123,0,255)
+        box_color = (123,0,255) #purple
         ano_label += "Damaged "
 
+    if ("lost_control" in ano_dict) and ano_dict["lost_control"]:
+        box_color = (255,255,0) #cyan
+        ano_label += "lost_control"
+
     if ("collision" in ano_dict) and ano_dict["collision"]:
-        box_color = (0,0,255)
+        box_color = (0,0,255) #red
         ano_label += "Collision "
 
     cv2.rectangle(image, (left, top), (right, bottom), box_color, thickness)
