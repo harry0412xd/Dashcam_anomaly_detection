@@ -255,6 +255,7 @@ def detect_car_collision(car_list, out_frame):
 # input: boxes of a car
 def detect_car_spin(recent_bboxes, out_frame=None):
     change_counter = 0
+    result = False
 
     # current
     left0, top0, right0, bottom0 = recent_bboxes[0][0]
@@ -262,6 +263,8 @@ def detect_car_spin(recent_bboxes, out_frame=None):
     prev_ratio = prev_width/prev_height
     prev_is_side = prev_ratio> DC.IS_SIDE_RATIO
     prev_offset, prev_rate, max_rate = 0, 0, 0
+
+    rate0 = -1 
 
     # future
     for i in range(len(recent_bboxes)-2):
@@ -280,16 +283,21 @@ def detect_car_spin(recent_bboxes, out_frame=None):
         else:
             ratio = width/height
 
-        # check if the car change its direction frequently
-        is_side = ratio> DC.IS_SIDE_RATIO
-        if is_side^prev_is_side: #changed
-            change_counter +=1
-            if change_counter>1:
-                return True
+
 
         # check if the car change its direction too fast
-        rate = ratio/prev_ratio
+        rate = abs(ratio-prev_ratio)/prev_ratio
+        if rate0 == -1:
+            rate0 = rate
         max_rate = max(rate, prev_rate)
+
+        # check if the car change its direction frequently
+        is_side = ratio> DC.IS_SIDE_RATIO
+        if is_side^prev_is_side and rate>0.05 : #changed
+            change_counter +=1
+            if change_counter>1:
+                result = True
+                break
 
         # mark as prev
         prev_width, prev_height = width, height
@@ -299,9 +307,9 @@ def detect_car_spin(recent_bboxes, out_frame=None):
         prev_rate = rate
     
     if out_frame is not None:
-        cv2.putText(out_frame, f"{max_rate:.2f}", ((left0+right0)//2 , (top0+bottom0)//2 + 15), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (255,0,0), 2)
+        cv2.putText(out_frame, f"{rate0:.2f}", ((left0+right0)//2 , (top0+bottom0)//2 + 15), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (255,0,0), 2)
 
-    return False
+    return result
 
 
 
@@ -621,7 +629,7 @@ def sec2length(time_sec):
 def omit_small_bboxes(bboxes,classes):
     global vid_height
     # area_threshold = (vid_height//36)**2
-    width_threshold, height_threshold = vid_width//24, vid_height//18
+    width_threshold, height_threshold = vid_width//30, vid_height//24
 
 
 
