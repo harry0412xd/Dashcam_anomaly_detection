@@ -11,8 +11,8 @@ import timm
 
 class Damage_detector():
     def __init__(self, device):
-        checkpoint_path = '/content/MyDrive/cls_model/train/20200209-031457-resnext101_32x4d-224/model_best.pth.tar'
-        model = timm.create_model('resnext101_32x4d', num_classes=2, checkpoint_path = checkpoint_path)
+        checkpoint_path = '/content/MyDrive/cls_model/train/20200211-154322-resnext101_32x8d-224/checkpoint-71.pth.tar'
+        model = timm.create_model('resnext101_32x8d', num_classes=2, checkpoint_path = checkpoint_path)
         model.to(device)
         model.eval()
         self.device = device
@@ -46,7 +46,9 @@ class Damage_detector():
                 self.test_counter[key] = 0
             self.test_counter[key] += 1
             counter = self.test_counter[key]
-            cv2.putText(cropped_img, f"{damaged_prop:.2f} ", ((right-left)//2, (bottom-top)//2), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0,255,0), 2)
+            cv2.putText(cropped_img, f"{damaged_prop:.2f} ", ((right-left)//2, (bottom-top)//2), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0,0,255), 2)
+            cv2.putText(cropped_img, f"{get_whole_prop(output):.2f} ", ((right-left)//2, (bottom-top)//2 - 15), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0,255,0), 2)
+            
             cv2.imwrite(f'/content/test/obj{obj_id:04}_{counter:02}.jpg', cropped_img)
 
 
@@ -69,6 +71,8 @@ def get_damaged_prop(output):
     prob = torch.softmax(output, dim=1)[0, 1].item()
     return prob 
 
-
+def get_whole_prop(output):
+    prob = torch.softmax(output, dim=1)[0, 0].item()
+    return prob     
 
 

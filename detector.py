@@ -105,8 +105,8 @@ def proc_frame(writer, frames, frames_infos, test_writer=None):
                                                           min(right+x_pad, vid_width), min(bottom+y_pad, vid_height)
 
                         # Pass obj_id to output test image
-                        det_class, dmg_prob = damage_detector.detect(frame2proc ,[left2, top2, right2, bottom2], obj_id=obj_id)
-                        # det_class, dmg_prob = damage_detector.detect(frame2proc ,[left2, top2, right2, bottom2])
+                        # det_class, dmg_prob = damage_detector.detect(frame2proc ,[left2, top2, right2, bottom2], obj_id=obj_id)
+                        det_class, dmg_prob = damage_detector.detect(frame2proc ,[left2, top2, right2, bottom2])
                         smooth_dict[obj_dmg_key] = [DAMAGE_SKIP_NUM, dmg_prob]
                     else:
                         dmg_prob = 0
@@ -198,7 +198,6 @@ def detect_car_collision(car_list, out_frame):
                 else:
                     iou_thres = 0.12
 
-                    
             # if they have about the same bottom(height)
             # 1: two sided car i.e. left/right potion of bbox overlap
             # 2: two forward car left/right side crash
@@ -211,7 +210,7 @@ def detect_car_collision(car_list, out_frame):
             #         is_checked = True
             #         iou_thres = 0.25
        
-            elif (is_side1 != is_side2):
+            elif (is_side1 ^ is_side2):
                         #similar height
                 if abs(box1_height-box2_height)/box2_height < height_thres and \
                    ((bottom2>bottom1 and top2>top1) or (bottom1>bottom2 and top1>top2)): # back car crash into front car, y-axis may not be similar
@@ -627,7 +626,9 @@ def track_video(opt):
             vid_fps = int(vid_fps)
             print(f"Rounded fps to {vid_fps}")
         out_writer = cv2.VideoWriter(output_path, video_FourCC, vid_fps, (vid_width, vid_height))
-    
+
+    print_interval = DC.PRINT_INTERVAL_SEC*vid_fps
+
     # testing
     output_test = opt.test
     if output_test:
@@ -660,8 +661,9 @@ def track_video(opt):
     
     # start iter frames
     in_frame_no, proc_frame_no = 0, 1
+
+    start = timer() #First
     while True:
-        start = timer()
         success, frame = vid.read()
         if not success: #end of video
             break
@@ -693,18 +695,21 @@ def track_video(opt):
         prev_frames.append(frame)
         frames_infos.append(id_to_info)
         
-        end = timer()
-        msg = f"[{sec2length(in_frame_no//vid_fps)}/{video_length}]"+\
-        f"  Found {len(bboxes)} boxes  | {omitted_count} omitted "
-        #calculate fps by 1sec / time consumed to process this frame
-        fps = str(round(1/(end-start),2))
-        msg += (f"--fps: {fps}")
 
-        if in_frame_no%50 == 0:
+        if in_frame_no % print_interval == 0 or in_frame_no == video_total_frame:
+            end = timer()
+            # msg = f"[{sec2length(in_frame_no//vid_fps)}/{video_length}]"
+                   # + f"  Found {len(bboxes)} boxes  | {omitted_count} omitted "
+
+            avg_s = (end-start)/print_interval
+            fps = str(round(1/avg_s, 2))
+            msg = f"[{sec2length(in_frame_no//vid_fps)}/{video_length}] avg_fps: {fps} time: {avg_s*1000}ms"
+
             print(msg)
+            start = timer()
 
-        if proc_frame_no%50 == 0:
-            print(f">> Processing frame {proc_frame_no}, time: {proc_ms:.2f}ms")
+        # if proc_frame_no% print_interval == 0:
+        #     print(f">> Processing frame {proc_frame_no}, time: {proc_ms:.2f}ms")
 
     # Process the remaining frames in buffer
     while len(frames_infos)>0:
