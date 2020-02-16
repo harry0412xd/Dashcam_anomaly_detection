@@ -255,27 +255,36 @@ def detect_car_collision(car_list, out_frame):
             
 # input: boxes of a car
 def detect_car_spin(recent_bboxes, out_frame=None):
+    # need at least 2 box,
+    if len(recent_bboxes)<2:
+        return False
     change_counter = 0
     result = False
-
-    # current
-    left0, top0, right0, bottom0 = recent_bboxes[0][0]
-    prev_width, prev_height = right0-left0, bottom0-top0
-    prev_ratio = prev_width/prev_height
-    prev_is_side = prev_ratio> DC.IS_SIDE_RATIO
-    prev_offset, prev_rate, prev_dev = 0, 0, 0
-
-    dev0 = prev_ratio - DC.IS_SIDE_RATIO
-
-    # future
-    for i in range(1, len(recent_bboxes)-1):
-        frame_offset = recent_bboxes[i][1]
+    prev_offset = 0 # first frame
+    prev_dev, prev_rate, rate = None, None, None
+    color = (0,255,0)
+    dev0 ,x0, y0 = None, None, None #for display
+    # For the future boxes
+    for i in range(len(recent_bboxes)):
+        
         left, top, right, bottom = recent_bboxes[i][0]
         width, height = right-left, bottom-top
 
-        
+        # determine if the car is in the center of the frame
+        center_x = (left+right)//2
+        global vid_width
+        if center_x>(vid_width//3) and center_x<(2*vid_width//3):
+            forward_ratio = 1.35
+        else:
+            forward_ratio = 1.6
+        side_ratio = 2.4
+        ratio_thres = (forward_ratio + side_ratio)/2
+
+        # compute the frame interval between the 2 boxes
+        frame_offset = recent_bboxes[i][1]
         frame_diff = frame_offset - prev_offset
-        # interval between two boxes >1
+
+        # interval between two boxes >1, split the w/h difference 
         if frame_diff>1:
             width_change = (width-prev_width)/frame_diff
             height_change = (height-prev_height)/frame_diff
@@ -284,30 +293,37 @@ def detect_car_spin(recent_bboxes, out_frame=None):
         else:
             ratio = width/height
 
-
-
         # check if the car change its direction too fast
-        dev = ratio - DC.IS_SIDE_RATIO
-        rate = dev-prev_dev
+        dev = ratio - ratio_thres
+        if dev0 is None:
+            dev0 = dev
+            x0, y0 = (left+right)//2, (top+bottom)//2
 
-        # check if the car change its direction frequently
-        is_side = ratio> DC.IS_SIDE_RATIO
-        if is_side^prev_is_side and rate>0.05 : #changed
-            change_counter +=1
-            if change_counter>1:
+        if prev_dev is not None: # is not first frame
+            rate = dev-prev_dev
+            if abs(rate) > 0.2:
                 result = True
+                color = (255,0,0)
                 break
+
+        if prev_rate is not None:
+            # check if the car change its direction frequently
+            if rate>0.05 and rate*prev_rate<0: #changed
+                change_counter +=1
+                if change_counter>1:
+                    result = True
+                    color = (0,0,255)
+                    break
 
         # mark as prev
         prev_width, prev_height = width, height
-        prev_ratio = ratio
-        prev_is_side = is_side
         prev_offset = frame_offset
-        prev_rate = rate
+        if rate is not None:
+            prev_rate = rate
         prev_dev = dev
     
     if out_frame is not None:
-        cv2.putText(out_frame, f"{dev0:.2f}", ((left0+right0)//2 , (top0+bottom0)//2 + 15), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (255,0,0), 2)
+        cv2.putText(out_frame, f"{dev0:.2f}", (x0 , y0 + 15), cv2.FONT_HERSHEY_SIMPLEX, 0.5, color, 2)
 
     return result
 
