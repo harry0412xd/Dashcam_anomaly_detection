@@ -36,7 +36,8 @@ detection_size = 0
 # extend the moving status 
 #   key = is_moving, value = no. of frames marked as moving
 # Skip damage checking for some frames 
-#   key = {obj_id}_dmg, value = no. of frames
+#   key = {obj_id}_dmg, value = [no. of frames, dmg prob]
+
 smooth_dict = {}
 
 def proc_frame(writer, frames, frames_infos, test_writer=None):
@@ -262,14 +263,14 @@ def detect_car_spin(recent_bboxes, out_frame=None):
     prev_width, prev_height = right0-left0, bottom0-top0
     prev_ratio = prev_width/prev_height
     prev_is_side = prev_ratio> DC.IS_SIDE_RATIO
-    prev_offset, prev_rate, max_rate = 0, 0, 0
+    prev_offset, prev_rate, prev_dev = 0, 0, 0
 
-    rate0 = -1 
+    dev0 = prev_ratio - DC.IS_SIDE_RATIO
 
     # future
-    for i in range(len(recent_bboxes)-2):
-        frame_offset = recent_bboxes[i+1][1]
-        left, top, right, bottom = recent_bboxes[i+1][0]
+    for i in range(1, len(recent_bboxes)-1):
+        frame_offset = recent_bboxes[i][1]
+        left, top, right, bottom = recent_bboxes[i][0]
         width, height = right-left, bottom-top
 
         
@@ -286,10 +287,8 @@ def detect_car_spin(recent_bboxes, out_frame=None):
 
 
         # check if the car change its direction too fast
-        rate = abs(ratio-prev_ratio)/prev_ratio
-        if rate0 == -1:
-            rate0 = rate
-        max_rate = max(rate, prev_rate)
+        dev = ratio - DC.IS_SIDE_RATIO
+        rate = dev-prev_dev
 
         # check if the car change its direction frequently
         is_side = ratio> DC.IS_SIDE_RATIO
@@ -305,9 +304,10 @@ def detect_car_spin(recent_bboxes, out_frame=None):
         prev_is_side = is_side
         prev_offset = frame_offset
         prev_rate = rate
+        prev_dev = dev
     
     if out_frame is not None:
-        cv2.putText(out_frame, f"{rate0:.2f}", ((left0+right0)//2 , (top0+bottom0)//2 + 15), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (255,0,0), 2)
+        cv2.putText(out_frame, f"{dev0:.2f}", ((left0+right0)//2 , (top0+bottom0)//2 + 15), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (255,0,0), 2)
 
     return result
 
@@ -546,7 +546,7 @@ def get_detection_boxes():
     result = []
     global vid_height, vid_width
     boxes_x = [vid_width*0.05, vid_width*0.85]
-    boxes_y = [vid_height*0.05, vid_height*0.3, vid_height*0.55]
+    boxes_y = [vid_height*0.05, vid_height*0.3]
     box_width = int(vid_width*0.1)
     box_height = int(vid_height*0.15)
 

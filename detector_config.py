@@ -1,3 +1,6 @@
+PRINT_INTERVAL_SEC = 10
+
+
 # Width/height > IS_SIDE_RATIO : the side of the car is facing the camera 
 IS_SIDE_RATIO = 1.6
 
@@ -21,5 +24,3 @@ def get_roi_for_distance_detect(vid_width, vid_height):
                     (vid_width//8, vid_height),
                     (vid_width*7//8, vid_height)]
     return DIS_ROI_POINTS
-
-PRINT_INTERVAL_SEC = 10
