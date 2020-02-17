@@ -40,7 +40,9 @@ detection_size = 0
 
 smooth_dict = {}
 
-def proc_frame(writer, frames, frames_infos, test_writer=None):
+def proc_frame(writer, frames, frames_infos, test_writer=None, frame_no=None):
+    if frame_no is not None:
+        print(f"--Frame {frame_no}")
     start = timer()
 
     frame2proc = frames.popleft()
@@ -126,8 +128,8 @@ def proc_frame(writer, frames, frames_infos, test_writer=None):
                     ano_dict['damaged'] = True
                 cv2.putText(out_frame, f'{dmg_prob:.2f}', ((right+left)//2, (bottom+top)//2), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0,255,0), 2)
 # ----damage detection end
-
-            if not (left==0 or right==vid_width or top==0 or bottom==vid_height):
+            print(obj_id)
+            if not (left<=0 or right>=vid_width or top<=0 or bottom>=vid_height):
                 if detect_car_spin(ret_bbox4obj(frames_infos, obj_id), out_frame):
                     ano_dict['lost_control'] = True
 
@@ -291,6 +293,7 @@ def detect_car_spin(recent_bboxes, out_frame=None):
         else:
             ratio = width/height
 
+        
         # check if the car change its direction too fast
         dev = ratio - ratio_thres
 
@@ -301,6 +304,7 @@ def detect_car_spin(recent_bboxes, out_frame=None):
         if prev_ratio is not None:
             rate = ratio - prev_ratio
             if abs(rate) > 0.2:
+                print(f"{ratio} - {prev_ratio}")
                 result = True
                 color = (255,0,0)
                 break            
@@ -791,7 +795,7 @@ def track_video(opt):
 
         # frame buffer proc
         if len(prev_frames)==buffer_size:
-            proc_ms = proc_frame(out_writer, prev_frames, frames_infos, test_writer)
+            proc_ms = proc_frame(out_writer, prev_frames, frames_infos, test_writer=test_writer, frame_no=proc_frame_no)
             proc_frame_no += 1
         prev_frames.append(frame)
         frames_infos.append(id_to_info)
@@ -810,13 +814,12 @@ def track_video(opt):
             start = timer()
 
         # if proc_frame_no% print_interval == 0:
-        #     print(f">> Processing frame {proc_frame_no}, time: {proc_ms:.2f}ms")
+            # print(f">> Processing frame {proc_frame_no}, time: {proc_ms:.2f}ms")
 
     # Process the remaining frames in buffer
     while len(frames_infos)>0:
-        proc_ms = proc_frame(out_writer, prev_frames, frames_infos, test_writer)
+        proc_ms = proc_frame(out_writer, prev_frames, frames_infos, test_writer=test_writer,frame_no=proc_frame_no)
         proc_frame_no += 1
-        # print(f">> Processing frame {proc_frame_no}, time: {proc_ms:.2f}ms")
     
 
     if isOutput:
