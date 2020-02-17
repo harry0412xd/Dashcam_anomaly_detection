@@ -127,9 +127,9 @@ def proc_frame(writer, frames, frames_infos, test_writer=None):
                 cv2.putText(out_frame, f'{dmg_prob:.2f}', ((right+left)//2, (bottom+top)//2), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0,255,0), 2)
 # ----damage detection end
 
-
-            if detect_car_spin(ret_bbox4obj(frames_infos, obj_id), out_frame):
-                ano_dict['lost_control'] = True
+            if not (left==0 or right==vid_width or top==0 or bottom==vid_height):
+                if detect_car_spin(ret_bbox4obj(frames_infos, obj_id), out_frame):
+                    ano_dict['lost_control'] = True
 
 
 # Car collision
@@ -261,7 +261,7 @@ def detect_car_spin(recent_bboxes, out_frame=None):
     change_counter = 0
     result = False
     prev_offset = 0 # first frame
-    prev_dev, prev_rate, rate = None, None, None
+    prev_ratio, prev_rate, rate = None, None, None
     color = (0,255,0)
     dev0 ,x0, y0 = None, None, None #for display
     # For the future boxes
@@ -272,11 +272,9 @@ def detect_car_spin(recent_bboxes, out_frame=None):
 
         # determine if the car is in the center of the frame
         center_x = (left+right)//2
-        global vid_width
-        if center_x>(vid_width//3) and center_x<(2*vid_width//3):
-            forward_ratio = 1.35
-        else:
-            forward_ratio = 1.6
+        distance = abs(center_x - vid_width//2)
+
+        forward_ratio = (distance/vid_width) + 1.2
         side_ratio = 2.4
         ratio_thres = (forward_ratio + side_ratio)/2
 
@@ -295,20 +293,21 @@ def detect_car_spin(recent_bboxes, out_frame=None):
 
         # check if the car change its direction too fast
         dev = ratio - ratio_thres
-        if dev0 is None:
+
+        if dev0 is None:#for display
             dev0 = dev
             x0, y0 = (left+right)//2, (top+bottom)//2
 
-        if prev_dev is not None: # is not first frame
-            rate = dev-prev_dev
+        if prev_ratio is not None:
+            rate = ratio - prev_ratio
             if abs(rate) > 0.2:
                 result = True
                 color = (255,0,0)
-                break
+                break            
 
         if prev_rate is not None:
             # check if the car change its direction frequently
-            if rate>0.05 and rate*prev_rate<0: #changed
+            if abs(rate)>0.05 and rate*prev_rate<0: #changed
                 change_counter +=1
                 if change_counter>1:
                     result = True
@@ -320,7 +319,7 @@ def detect_car_spin(recent_bboxes, out_frame=None):
         prev_offset = frame_offset
         if rate is not None:
             prev_rate = rate
-        prev_dev = dev
+        prev_ratio = ratio
     
     if out_frame is not None:
         cv2.putText(out_frame, f"{dev0:.2f}", (x0 , y0 + 15), cv2.FONT_HERSHEY_SIMPLEX, 0.5, color, 2)
