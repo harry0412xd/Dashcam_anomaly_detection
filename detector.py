@@ -44,8 +44,8 @@ detection_size = 0
 smooth_dict = {}
 
 def proc_frame(writer, frames, frames_infos, test_writer=None, frame_no=None):
-    if frame_no is not None:
-        print(f"--Frame {frame_no}")
+    # if frame_no is not None:
+        # print(f"--Frame {frame_no}")
     start = timer()
 
     frame2proc = frames.popleft()
@@ -512,9 +512,9 @@ def draw_bbox(image, ano_dict, left, top, right, bottom):
         ano_label += "Collision "
 
     cv2.rectangle(image, (left, top), (right, bottom), box_color, thickness)
-    cv2.putText(image, label, (left, top-5), cv2.FONT_HERSHEY_SIMPLEX, font_size, (0,255,0), thickness)
-    if not ano_label=="":
-        cv2.putText(image, ano_label, ((right+left)//2, top-5), cv2.FONT_HERSHEY_SIMPLEX, font_size, (0,0,255), thickness)
+    # cv2.putText(image, label, (left, top-5), cv2.FONT_HERSHEY_SIMPLEX, font_size, (0,255,0), thickness)
+    # if not ano_label=="":
+    #     cv2.putText(image, ano_label, ((right+left)//2, top-5), cv2.FONT_HERSHEY_SIMPLEX, font_size, (0,0,255), thickness)
 
 
 # To check whether a point(x,y) is within a triangle area of interest
@@ -759,10 +759,17 @@ def track_video(opt):
     yolo_model.eval()
     print("YOLO model loaded")
 
-    global damage_detector
-    damage_detector = Damage_detector(device)
+  # Car damage detection
+    if opt.dmg_det:
+        global damage_detector
+        damage_detector = Damage_detector(device)
 
-    dlv3 = DeepLabv3plus(device)
+    if opt.ss:
+        # Create video writer for semantic segmentation result video
+        if opt.ss_out:
+            ss_output_path =  output_path.replace("output", "ss")
+            ss_writer = cv2.VideoWriter(ss_output_path, video_FourCC, vid_fps, (1024, 512))
+        dlv3 = DeepLabv3plus(device, ss_writer)
 
     # Buffer
     buffer_size = vid_fps #store 1sec of frames
@@ -778,7 +785,11 @@ def track_video(opt):
         if not success: #end of video
             break
         in_frame_no += 1
-        dlv3.predict(frame, test_writer=test_writer)
+
+        # semantic seg
+        if opt.ss:
+            dlv3.predict(frame, test_writer=test_writer)
+
         # Obj Detection
         bboxes, classes = yolo_detect(frame, yolo_model, opt)
         omitted_count = omit_small_bboxes(bboxes, classes)
@@ -852,6 +863,10 @@ if __name__ == '__main__':
     parser.add_argument("--output", nargs='?', type=str, default="",  help = "[Optional] Video output path")
     parser.add_argument('--test', action='store_true', default=False, help = "[Optional]Output testing video")
     parser.add_argument('--dmg_det', action='store_true', default=False, help = "[Optional]do damage classification")
+
+    parser.add_argument('--ss', action='store_true', default=False, help = "[Optional]Do semantic segmentation")
+    parser.add_argument('--ss_out', action='store_true', default=False, help = "[Optional]Output semantic segmentation video")
+
     opt = parser.parse_args()
 
     track_video(opt)
