@@ -131,10 +131,10 @@ def proc_frame(writer, frames, frames_infos, test_writer=None, frame_no=None):
                     ano_dict['damaged'] = True
                 cv2.putText(out_frame, f'{dmg_prob:.2f}', ((right+left)//2, (bottom+top)//2), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0,255,0), 2)
 # ----damage detection end
-            print(obj_id)
-            if not (left<=0 or right>=vid_width or top<=0 or bottom>=vid_height):
-                if detect_car_spin(ret_bbox4obj(frames_infos, obj_id), out_frame):
-                    ano_dict['lost_control'] = True
+            # print(obj_id)
+            # if not (left<=0 or right>=vid_width or top<=0 or bottom>=vid_height):
+            #     if detect_car_spin(ret_bbox4obj(frames_infos, obj_id), out_frame):
+            #         ano_dict['lost_control'] = True
 
 
 # Car collision
@@ -778,6 +778,7 @@ def track_video(opt):
         if not success: #end of video
             break
         in_frame_no += 1
+        dlv3.predict(frame, test_writer=test_writer)
         # Obj Detection
         bboxes, classes = yolo_detect(frame, yolo_model, opt)
         omitted_count = omit_small_bboxes(bboxes, classes)
