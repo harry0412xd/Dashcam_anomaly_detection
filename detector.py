@@ -58,7 +58,7 @@ def proc_frame(writer, frames, frames_infos, test_writer=None, frame_no=None):
     if len(frames)>0:
         if test_writer:
             test_frame, is_moving = detect_camera_moving(frame2proc, frames[0], True)
-            test_writer.write(test_frame)
+            # test_writer.write(test_frame)
 
         else:
             _, is_moving = detect_camera_moving(frame2proc, frames[0])
