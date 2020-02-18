@@ -11,6 +11,8 @@ import torch
 from damage_detector import Damage_detector
 damage_detector = None
 
+from deeplabv3plus.deeplabv3plus import DeepLabv3plus
+
 from yolov3.models import *
 from yolov3.utils.utils import *
 from yolov3.utils.datasets import *
@@ -18,6 +20,7 @@ from yolov3.utils.datasets import *
 from sort import *
 
 import detector_config as DC
+
 
 #Global Variable
 #Video properties : 
@@ -758,6 +761,8 @@ def track_video(opt):
 
     global damage_detector
     damage_detector = Damage_detector(device)
+
+    dlv3 = DeepLabv3plus(device)
 
     # Buffer
     buffer_size = vid_fps #store 1sec of frames
