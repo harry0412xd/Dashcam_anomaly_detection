@@ -161,11 +161,12 @@ def proc_frame(writer, frames, frames_infos, ss_masks=None, test_writer=None, fr
 
 # Jaywalker
         elif class_name=="person":
-            if ss_masks is not None:
-                is_on_traffic_road(bbox, ss_mask, out_frame=out_frame)
-
-            if is_moving and detect_jaywalker(ret_bbox4obj(frames_infos, obj_id), (left_mean, right_mean), out_frame):
-                ano_dict['jaywalker'] = True
+            if ss_masks is not None: # Use semantic segmentation to find people on traffic road
+                if is_moving and is_on_traffic_road(bbox, ss_mask, out_frame=out_frame):
+                    ano_dict['jaywalker'] = True
+            else: # Use pre-defined baseline
+                if is_moving and detect_jaywalker(ret_bbox4obj(frames_infos, obj_id), (left_mean, right_mean), out_frame):
+                    ano_dict['jaywalker'] = True
 # ----Jaywalker end
 
 
@@ -354,6 +355,8 @@ def is_on_traffic_road(bbox, ss_mask, out_frame=None):
     top2 = min(bottom, vid_height)
     bottom2 = min(bottom+height//10, vid_height)
 
+    cv2.rectangle(out_frame, (left2, top2), (right2, bottom2), (0,255,255), 1)
+
     # print(left, top, right, bottom)
     # print(left2, top2, right2, bottom2)
 
@@ -362,9 +365,11 @@ def is_on_traffic_road(bbox, ss_mask, out_frame=None):
         for x in range(left2, right2):
             b,g,r = ss_mask[y][x]
             total +=1
-            if [r,g,b]==road_color:
+            # if [r,g,b]==road_color:
+            if r==128 and g==64 and b==128:
                 road_count +=1
-            elif [r,g,b]==padding_color:
+            # elif [r,g,b]==padding_color:
+            elif r==255 and g==255 and b==255:
                 return True
 
     if total >0:
