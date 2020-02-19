@@ -46,9 +46,10 @@ class DeepLabv3plus():
     
 
     def predict(self, frame, test_writer=None):
-        # height, width, _ = frame.shape
-        # resize_height = width//2
-        # crop_frame = frame[0:resize_height, 0:width]
+        # resize and crop out the bottom
+        height, width, _ = frame.shape
+        resize_height = width//2
+        crop_frame = frame[0:resize_height, 0:width]
 
         frame_RGB = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
         img = Image.fromarray(frame_RGB)
@@ -72,12 +73,15 @@ class DeepLabv3plus():
         out_img = cv2.cvtColor(np.asarray(out_img),cv2.COLOR_RGB2BGR)
         # print(out_img.shape)
 
-        # out_img = cv2.resize(out_img, (width, width//2))
-        # padding_height = height - width//2
-        # out_img = cv2.copyMakeBorder(out_img, 0, padding_height, 0, 0, cv2.BORDER_CONSTANT, (255,255,255))
+        # resize back to original size with padding
+        out_img = cv2.resize(out_img, (width, width//2))
+        padding_height = height - width//2
+        out_img = cv2.copyMakeBorder(out_img, 0, padding_height, 0, 0, cv2.BORDER_CONSTANT, (255,255,255))
 
         if self.writer is not None:
             self.writer.write(out_img)
+        
+        return out_img
             
 
 

@@ -43,14 +43,19 @@ detection_size = 0
 
 smooth_dict = {}
 
-def proc_frame(writer, frames, frames_infos, test_writer=None, frame_no=None):
+def proc_frame(writer, frames, frames_infos, ss_masks=None, test_writer=None, frame_no=None):
     # if frame_no is not None:
         # print(f"--Frame {frame_no}")
     start = timer()
-
+    # print(f"{len(frames)} {len(frames_infos)} {len(ss_masks)}")
     frame2proc = frames.popleft()
     out_frame = frame2proc.copy()
     id_to_info = frames_infos[0]
+
+    if ss_masks is not None:
+        ss_mask = ss_masks.popleft()
+        
+
     global class_names, damage_detector, smooth_dict
     global vid_width, vid_height, vid_fps
 
@@ -156,6 +161,9 @@ def proc_frame(writer, frames, frames_infos, test_writer=None, frame_no=None):
 
 # Jaywalker
         elif class_name=="person":
+            if ss_masks is not None:
+                is_on_traffic_road(bbox, ss_mask, out_frame=out_frame)
+
             if is_moving and detect_jaywalker(ret_bbox4obj(frames_infos, obj_id), (left_mean, right_mean), out_frame):
                 ano_dict['jaywalker'] = True
 # ----Jaywalker end
@@ -334,23 +342,36 @@ def detect_car_spin(recent_bboxes, out_frame=None):
     return result
 
 # Input bounding box of a person & mask from semantic segmentation
-def is_on_traffic_road(bbox, ss_mask):
-    road_color = (128, 64, 128)
-    padding_color = (255, 255, 255)
+def is_on_traffic_road(bbox, ss_mask, out_frame=None):
+    road_color = [128, 64, 128]
+    padding_color = [255, 255, 255]
 
     left, top, right, bottom = bbox
+    # define check area
     height = bottom - top
-    check_area = ss_mask[left:right, , bottom:(bottom + height//10)]
+    global vid_width, vid_height
+    left2, right2 = max(left, 0), min(right, vid_width)
+    top2 = min(bottom, vid_height)
+    bottom2 = min(bottom+height//10, vid_height)
 
-    total = road_count = 0
-    for pixel in check_area:
-        total +=1
-        if pixel==road_color:
-            road_count +=1
-        elif pixel==padding_color:
+    # print(left, top, right, bottom)
+    # print(left2, top2, right2, bottom2)
+
+    total, road_count = 0, 0
+    for y in range(top2, bottom2):
+        for x in range(left2, right2):
+            b,g,r = ss_mask[y][x]
+            total +=1
+            if [r,g,b]==road_color:
+                road_count +=1
+            elif [r,g,b]==padding_color:
+                return True
+
+    if total >0:
+        if out_frame is not None:
+            cv2.putText(out_frame, f"{(road_count/total):.2f}", ((left+right)//2, (top+bottom)//2 + 15), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0,255,255), 2)
+        if road_count/total>0.5:
             return True
-    if road_count/total>0.5:
-        return True
     return False
 
 
@@ -394,8 +415,8 @@ def detect_jaywalker(recent_bboxes, mean_shift, out_frame=None):
                         dist += max(dist0 - mean, 0)
                     if abs(dist)>max_dist:
                         max_dist = abs(dist)
-                if out_frame is not None:
-                    cv2.putText(out_frame, f"{(max_dist/vid_width):.2f} ", (center_x-10, center_y), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0,255,0), 2)
+                # if out_frame is not None:
+                #     cv2.putText(out_frame, f"{(max_dist/vid_width):.2f} ", (center_x-10, center_y), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0,255,0), 2)
                 if max_dist > vid_width*0.4:
                   return True
     return False
@@ -792,11 +813,13 @@ def track_video(opt):
             ss_output_path =  output_path.replace("output", "ss")
             ss_writer = cv2.VideoWriter(ss_output_path, video_FourCC, vid_fps, (vid_width, vid_height))
         dlv3 = DeepLabv3plus(device, ss_writer)
+        ss_masks = deque()
 
     # Buffer
     buffer_size = vid_fps #store 1sec of frames
     prev_frames = deque()
     frames_infos = deque()
+    
     
     # start iter frames
     in_frame_no, proc_frame_no = 0, 1
@@ -810,7 +833,8 @@ def track_video(opt):
 
         # semantic seg
         if opt.ss:
-            dlv3.predict(frame, test_writer=test_writer)
+            mask = dlv3.predict(frame, test_writer=test_writer)
+            ss_masks.append(mask)
 
         # Obj Detection
         bboxes, classes = yolo_detect(frame, yolo_model, opt)
@@ -832,15 +856,16 @@ def track_video(opt):
             info = [class_id, score, [left, top, right, bottom]]
             id_to_info[obj_id] = info
 
-        # frame buffer proc
-        if len(prev_frames)==buffer_size:
-            proc_ms = proc_frame(out_writer, prev_frames, frames_infos, test_writer=test_writer, frame_no=proc_frame_no)
-            proc_frame_no += 1
         prev_frames.append(frame)
         frames_infos.append(id_to_info)
+        # frame buffer proc
+        if len(prev_frames)>buffer_size:
+            proc_ms = proc_frame(out_writer, prev_frames, frames_infos, ss_masks=ss_masks, test_writer=test_writer)
+            proc_frame_no += 1
+
         
 
-        if in_frame_no % print_interval == 0 or in_frame_no == video_total_frame:
+        if in_frame_no % print_interval == 0:
             end = timer()
             # msg = f"[{sec2length(in_frame_no//vid_fps)}/{video_length}]"
                    # + f"  Found {len(bboxes)} boxes  | {omitted_count} omitted "
@@ -848,7 +873,6 @@ def track_video(opt):
             avg_s = (end-start)/print_interval
             fps = str(round(1/avg_s, 2))
             msg = f"[{sec2length(in_frame_no//vid_fps)}/{video_length}] avg_fps: {fps} time: {avg_s*1000}ms"
-
             print(msg)
             start = timer()
 
@@ -857,35 +881,46 @@ def track_video(opt):
 
     # Process the remaining frames in buffer
     while len(frames_infos)>0:
-        proc_ms = proc_frame(out_writer, prev_frames, frames_infos, test_writer=test_writer,frame_no=proc_frame_no)
+        proc_frame(out_writer, prev_frames, frames_infos, ss_masks = ss_masks, test_writer=test_writer)
         proc_frame_no += 1
-    
+    end = timer()
+    avg_s = (end-start)/(in_frame_no % print_interval)
+    fps = str(round(1/avg_s, 2))
+    msg = f"[{sec2length(in_frame_no//vid_fps)}/{video_length}] avg_fps: {fps} time: {avg_s*1000}ms"
+    print(msg)
 
+    # release cv2 writer
     if isOutput:
         out_writer.release()
     if output_test:
         test_writer.release()
+    if opt.ss_out:
+        ss_writer.release()
 
 
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
+
     # parser.add_argument("--image_folder", type=str, default="data/samples", help="path to dataset")
+    # parser.add_argument("--batch_size", type=int, default=1, help="size of the batches")
+    # parser.add_argument("--n_cpu", type=int, default=0, help="number of cpu threads to use during batch generation")
+    # parser.add_argument("--checkpoint_model", type=str, help="path to checkpoint model")
+
+    # YOLO param
     parser.add_argument("--model_def", type=str, default="model_data/YOLOv3_bdd/bdd.cfg", help="path to model definition file")
     parser.add_argument("--weights_path", type=str, default="model_data/YOLOv3_bdd/bdd.weights", help="path to weights file")
     parser.add_argument("--class_path", type=str, default="model_data/YOLOv3_bdd/classes.txt", help="path to class label file")
     parser.add_argument("--conf_thres", type=float, default=0.55, help="object confidence threshold")
     parser.add_argument("--nms_thres", type=float, default=0.25, help="iou thresshold for non-maximum suppression")
-    # parser.add_argument("--batch_size", type=int, default=1, help="size of the batches")
-    # parser.add_argument("--n_cpu", type=int, default=0, help="number of cpu threads to use during batch generation")
     parser.add_argument("--img_size", type=int, default=416, help="size of each image dimension")
-    # parser.add_argument("--checkpoint_model", type=str, help="path to checkpoint model")
-
+    
+    # I/O
     parser.add_argument("--input", nargs='?', type=str, default="",help = "Video input path")
     parser.add_argument("--output", nargs='?', type=str, default="",  help = "[Optional] Video output path")
+
     parser.add_argument('--test', action='store_true', default=False, help = "[Optional]Output testing video")
     parser.add_argument('--dmg_det', action='store_true', default=False, help = "[Optional]do damage classification")
-
     parser.add_argument('--ss', action='store_true', default=False, help = "[Optional]Do semantic segmentation")
     parser.add_argument('--ss_out', action='store_true', default=False, help = "[Optional]Output semantic segmentation video")
 
