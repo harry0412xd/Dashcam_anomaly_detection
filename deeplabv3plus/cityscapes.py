@@ -50,3 +50,9 @@ class Cityscapes_decoder():
         #target = target.astype('uint8') + 1
         result = np.array(cls.train_id_to_color)[target]
         return result
+
+    # def get_road_binary_mask(cls, target):
+    #     if target== 1:
+    #         return (0, 0, 0)
+    #     else:
+    #         return (255, 255, 255)

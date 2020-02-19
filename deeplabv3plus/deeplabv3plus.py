@@ -32,7 +32,7 @@ class DeepLabv3plus():
           self.device = device
           self.model = model
           self.transform = transforms.Compose([
-              transforms.Resize((512, 1024)),
+              # transforms.Resize((512, 1024)),
               transforms.ToTensor(),
               transforms.Normalize([0.485, 0.456, 0.406], [0.229, 0.224, 0.225]),
           ])
@@ -46,11 +46,11 @@ class DeepLabv3plus():
     
 
     def predict(self, frame, test_writer=None):
-        height, width, _ = frame.shape
-        resize_height = width//2
-        crop_frame = frame[0:resize_height, 0:width]
+        # height, width, _ = frame.shape
+        # resize_height = width//2
+        # crop_frame = frame[0:resize_height, 0:width]
 
-        frame_RGB = cv2.cvtColor(crop_frame, cv2.COLOR_BGR2RGB)
+        frame_RGB = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
         img = Image.fromarray(frame_RGB)
         img = self.transform(img)
         # img = img.to(self.device, dtype=torch.float32)
@@ -67,9 +67,16 @@ class DeepLabv3plus():
         #     os.mkdir('results')
         # self.counter += 1
         # Image.fromarray(pred).save('results/%d_pred.png' % self.counter)
+
+        out_img = Image.fromarray(pred)
+        out_img = cv2.cvtColor(np.asarray(out_img),cv2.COLOR_RGB2BGR)
+        # print(out_img.shape)
+
+        # out_img = cv2.resize(out_img, (width, width//2))
+        # padding_height = height - width//2
+        # out_img = cv2.copyMakeBorder(out_img, 0, padding_height, 0, 0, cv2.BORDER_CONSTANT, (255,255,255))
+
         if self.writer is not None:
-            out_img = Image.fromarray(pred)
-            out_img = cv2.cvtColor(np.asarray(out_img),cv2.COLOR_RGB2BGR)
             self.writer.write(out_img)
             
 

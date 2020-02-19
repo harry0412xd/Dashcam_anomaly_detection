@@ -333,6 +333,28 @@ def detect_car_spin(recent_bboxes, out_frame=None):
 
     return result
 
+# Input bounding box of a person & mask from semantic segmentation
+def is_on_traffic_road(bbox, ss_mask):
+    road_color = (128, 64, 128)
+    padding_color = (255, 255, 255)
+
+    left, top, right, bottom = bbox
+    height = bottom - top
+    check_area = ss_mask[left:right, , bottom:(bottom + height//10)]
+
+    total = road_count = 0
+    for pixel in check_area:
+        total +=1
+        if pixel==road_color:
+            road_count +=1
+        elif pixel==padding_color:
+            return True
+    if road_count/total>0.5:
+        return True
+    return False
+
+
+    
 
 
 def detect_jaywalker(recent_bboxes, mean_shift, out_frame=None):
@@ -724,7 +746,7 @@ def track_video(opt):
     video_length = sec2length(video_total_frame//vid_fps)
 
     # init video writer
-    video_FourCC = cv2.VideoWriter_fourcc(*'mp4v')
+    video_FourCC = cv2.VideoWriter_fourcc(*'x264')
     isOutput = True if output_path != "" else False
     if isOutput:
         # print("!!! TYPE:", type(output_path), type(video_FourCC), type(vid_fps), type(video_size))
@@ -768,7 +790,7 @@ def track_video(opt):
         # Create video writer for semantic segmentation result video
         if opt.ss_out:
             ss_output_path =  output_path.replace("output", "ss")
-            ss_writer = cv2.VideoWriter(ss_output_path, video_FourCC, vid_fps, (1024, 512))
+            ss_writer = cv2.VideoWriter(ss_output_path, video_FourCC, vid_fps, (vid_width, vid_height))
         dlv3 = DeepLabv3plus(device, ss_writer)
 
     # Buffer
