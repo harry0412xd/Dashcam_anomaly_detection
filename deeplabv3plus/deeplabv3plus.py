@@ -51,7 +51,7 @@ class DeepLabv3plus():
         resize_height = width//2
         crop_frame = frame[0:resize_height, 0:width]
 
-        frame_RGB = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
+        frame_RGB = cv2.cvtColor(crop_frame, cv2.COLOR_BGR2RGB)
         img = Image.fromarray(frame_RGB)
         img = self.transform(img)
         # img = img.to(self.device, dtype=torch.float32)

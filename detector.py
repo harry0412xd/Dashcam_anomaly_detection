@@ -63,7 +63,7 @@ def proc_frame(writer, frames, frames_infos, ss_masks=None, test_writer=None, fr
     if len(frames)>0:
         if test_writer:
             test_frame, is_moving = detect_camera_moving(frame2proc, frames[0], True)
-            # test_writer.write(test_frame)
+            test_writer.write(test_frame)
 
         else:
             _, is_moving = detect_camera_moving(frame2proc, frames[0])
@@ -344,8 +344,8 @@ def detect_car_spin(recent_bboxes, out_frame=None):
 
 # Input bounding box of a person & mask from semantic segmentation
 def is_on_traffic_road(bbox, ss_mask, out_frame=None):
-    road_color = [128, 64, 128]
-    padding_color = [255, 255, 255]
+    # road_color = [128, 64, 128]
+    # padding_color = [255, 255, 255]
 
     left, top, right, bottom = bbox
     # define check area
@@ -355,7 +355,8 @@ def is_on_traffic_road(bbox, ss_mask, out_frame=None):
     top2 = min(bottom, vid_height)
     bottom2 = min(bottom+height//10, vid_height)
 
-    cv2.rectangle(out_frame, (left2, top2), (right2, bottom2), (0,255,255), 1)
+    # cv2.rectangle(out_frame, (left2, top2), (right2, bottom2), (0,255,255), 1)
+    # out_frame[top2:bottom2, left2:right2] = ss_mask[top2:bottom2, left2:right2]
 
     # print(left, top, right, bottom)
     # print(left2, top2, right2, bottom2)
@@ -612,33 +613,53 @@ def detect_close_distance(left, top, right, bottom):
     return False
 
 # calculate the bboxes using video resolution for the detect_camera_moving func
+# def get_detection_boxes():
+#     result = []
+#     global vid_height, vid_width
+#     boxes_x = [vid_width*0.05, vid_width*0.85]
+#     boxes_y = [vid_height*0.05, vid_height*0.3]
+#     box_width = int(vid_width*0.1)
+#     box_height = int(vid_height*0.15)
+
+#     for box_x in boxes_x:
+#         for box_y in boxes_y:
+#             left, top = int(box_x), int(box_y)
+#             right, bottom = left+box_width, top+box_height
+#             result.append([left, top, right, bottom])
+#             # print(left, top, right, bottom)
+
+#     # add two more on top side
+#     top = int(vid_height*0.05)
+#     bottom = top+box_height
+#     left = int(vid_width*0.3)
+#     result.append([left, top, left+box_width, bottom])
+#     left = int(vid_width*0.6)
+#     result.append([left, top, left+box_width, bottom])
+#     # return box size and list of bboxes pos
+#     # return box_width*box_height, result
+#     global detection_boxes, detection_size
+#     detection_size = box_width*box_height
+#     detection_boxes = result
+
 def get_detection_boxes():
     result = []
     global vid_height, vid_width
-    boxes_x = [vid_width*0.05, vid_width*0.85]
+    boxes_x = [vid_width*0.05,vid_width*0.25, vid_width*0.45, vid_width*0.65, vid_width*0.85]
     boxes_y = [vid_height*0.05, vid_height*0.3]
-    box_width = int(vid_width*0.1)
-    box_height = int(vid_height*0.15)
-
-    for box_x in boxes_x:
-        for box_y in boxes_y:
-            left, top = int(box_x), int(box_y)
+    box_width = int(vid_width*0.15)
+    box_height = int(vid_height*0.2)
+    for x in range(len(boxes_x)):
+        left, top = int(boxes_x[x]), int(boxes_y[0])
+        right, bottom = left+box_width, top+box_height
+        result.append([left, top, right, bottom])
+        if not x==2:
+            left, top = int(boxes_x[x]), int(boxes_y[1])
             right, bottom = left+box_width, top+box_height
-            result.append([left, top, right, bottom])
-            # print(left, top, right, bottom)
+            result.append([left, top, right, bottom])        
+    return result
 
-    # add two more on top side
-    top = int(vid_height*0.05)
-    bottom = top+box_height
-    left = int(vid_width*0.3)
-    result.append([left, top, left+box_width, bottom])
-    left = int(vid_width*0.6)
-    result.append([left, top, left+box_width, bottom])
-    # return box size and list of bboxes pos
-    # return box_width*box_height, result
-    global detection_boxes, detection_size
-    detection_size = box_width*box_height
-    detection_boxes = result
+
+    
             
 # detect whether the camera is moving, return img? and boolean
 def detect_camera_moving(cur_frame, prev_frame, should_return_img=False):
@@ -767,10 +788,15 @@ def track_video(opt):
     global vid_width, vid_height, vid_fps
     vid_width = int(vid.get(cv2.CAP_PROP_FRAME_WIDTH))
     vid_height = int(vid.get(cv2.CAP_PROP_FRAME_HEIGHT))
-    vid_fps = vid.get(cv2.CAP_PROP_FPS)
     video_total_frame = int(vid.get(cv2.CAP_PROP_FRAME_COUNT))
+    vid_fps = vid.get(cv2.CAP_PROP_FPS)
+    if not vid_fps == int(vid_fps):
+        old_fps = vid_fps
+        vid_fps = int(vid_fps)
+        print(f"Rounded {old_fps:2f} fps to {vid_fps}")
     video_length = sec2length(video_total_frame//vid_fps)
-
+    
+    
     # init video writer
     video_FourCC = cv2.VideoWriter_fourcc(*'x264')
     isOutput = True if output_path != "" else False
@@ -778,11 +804,8 @@ def track_video(opt):
         # print("!!! TYPE:", type(output_path), type(video_FourCC), type(vid_fps), type(video_size))
         print(f"Loaded video: {output_path}, Size = {vid_width}x{vid_height},"
               f" fps = {vid_fps}, total frame = {video_total_frame}")
-        if not vid_fps == int(vid_fps):
-            vid_fps = int(vid_fps)
-            print(f"Rounded fps to {vid_fps}")
         out_writer = cv2.VideoWriter(output_path, video_FourCC, vid_fps, (vid_width, vid_height))
-
+    
     print_interval = DC.PRINT_INTERVAL_SEC*vid_fps
 
     # testing
@@ -794,7 +817,8 @@ def track_video(opt):
         test_writer = None
 
   # global init
-    get_detection_boxes()
+    global detection_boxes
+    detection_boxes = get_detection_boxes()
     global class_names
     class_names = load_classes(opt.class_path)
   # init SORT tracker
@@ -819,6 +843,8 @@ def track_video(opt):
             ss_writer = cv2.VideoWriter(ss_output_path, video_FourCC, vid_fps, (vid_width, vid_height))
         dlv3 = DeepLabv3plus(device, ss_writer)
         ss_masks = deque()
+    else:
+        ss_masks = None
 
     # Buffer
     buffer_size = vid_fps #store 1sec of frames
