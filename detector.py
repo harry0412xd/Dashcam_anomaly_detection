@@ -78,7 +78,8 @@ def proc_frame(writer, frames, frames_infos, ss_masks=None, test_writer=None, fr
 
 
     #compute the average shift in pixel of bounding box, in left/right half of the frame
-    left_mean, right_mean = get_mean_shift(frames_infos, out_frame)
+    if ss_masks is None:
+        left_mean, right_mean = get_mean_shift(frames_infos, out_frame)
 
     collision_id_list = detect_car_collision(retrieve_all_car_info(frames_infos[0]), out_frame)
 
@@ -641,10 +642,13 @@ def detect_close_distance(left, top, right, bottom):
 #     detection_size = box_width*box_height
 #     detection_boxes = result
 
-def get_detection_boxes():
+
+# Set camera movement detection area
+def set_move_det_area():
     result = []
     global vid_height, vid_width
-    boxes_x = [vid_width*0.05,vid_width*0.25, vid_width*0.45, vid_width*0.65, vid_width*0.85]
+
+    boxes_x = [vid_width*0.025,vid_width*0.225, vid_width*0.425, vid_width*0.625, vid_width*0.825]
     boxes_y = [vid_height*0.05, vid_height*0.3]
     box_width = int(vid_width*0.15)
     box_height = int(vid_height*0.2)
@@ -652,11 +656,14 @@ def get_detection_boxes():
         left, top = int(boxes_x[x]), int(boxes_y[0])
         right, bottom = left+box_width, top+box_height
         result.append([left, top, right, bottom])
-        if not x==2:
+        if x==0 or x==4:
             left, top = int(boxes_x[x]), int(boxes_y[1])
             right, bottom = left+box_width, top+box_height
             result.append([left, top, right, bottom])        
-    return result
+    
+    global detection_boxes, detection_size
+    detection_size = box_width*box_height
+    detection_boxes = result
 
 
     
@@ -664,7 +671,7 @@ def get_detection_boxes():
 # detect whether the camera is moving, return img? and boolean
 def detect_camera_moving(cur_frame, prev_frame, should_return_img=False):
     if prev_frame is None:
-        print("Last frame")
+        # print("Last frame")
         return False
     threshold = 0.01
     global detection_boxes, detection_size
@@ -817,8 +824,8 @@ def track_video(opt):
         test_writer = None
 
   # global init
-    global detection_boxes
-    detection_boxes = get_detection_boxes()
+    set_move_det_area()
+
     global class_names
     class_names = load_classes(opt.class_path)
   # init SORT tracker
