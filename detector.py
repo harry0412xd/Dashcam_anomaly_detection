@@ -43,9 +43,7 @@ detection_size = 0
 
 smooth_dict = {}
 
-def proc_frame(writer, frames, frames_infos, ss_masks=None, test_writer=None, frame_no=None):
-    # if frame_no is not None:
-        # print(f"--Frame {frame_no}")
+def proc_frame(writer, frames, frames_infos, ss_masks=None, test_writer=None):
     start = timer()
     # print(f"{len(frames)} {len(frames_infos)} {len(ss_masks)}")
     frame2proc = frames.popleft()
@@ -751,7 +749,7 @@ def omit_small_bboxes(bboxes,classes):
     return omitted_count
     
 # yolo wrapper, return list of bounding boxes and list of corresponding classes(id)
-def yolo_detect(frame, model, opt):
+def yolo_detect(frame, model):
     global device
     frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
     x = torch.from_numpy(frame.transpose(2, 0, 1)).float().to(device)
@@ -778,7 +776,7 @@ def yolo_detect(frame, model, opt):
     return bboxes, classes
 
 
-def track_video(opt):
+def track_video():
     global device
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     device_name = torch.cuda.get_device_name(0)
@@ -848,7 +846,7 @@ def track_video(opt):
         if opt.ss_out:
             ss_output_path =  output_path.replace("output", "ss")
             ss_writer = cv2.VideoWriter(ss_output_path, video_FourCC, vid_fps, (vid_width, vid_height))
-        dlv3 = DeepLabv3plus(device, ss_writer)
+        dlv3 = DeepLabv3plus(device, ss_writer, opt.ss_overlay)
         ss_masks = deque()
     else:
         ss_masks = None
@@ -871,11 +869,11 @@ def track_video(opt):
 
         # semantic seg
         if opt.ss:
-            mask = dlv3.predict(frame, test_writer=test_writer)
+            mask = dlv3.predict(frame)
             ss_masks.append(mask)
 
         # Obj Detection
-        bboxes, classes = yolo_detect(frame, yolo_model, opt)
+        bboxes, classes = yolo_detect(frame, yolo_model)
         omitted_count = omit_small_bboxes(bboxes, classes)
       
         # tracker_infos is added to return link the class name & the object tracked
@@ -900,8 +898,6 @@ def track_video(opt):
         if len(prev_frames)>buffer_size:
             proc_ms = proc_frame(out_writer, prev_frames, frames_infos, ss_masks=ss_masks, test_writer=test_writer)
             proc_frame_no += 1
-
-        
 
         if in_frame_no % print_interval == 0:
             end = timer()
@@ -939,7 +935,6 @@ def track_video(opt):
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
-
     # parser.add_argument("--image_folder", type=str, default="data/samples", help="path to dataset")
     # parser.add_argument("--batch_size", type=int, default=1, help="size of the batches")
     # parser.add_argument("--n_cpu", type=int, default=0, help="number of cpu threads to use during batch generation")
@@ -952,16 +947,17 @@ if __name__ == '__main__':
     parser.add_argument("--conf_thres", type=float, default=0.55, help="object confidence threshold")
     parser.add_argument("--nms_thres", type=float, default=0.25, help="iou thresshold for non-maximum suppression")
     parser.add_argument("--img_size", type=int, default=416, help="size of each image dimension")
-    
     # I/O
     parser.add_argument("--input", nargs='?', type=str, default="",help = "Video input path")
     parser.add_argument("--output", nargs='?', type=str, default="",  help = "[Optional] Video output path")
-
+    # test
     parser.add_argument('--test', action='store_true', default=False, help = "[Optional]Output testing video")
+    # Car damage detect
     parser.add_argument('--dmg_det', action='store_true', default=False, help = "[Optional]do damage classification")
+    # Semantic segmentation
     parser.add_argument('--ss', action='store_true', default=False, help = "[Optional]Do semantic segmentation")
     parser.add_argument('--ss_out', action='store_true', default=False, help = "[Optional]Output semantic segmentation video")
+    parser.add_argument('--ss_overlay', action='store_true', default=False, help = "[Optional]Overlay the result on the orignal video")
 
     opt = parser.parse_args()
-
-    track_video(opt)
+    track_video()

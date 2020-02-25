@@ -13,8 +13,8 @@ from deeplabv3plus.cityscapes import Cityscapes_decoder
 from deeplabv3plus.voc import Voc_decoder
 
 class DeepLabv3plus():
-    def __init__(self, device, video_writer=None):
-          checkpoint_path = '/content/MyDrive/Code_to_test/best_deeplabv3plus_mobilenet_cityscapes_os16.pth'
+    def __init__(self, device, video_writer=None, overlay=False):
+          checkpoint_path = '/content/MyDrive/pretrain_weights/deeplabv3+/best_deeplabv3plus_mobilenet_cityscapes_os16.pth'
           model = network.deeplabv3plus_mobilenet(num_classes=19, output_stride = 16)
           self.decoder = Cityscapes_decoder()
 
@@ -40,12 +40,13 @@ class DeepLabv3plus():
 
           # Output result video if needed
           self.writer = video_writer
+          self.overlay = overlay
 
           
 
     
 
-    def predict(self, frame, test_writer=None):
+    def predict(self, frame):
         # resize and crop out the bottom
         height, width, _ = frame.shape
         resize_height = width//2
@@ -79,7 +80,11 @@ class DeepLabv3plus():
         out_img = cv2.copyMakeBorder(out_img, 0, padding_height, 0, 0, cv2.BORDER_CONSTANT, (255,255,255))
 
         if self.writer is not None:
-            self.writer.write(out_img)
+            if self.overlay:
+                overlay_img = cv2.addWeighted(frame, 0.3, out_img, 0.7, 0)
+                self.writer.write(overlay_img)
+            else:
+                self.writer.write(frame)
         
         return out_img
             
