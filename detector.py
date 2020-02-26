@@ -345,6 +345,7 @@ def detect_car_spin(recent_bboxes, out_frame=None):
 def is_on_traffic_road(bbox, ss_mask, out_frame=None):
     # road_color = [128, 64, 128]
     # padding_color = [255, 255, 255]
+    # person color = (220, 20, 60)
 
     left, top, right, bottom = bbox
     # define check area
@@ -364,13 +365,16 @@ def is_on_traffic_road(bbox, ss_mask, out_frame=None):
     for y in range(top2, bottom2):
         for x in range(left2, right2):
             b,g,r = ss_mask[y][x]
-            total +=1
-            # if [r,g,b]==road_color:
-            if r==128 and g==64 and b==128:
-                road_count +=1
-            # elif [r,g,b]==padding_color:
-            elif r==255 and g==255 and b==255:
-                return True
+
+            # is not person
+            if not (r==220 and g==20 and b==60): 
+                total +=1
+                # is road
+                if r==128 and g==64 and b==128:
+                    road_count +=1
+                # is padding
+                elif r==255 and g==255 and b==255:
+                    return True
 
     if total >0:
         if out_frame is not None:
@@ -538,28 +542,49 @@ def draw_bbox(image, ano_dict, left, top, right, bottom):
     # (B,G,R)
     box_color = (0,255,0) # Use green as normal 
 
-    ano_label = ""
-    if ("close_distance" in ano_dict) and ano_dict["close_distance"]:
-        box_color = (70,255,255) # yellow
-        ano_label += "Close "
+    anomalies = [("collision", (0,0,255) ),
+                 ("lost_control", (255,255,0) ),
+                 ("damaged", (123,0,255) ),
+                 ("jaywalker", (0,123,255) ),
+                 ("close_distance", (70,255,255) )
+                ]
+    is_drawn = False
+    for (name, color) in anomalies:
+        if (name in ano_dict) and ano_dict[name]:
+            cv2.rectangle(image, (left, top), (right, bottom), color, thickness)
+            left, top, right, bottom = left+thickness, top+thickness, right-thickness, bottom-thickness
+            is_drawn = True
+
+    # if not anomaly, use green
+    if not is_drawn:
+          cv2.rectangle(image, (left, top), (right, bottom), box_color, thickness)
+
+    # print class name
+    cv2.putText(image, label, ((right+left)//2, top-5), cv2.FONT_HERSHEY_SIMPLEX, font_size, (0,0,255), thickness)
+
+    # ano_label = ""
+    # if ("close_distance" in ano_dict) and ano_dict["close_distance"]:
+    #     box_color = (70,255,255) # yellow
+    #     ano_label += "Close "
     
-    if ("jaywalker" in ano_dict) and ano_dict["jaywalker"]:
-        box_color = (0,123,255) #orange
-        ano_label += "Jaywalker "
+    # if ("jaywalker" in ano_dict) and ano_dict["jaywalker"]:
+    #     box_color = (0,123,255) #orange
+    #     ano_label += "Jaywalker "
 
-    if ("damaged" in ano_dict) and ano_dict["damaged"]:
-        box_color = (123,0,255) #purple
-        ano_label += "Damaged "
+    # if ("damaged" in ano_dict) and ano_dict["damaged"]:
+    #     box_color = (123,0,255) #purple
+    #     ano_label += "Damaged "
 
-    if ("lost_control" in ano_dict) and ano_dict["lost_control"]:
-        box_color = (255,255,0) #cyan
-        ano_label += "lost_control"
+    # if ("lost_control" in ano_dict) and ano_dict["lost_control"]:
+    #     box_color = (255,255,0) #cyan
+    #     ano_label += "lost_control"
 
-    if ("collision" in ano_dict) and ano_dict["collision"]:
-        box_color = (0,0,255) #red
-        ano_label += "Collision "
+    # if ("collision" in ano_dict) and ano_dict["collision"]:
+    #     box_color = (0,0,255) #red
+    #     ano_label += "Collision "
 
-    cv2.rectangle(image, (left, top), (right, bottom), box_color, thickness)
+    # cv2.rectangle(image, (left, top), (right, bottom), box_color, thickness)
+
     # cv2.putText(image, label, (left, top-5), cv2.FONT_HERSHEY_SIMPLEX, font_size, (0,255,0), thickness)
     # if not ano_label=="":
     #     cv2.putText(image, ano_label, ((right+left)//2, top-5), cv2.FONT_HERSHEY_SIMPLEX, font_size, (0,0,255), thickness)
@@ -721,27 +746,42 @@ def sec2length(time_sec):
         s= "0"+str(s)
     return f"{m}:{s}" 
 
+# split into car & person
+def split_bboxes(detections):
+    person_bboxes, person_classes = [],[]
+    car_bboxes, car_classes = [],[]
+
+    for (box, class_id) in detections:
+        class_name = class_names[class_id]
+        if class_name=="person":
+            person_bboxes.append(box)
+            person_classes.append(class_id)
+        else:
+            car_bboxes.append(box)
+            car_classes.append(class_id)
+      
+    return car_bboxes, car_classes, person_bboxes, person_classes 
+
+
 #omit small bboxes since they are not accurate and useful enought for detecting anomaly
-def omit_small_bboxes(bboxes,classes):
+def omit_small_bboxes(detections):
     global vid_height
     # area_threshold = (vid_height//36)**2
     width_threshold, height_threshold = vid_width//30, vid_height//24
 
-
-
     omitted_count = 0
     i = 0
-    while i<len(bboxes):
-        bbox = bboxes[i]
+    while i<len(detections):
+        bbox, class_id = detections[i]
         width = bbox[2] - bbox[0]
         height = bbox[3] - bbox[1]
-        class_name = class_names[classes[i]]
+        class_name = class_names[class_id]
+
         if ((class_name=="car" or class_name=="bus" or class_name=="truck") and 
             (width<width_threshold or height<height_threshold)) or \
             class_name=="traffic light" or class_name=="traffic sign":
             # print(f"{classes[i]} {width}x{height}")
-            del bboxes[i]
-            del classes[i]
+            del detections[i]
             omitted_count +=1
         else:
             i += 1
@@ -766,14 +806,17 @@ def yolo_detect(frame, model):
     with torch.no_grad():
         detections = model.forward(x)
         detections = non_max_suppression(detections, opt.conf_thres, opt.nms_thres)[0]
-    bboxes = []
-    classes = []
+    results = []
+    # bboxes = []
+    # classes = []
     if detections is not None:
         detections = rescale_boxes(detections, opt.img_size, frame.shape[:2])
         for x1, y1, x2, y2, conf, cls_conf, cls_pred in detections:
-           bboxes.append([x1, y1, x2, y2, cls_conf.item()])
-           classes.append(int(cls_pred))
-    return bboxes, classes
+          #  bboxes.append([x1, y1, x2, y2, cls_conf.item()])
+          #  classes.append(int(cls_pred))
+          results.append([ [x1, y1, x2, y2, cls_conf.item()], int(cls_pred)])
+    # return bboxes, classes
+    return results
 
 
 def track_video():
@@ -828,7 +871,8 @@ def track_video():
     class_names = load_classes(opt.class_path)
   # init SORT tracker
     max_age = max(3,vid_fps//2)
-    mot_tracker = Sort(max_age=max_age, min_hits=1)
+    car_tracker = Sort(max_age=max_age, min_hits=1)
+    person_tracker = Sort(max_age=max_age, min_hits=1)
     print("SORT initialized")
   # init yolov3 model
     yolo_model = Darknet(opt.model_def, img_size=opt.img_size).to(device)
@@ -873,11 +917,20 @@ def track_video():
             ss_masks.append(mask)
 
         # Obj Detection
-        bboxes, classes = yolo_detect(frame, yolo_model)
-        omitted_count = omit_small_bboxes(bboxes, classes)
-      
+        obj_det_results = yolo_detect(frame, yolo_model)
+        omitted_count = omit_small_bboxes(obj_det_results)
+
+        car_bboxes,car_classes, person_bboxes, person_classes = split_bboxes(obj_det_results)
         # tracker_infos is added to return link the class name & the object tracked
-        trackers, tracker_infos = mot_tracker.update(np.array(bboxes), np.array(classes))
+
+        car_trackers, car_tracker_infos = car_tracker.update(np.array(car_bboxes), np.array(car_classes))
+        person_trackers, person_tracker_infos = person_tracker.update(np.array(person_bboxes), np.array(person_classes))
+
+        # print(car_trackers, car_tracker_infos)
+        # print(person_trackers, person_tracker_infos)
+
+        trackers = [*car_trackers, *person_trackers]
+        tracker_infos =  [*car_tracker_infos, *person_tracker_infos]
 
         id_to_info = {}
         for c, d in enumerate(trackers):

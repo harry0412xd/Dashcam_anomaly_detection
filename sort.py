@@ -188,6 +188,7 @@ class Sort(object):
     self.frame_count = 0
 
   def update(self,dets, classes):
+
     """
     Params:
       dets - a numpy array of detections in the format [[x1,y1,x2,y2,score],[x1,y1,x2,y2,score],...]
@@ -204,6 +205,7 @@ class Sort(object):
     to_del = []
     ret = []
     infos = [] #storing [class_id, score]
+    
     for t,trk in enumerate(trks):
       pos = self.trackers[t].predict()[0]
       trk[:] = [pos[0], pos[1], pos[2], pos[3], 0]
