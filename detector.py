@@ -40,8 +40,8 @@ detection_size = 0
 #   key = is_moving, value = no. of frames marked as moving
 # Skip damage checking for some frames 
 #   key = {obj_id}_dmg, value = [no. of frames, dmg prob]
-
 smooth_dict = {}
+
 
 def proc_frame(writer, frames, frames_infos, ss_masks=None, test_writer=None):
     start = timer()
@@ -79,22 +79,22 @@ def proc_frame(writer, frames, frames_infos, ss_masks=None, test_writer=None):
     if ss_masks is None:
         left_mean, right_mean = get_mean_shift(frames_infos, out_frame)
 
-    collision_id_list = detect_car_collision(retrieve_all_car_info(frames_infos[0]), out_frame)
+    car_list, person_list = get_list_from_info(frames_infos[0])
+    car_collision_id_list = detect_car_collision(car_list, out_frame)
+
 
     # object-wise
     for obj_id in id_to_info:
         info = id_to_info[obj_id]
         class_id, score, bbox = info
         left, top, right, bottom = bbox
-
         class_name = class_names[class_id]
         label = f'{class_name} {obj_id} : {score:.2f}'
         # print (f"  {label} at {left},{top}, {right},{bottom}")
         ano_dict = {"label": label}
 
         if class_name=="car" or class_name=="bus" or class_name=="truck":
-
-# damage detection
+    # damage detection
             if opt.dmg_det:
                 # DAMAGE_SKIP_NUM = 2
                 obj_dmg_key = f"{obj_id}_dmg"
@@ -134,43 +134,44 @@ def proc_frame(writer, frames, frames_infos, ss_masks=None, test_writer=None):
                 if dmg_prob>=0.9:
                     ano_dict['damaged'] = True
                 cv2.putText(out_frame, f'{dmg_prob:.2f}', ((right+left)//2, (bottom+top)//2), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0,255,0), 2)
-# ----damage detection end
+    # ----damage detection end
             # print(obj_id)
             # if not (left<=0 or right>=vid_width or top<=0 or bottom>=vid_height):
-            #     if detect_car_spin(ret_bbox4obj(frames_infos, obj_id), out_frame):
+            #     if detect_car_spin(get_bboxes_by_id(frames_infos, obj_id), out_frame):
             #         ano_dict['lost_control'] = True
 
 
-# Car collision
+    # Car collision
             obj_col_key = f"{obj_id}_col"
-            if obj_id in collision_id_list:
+            if obj_id in car_collision_id_list:
                 ano_dict['collision'] = True
                 smooth_dict[obj_col_key] = vid_fps//6
             elif obj_col_key in smooth_dict and smooth_dict[obj_col_key] > 0:
                 ano_dict['collision'] = True
                 smooth_dict[obj_col_key] -= 1
-# ----Car collision end
+    # ----Car collision end
 
-# Car distance 
+
+    # Car distance 
             if is_moving:
                 # Detect lack of car distance
                 is_close = detect_close_distance(left, top, right, bottom)
                 ano_dict['close_distance'] = is_close
-# ----Car distance end
+    # ----Car distance end
 
-# Jaywalker
+
+    # Jaywalker
         elif class_name=="person":
             if ss_masks is not None: # Use semantic segmentation to find people on traffic road
                 if is_moving and is_on_traffic_road(bbox, ss_mask, out_frame=out_frame):
                     ano_dict['jaywalker'] = True
             else: # Use pre-defined baseline
-                if is_moving and detect_jaywalker(ret_bbox4obj(frames_infos, obj_id), (left_mean, right_mean), out_frame):
+                if is_moving and detect_jaywalker(get_bboxes_by_id(frames_infos, obj_id), (left_mean, right_mean), out_frame):
                     ano_dict['jaywalker'] = True
-# ----Jaywalker end
-
+    # ----Jaywalker end
 
         draw_bbox(out_frame, ano_dict, left, top, right, bottom)
-    # --- frame loop end
+# --- Objects iteration end
 
     if is_moving:
         cv2.putText(out_frame, "moving", (vid_width//2, vid_height-30), cv2.FONT_HERSHEY_SIMPLEX, 0.6, (0,255,0), 2)
@@ -180,7 +181,8 @@ def proc_frame(writer, frames, frames_infos, ss_masks=None, test_writer=None):
     end = timer()
     return (end-start)*1000
 
-def retrieve_all_car_info(all_info):
+
+def get_list_from_info(all_info):
     car_list = []
     for obj_id in all_info:
         info = all_info[obj_id]
@@ -188,7 +190,26 @@ def retrieve_all_car_info(all_info):
         class_name = class_names[class_id]
         if class_name=="car" or class_name=="bus" or class_name=="truck":
             car_list.append((obj_id, bbox))
-    return car_list
+        elif class_name=="person":
+            person_list.append((obj_id, bbox))
+
+    return car_list, person_list
+
+
+# car driving toward camera
+def get_cdtc_list(frame_infos, car_list):
+    cdtc_list = []
+    for car in car_list:
+        obj_id, _ = car
+        car_bboxes = get_bboxes_by_id(frame_infos, obj_id)
+        for 
+
+def is_driving_toward_camera(car_bboxes):
+    for bbox in car_bboxes:
+
+
+# if the person is in front of a car
+def detect_person_car_collison():
 
 # car list [(obj_id, bbox),]
 # return list of obj_id (car that is colliding)
@@ -384,9 +405,6 @@ def is_on_traffic_road(bbox, ss_mask, out_frame=None):
     return False
 
 
-    
-
-
 def detect_jaywalker(recent_bboxes, mean_shift, out_frame=None):
     global vid_height, vid_width
 
@@ -456,7 +474,7 @@ def compute_iou(boxA, boxB):
 
 # retrieve bounding boxes for an object in future n frames given obj_id
 # return list of [bbox, x] , x = frame offset i.e. that frame is x frames after 
-def ret_bbox4obj(frames_infos, obj_id, length=None):
+def get_bboxes_by_id(frames_infos, obj_id, length=None):
     bboxes_n_frameNum = []
     if length == None:
         length = len(frames_infos)
