@@ -202,14 +202,33 @@ def get_cdtc_list(frame_infos, car_list):
     for car in car_list:
         obj_id, _ = car
         car_bboxes = get_bboxes_by_id(frame_infos, obj_id)
-        for 
 
-def is_driving_toward_camera(car_bboxes):
-    for bbox in car_bboxes:
+        prev_width = None
+        count = 0
+        for bbox in car_bboxes:
+            width = bbox[2]-bbox[0]
+            if prev_width is not None:
+                if prev_width>width:
+                    count += 1
+                else:
+                    count -= 1
+            else:
+                bbox0 = bbox
+            prev_width = width
+
+        if count>0:
+            cdtc_list.append((obj_id, bbox0))
+    return cdtc_list
 
 
 # if the person is in front of a car
-def detect_person_car_collison():
+# the car is driving toward camera
+def detect_person_car_collison(id_to_info, cdtc_list):
+    for obj_id in id_to_info:
+        cls_id, _, bbox = id_to_info[obj_id]
+        if class_names[cls_id] == 'person':
+            for (obj_id, bbox) in cdtc_list:
+
 
 # car list [(obj_id, bbox),]
 # return list of obj_id (car that is colliding)
@@ -287,87 +306,9 @@ def detect_car_collision(car_list, out_frame):
         del car_list[0] #remove box1 anyway
     return collision_list
             
-# input: boxes of a car
-def detect_car_spin(recent_bboxes, out_frame=None):
-    # need at least 2 box,
-    if len(recent_bboxes)<2:
-        return False
-    change_counter = 0
-    result = False
-    prev_offset = 0 # first frame
-    prev_ratio, prev_rate, rate = None, None, None
-    color = (0,255,0)
-    dev0 ,x0, y0 = None, None, None #for display
-    # For the future boxes
-    for i in range(len(recent_bboxes)):
-        
-        left, top, right, bottom = recent_bboxes[i][0]
-        width, height = right-left, bottom-top
-
-        # determine if the car is in the center of the frame
-        center_x = (left+right)//2
-        distance = abs(center_x - vid_width//2)
-
-        forward_ratio = (distance/vid_width) + 1.2
-        side_ratio = 2.4
-        ratio_thres = (forward_ratio + side_ratio)/2
-
-        # compute the frame interval between the 2 boxes
-        frame_offset = recent_bboxes[i][1]
-        frame_diff = frame_offset - prev_offset
-
-        # interval between two boxes >1, split the w/h difference 
-        if frame_diff>1:
-            width_change = (width-prev_width)/frame_diff
-            height_change = (height-prev_height)/frame_diff
-            # the 1st should be the biggest
-            ratio = (prev_width+width_change)/(prev_height+height_change)
-        else:
-            ratio = width/height
-
-        
-        # check if the car change its direction too fast
-        dev = ratio - ratio_thres
-
-        if dev0 is None:#for display
-            dev0 = dev
-            x0, y0 = (left+right)//2, (top+bottom)//2
-
-        if prev_ratio is not None:
-            rate = ratio - prev_ratio
-            if abs(rate) > 0.2:
-                print(f"{ratio} - {prev_ratio}")
-                result = True
-                color = (255,0,0)
-                break            
-
-        if prev_rate is not None:
-            # check if the car change its direction frequently
-            if abs(rate)>0.05 and rate*prev_rate<0: #changed
-                change_counter +=1
-                if change_counter>1:
-                    result = True
-                    color = (0,0,255)
-                    break
-
-        # mark as prev
-        prev_width, prev_height = width, height
-        prev_offset = frame_offset
-        if rate is not None:
-            prev_rate = rate
-        prev_ratio = ratio
-    
-    if out_frame is not None:
-        cv2.putText(out_frame, f"{dev0:.2f}", (x0 , y0 + 15), cv2.FONT_HERSHEY_SIMPLEX, 0.5, color, 2)
-
-    return result
 
 # Input bounding box of a person & mask from semantic segmentation
 def is_on_traffic_road(bbox, ss_mask, out_frame=None):
-    # road_color = [128, 64, 128]
-    # padding_color = [255, 255, 255]
-    # person color = (220, 20, 60)
-
     left, top, right, bottom = bbox
     # define check area
     height = bottom - top
@@ -378,9 +319,6 @@ def is_on_traffic_road(bbox, ss_mask, out_frame=None):
 
     # cv2.rectangle(out_frame, (left2, top2), (right2, bottom2), (0,255,255), 1)
     # out_frame[top2:bottom2, left2:right2] = ss_mask[top2:bottom2, left2:right2]
-
-    # print(left, top, right, bottom)
-    # print(left2, top2, right2, bottom2)
 
     total, road_count = 0, 0
     for y in range(top2, bottom2):
