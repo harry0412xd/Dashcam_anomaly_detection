@@ -170,7 +170,7 @@ def proc_frame(writer, frames, frames_infos, ss_masks=None, test_writer=None):
                 if obj_id in car_person_collision_id_list:
                     ano_dict['jaywalker_crashing'] = True
             if ss_masks is not None: # Use semantic segmentation to find people on traffic road
-                if is_moving and is_on_traffic_road(bbox, ss_mask, out_frame=out_frame):
+                if is_moving and is_on_traffic_road(bbox, ss_mask):
                     ano_dict['jaywalker'] = True
             else: # Use pre-defined baseline
                 if is_moving and detect_jaywalker(get_bboxes_by_id(frames_infos, obj_id), (left_mean, right_mean), out_frame):
@@ -181,7 +181,8 @@ def proc_frame(writer, frames, frames_infos, ss_masks=None, test_writer=None):
 # --- Objects iteration end
 
     if is_moving:
-        cv2.putText(out_frame, "moving", (vid_width//2, vid_height-30), cv2.FONT_HERSHEY_SIMPLEX, 0.6, (0,255,0), 2)
+        cv2.putText(out_frame, "moving", (vid_width//2, vid_height-20), cv2.FONT_HERSHEY_SIMPLEX, 0.6, (255,255,0), 2)
+        cv2.rectangle(out_frame, (5, 5), (vid_width-5, vid_height-5), (255,255,0), 5)
 
     writer.write(out_frame)
     frames_infos.popleft()
@@ -232,8 +233,8 @@ def get_cdtc_list(frame_infos, car_list):
 # the car is driving toward camera
 def detect_person_car_collison(id_to_info, cdtc_list):
     results =[]
-    for obj_id in id_to_info:
-        cls_id, _, person_bbox = id_to_info[obj_id]
+    for person_id in id_to_info:
+        cls_id, _, person_bbox = id_to_info[person_id]
         if class_names[cls_id] == 'person':
             person_height = person_bbox[3]-person_bbox[1]
             for (car_id, car_bbox) in cdtc_list:
@@ -244,7 +245,8 @@ def detect_person_car_collison(id_to_info, cdtc_list):
                       #  check overlapped% of the person by the car
                         prop = compute_overlapped(person_bbox, car_bbox)
                         if prop>0.6:
-                            results.append(obj_id, car_id)
+                            results.append(person_id)
+                            results.append(car_id)
     return results
 
 
@@ -315,7 +317,7 @@ def detect_car_collision(car_list, out_frame):
 
             if is_checked:   
                 iou = compute_iou(bbox1, bbox2)
-                cv2.putText(out_frame, f'{iou:.2f}', ((right1+left1+right2+left2)//4, (top1+bottom1+top2+bottom2)//4), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0,255,0), 2)
+                # cv2.putText(out_frame, f'{iou:.2f}', ((right1+left1+right2+left2)//4, (top1+bottom1+top2+bottom2)//4), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0,255,0), 2)
                 if iou > iou_thres and iou < DC.IOU_FALSE_THERS: # to exclude some false positive due to detection fault
                     collision_list.append(id2)
                     del car_list[i]
