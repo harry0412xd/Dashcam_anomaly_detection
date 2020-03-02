@@ -79,8 +79,12 @@ def proc_frame(writer, frames, frames_infos, ss_masks=None, test_writer=None):
     if ss_masks is None:
         left_mean, right_mean = get_mean_shift(frames_infos, out_frame)
 
-    car_list, person_list = get_list_from_info(frames_infos[0])
+    car_list, person_list = get_list_from_info(id_to_info)
     car_collision_id_list = detect_car_collision(car_list, out_frame)
+
+    if not is_moving:
+        cdtc_list = get_cdtc_list(frames_infos, car_list)
+        car_person_collision_id_list = detect_person_car_collison(id_to_info, cdtc_list)
 
 
     # object-wise
@@ -89,9 +93,7 @@ def proc_frame(writer, frames, frames_infos, ss_masks=None, test_writer=None):
         class_id, score, bbox = info
         left, top, right, bottom = bbox
         class_name = class_names[class_id]
-        label = f'{class_name} {obj_id} : {score:.2f}'
-        # print (f"  {label} at {left},{top}, {right},{bottom}")
-        ano_dict = {"label": label}
+        ano_dict = {}
 
         if class_name=="car" or class_name=="bus" or class_name=="truck":
     # damage detection
@@ -158,10 +160,15 @@ def proc_frame(writer, frames, frames_infos, ss_masks=None, test_writer=None):
                 is_close = detect_close_distance(left, top, right, bottom)
                 ano_dict['close_distance'] = is_close
     # ----Car distance end
-
+            else: #is not moving
+                if obj_id in car_person_collision_id_list:
+                    ano_dict['collision'] = True
 
     # Jaywalker
         elif class_name=="person":
+            if not is_moving:
+                if obj_id in car_person_collision_id_list:
+                    ano_dict['jaywalker_crashing'] = True
             if ss_masks is not None: # Use semantic segmentation to find people on traffic road
                 if is_moving and is_on_traffic_road(bbox, ss_mask, out_frame=out_frame):
                     ano_dict['jaywalker'] = True
@@ -170,7 +177,7 @@ def proc_frame(writer, frames, frames_infos, ss_masks=None, test_writer=None):
                     ano_dict['jaywalker'] = True
     # ----Jaywalker end
 
-        draw_bbox(out_frame, ano_dict, left, top, right, bottom)
+        draw_bbox(out_frame, ano_dict, class_name, obj_id, score, bbox)
 # --- Objects iteration end
 
     if is_moving:
@@ -183,7 +190,7 @@ def proc_frame(writer, frames, frames_infos, ss_masks=None, test_writer=None):
 
 
 def get_list_from_info(all_info):
-    car_list = []
+    car_list, person_list = [], []
     for obj_id in all_info:
         info = all_info[obj_id]
         class_id, _, bbox = info
@@ -201,11 +208,11 @@ def get_cdtc_list(frame_infos, car_list):
     cdtc_list = []
     for car in car_list:
         obj_id, _ = car
-        car_bboxes = get_bboxes_by_id(frame_infos, obj_id)
+        future_bboxes = get_bboxes_by_id(frame_infos, obj_id)
 
         prev_width = None
         count = 0
-        for bbox in car_bboxes:
+        for (bbox, _) in future_bboxes:
             width = bbox[2]-bbox[0]
             if prev_width is not None:
                 if prev_width>width:
@@ -224,10 +231,24 @@ def get_cdtc_list(frame_infos, car_list):
 # if the person is in front of a car
 # the car is driving toward camera
 def detect_person_car_collison(id_to_info, cdtc_list):
+    results =[]
     for obj_id in id_to_info:
-        cls_id, _, bbox = id_to_info[obj_id]
+        cls_id, _, person_bbox = id_to_info[obj_id]
         if class_names[cls_id] == 'person':
-            for (obj_id, bbox) in cdtc_list:
+            person_height = person_bbox[3]-person_bbox[1]
+            for (car_id, car_bbox) in cdtc_list:
+                car_height = car_bbox[3]-car_bbox[1]
+                if person_height>car_height:
+                   diff_percent = (person_height-car_height)/car_height
+                   if diff_percent<0.2:
+                      #  check overlapped% of the person by the car
+                        prop = compute_overlapped(person_bbox, car_bbox)
+                        if prop>0.6:
+                            results.append(obj_id, car_id)
+    return results
+
+
+
 
 
 # car list [(obj_id, bbox),]
@@ -386,28 +407,38 @@ def detect_jaywalker(recent_bboxes, mean_shift, out_frame=None):
                   return True
     return False
 
+def compute_overlapped(boxA, boxB):
+    xA = max(boxA[0], boxB[0])
+    yA = max(boxA[1], boxB[1])
+    xB = min(boxA[2], boxB[2])
+    yB = min(boxA[3], boxB[3])
+    interArea = max(0, xB - xA + 1) * max(0, yB - yA + 1)
+    boxAArea = (boxA[2] - boxA[0] + 1) * (boxA[3] - boxA[1] + 1)
+    return interArea / boxAArea
+
+
 def compute_iou(boxA, boxB):
-	# determine the (x, y)-coordinates of the intersection rectangle
-	xA = max(boxA[0], boxB[0])
-	yA = max(boxA[1], boxB[1])
-	xB = min(boxA[2], boxB[2])
-	yB = min(boxA[3], boxB[3])
+    # determine the (x, y)-coordinates of the intersection rectangle
+    xA = max(boxA[0], boxB[0])
+    yA = max(boxA[1], boxB[1])
+    xB = min(boxA[2], boxB[2])
+    yB = min(boxA[3], boxB[3])
 
-	# compute the area of intersection rectangle
-	interArea = max(0, xB - xA + 1) * max(0, yB - yA + 1)
+    # compute the area of intersection rectangle
+    interArea = max(0, xB - xA + 1) * max(0, yB - yA + 1)
 
-	# compute the area of both the prediction and ground-truth
-	# rectangles
-	boxAArea = (boxA[2] - boxA[0] + 1) * (boxA[3] - boxA[1] + 1)
-	boxBArea = (boxB[2] - boxB[0] + 1) * (boxB[3] - boxB[1] + 1)
+    # compute the area of both the prediction and ground-truth
+    # rectangles
+    boxAArea = (boxA[2] - boxA[0] + 1) * (boxA[3] - boxA[1] + 1)
+    boxBArea = (boxB[2] - boxB[0] + 1) * (boxB[3] - boxB[1] + 1)
 
-	# compute the intersection over union by taking the intersection
-	# area and dividing it by the sum of prediction + ground-truth
-	# areas - the interesection area
-	iou = interArea / float(boxAArea + boxBArea - interArea)
+    # compute the intersection over union by taking the intersection
+    # area and dividing it by the sum of prediction + ground-truth
+    # areas - the interesection area
+    iou = interArea / float(boxAArea + boxBArea - interArea)
 
-	# return the intersection over union value
-	return iou
+    # return the intersection over union value
+    return iou
 
 
 # retrieve bounding boxes for an object in future n frames given obj_id
@@ -490,19 +521,19 @@ def cal_weighted_mean(shift_list, left_count, right_count):
     return shift_total/weight_total
     
 # draw bounding box on image given label and coordinate
-def draw_bbox(image, ano_dict, left, top, right, bottom):
+def draw_bbox(image, ano_dict, class_name, obj_id, score, bbox):
+    left, top, right, bottom = bbox
+    ano_label = ""
     global vid_height
     thickness = vid_height//720+1
     font_size = vid_height/1080
-    label = ano_dict["label"]
-    # (B,G,R)
-    box_color = (0,255,0) # Use green as normal 
 
     anomalies = [("collision", (0,0,255) ),
                  ("lost_control", (255,255,0) ),
                  ("damaged", (123,0,255) ),
-                 ("jaywalker", (0,123,255) ),
-                 ("close_distance", (70,255,255) )
+                 ("close_distance", (70,255,255) ),
+                 ("jaywalker_crashing", (0,100,255) ),
+                 ("jaywalker", (0,123,255) )
                 ]
     is_drawn = False
     for (name, color) in anomalies:
@@ -510,38 +541,16 @@ def draw_bbox(image, ano_dict, left, top, right, bottom):
             cv2.rectangle(image, (left, top), (right, bottom), color, thickness)
             left, top, right, bottom = left+thickness, top+thickness, right-thickness, bottom-thickness
             is_drawn = True
+            ano_label += f'{name} '
 
     # if not anomaly, use green
     if not is_drawn:
-          cv2.rectangle(image, (left, top), (right, bottom), box_color, thickness)
+          cv2.rectangle(image, (left, top), (right, bottom), (0, 255, 0), thickness)
 
     # print class name
-    cv2.putText(image, label, ((right+left)//2, top-5), cv2.FONT_HERSHEY_SIMPLEX, font_size, (0,0,255), thickness)
+    label = f'{class_name} {obj_id} : {score:.2f}'
+    cv2.putText(image, label, ((right+left)//2, top-5), cv2.FONT_HERSHEY_SIMPLEX, font_size, (0, 255, 0), thickness)
 
-    # ano_label = ""
-    # if ("close_distance" in ano_dict) and ano_dict["close_distance"]:
-    #     box_color = (70,255,255) # yellow
-    #     ano_label += "Close "
-    
-    # if ("jaywalker" in ano_dict) and ano_dict["jaywalker"]:
-    #     box_color = (0,123,255) #orange
-    #     ano_label += "Jaywalker "
-
-    # if ("damaged" in ano_dict) and ano_dict["damaged"]:
-    #     box_color = (123,0,255) #purple
-    #     ano_label += "Damaged "
-
-    # if ("lost_control" in ano_dict) and ano_dict["lost_control"]:
-    #     box_color = (255,255,0) #cyan
-    #     ano_label += "lost_control"
-
-    # if ("collision" in ano_dict) and ano_dict["collision"]:
-    #     box_color = (0,0,255) #red
-    #     ano_label += "Collision "
-
-    # cv2.rectangle(image, (left, top), (right, bottom), box_color, thickness)
-
-    # cv2.putText(image, label, (left, top-5), cv2.FONT_HERSHEY_SIMPLEX, font_size, (0,255,0), thickness)
     # if not ano_label=="":
     #     cv2.putText(image, ano_label, ((right+left)//2, top-5), cv2.FONT_HERSHEY_SIMPLEX, font_size, (0,0,255), thickness)
 
