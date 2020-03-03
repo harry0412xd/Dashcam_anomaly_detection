@@ -8,3 +8,13 @@ scikit-image==0.14.3 #Change from 0.14.0 to 0.14.3 to avoid a bug
 scikit-learn==0.19.1
 
 #Other Requirements if needed
+
+numpy
+torch>=1.0
+torchvision
+matplotlib
+tensorflow
+tensorboard
+terminaltables
+pillow
+tqdm
