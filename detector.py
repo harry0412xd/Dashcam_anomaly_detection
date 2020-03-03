@@ -811,7 +811,6 @@ def track_video():
         print(f"Rounded {old_fps:2f} fps to {vid_fps}")
     video_length = sec2length(video_total_frame//vid_fps)
     
-    
     # init video writer
     video_FourCC = cv2.VideoWriter_fourcc(*'x264')
     isOutput = True if output_path != "" else False
@@ -842,6 +841,10 @@ def track_video():
     person_tracker = Sort(max_age=max_age, min_hits=1)
     print("SORT initialized")
   # init yolov3 model
+    if opt.weights_path == "model_data/YOLOv3_bdd/bdd.weights":
+        if not os.path.isfile(opt.weights_path):
+            url = "https://github.com/harry0412xd/YOLOv3_anomaly_detection/releases/download/v1.0/bdd.weights"
+            torch.utils.model_zoo.load_url(url, model_dir=opt.weights_path)
     yolo_model = Darknet(opt.model_def, img_size=opt.img_size).to(device)
     yolo_model.load_darknet_weights(opt.weights_path)
     yolo_model.eval()

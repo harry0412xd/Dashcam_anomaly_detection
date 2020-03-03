@@ -14,33 +14,38 @@ from deeplabv3plus.voc import Voc_decoder
 
 class DeepLabv3plus():
     def __init__(self, device, video_writer=None, overlay=False):
-          checkpoint_path = '/content/MyDrive/pretrain_weights/deeplabv3+/best_deeplabv3plus_mobilenet_cityscapes_os16.pth'
-          model = network.deeplabv3plus_mobilenet(num_classes=19, output_stride = 16)
-          self.decoder = Cityscapes_decoder()
+        url = "https://github.com/harry0412xd/YOLOv3_anomaly_detection/releases/download/v1.0/best_deeplabv3plus_mobilenet_cityscapes_os16.pth"
+        checkpoint_path = "model_data/best_deeplabv3plus_mobilenet_cityscapes_os16.pth"
+        if not os.path.isfile(path):
+            torch.utils.model_zoo.load_url(url, model_dir=path)
+            
+        # checkpoint_path = '/content/MyDrive/pretrain_weights/deeplabv3+/best_deeplabv3plus_mobilenet_cityscapes_os16.pth'      
+        model = network.deeplabv3plus_mobilenet(num_classes=19, output_stride = 16)
+        self.decoder = Cityscapes_decoder()
 
-          # checkpoint_path = '/content/MyDrive/Code_to_test/best_deeplabv3plus_resnet101_voc_os16.pth'
-          # model = network.deeplabv3plus_resnet101(num_classes=21, output_stride=16, pretrained_backbone=True)
-          # self.decoder = Voc_decoder()          
+        # checkpoint_path = '/content/MyDrive/Code_to_test/best_deeplabv3plus_resnet101_voc_os16.pth'
+        # model = network.deeplabv3plus_resnet101(num_classes=21, output_stride=16, pretrained_backbone=True)
+        # self.decoder = Voc_decoder()          
 
 
-          checkpoint = torch.load(checkpoint_path)
-          model.load_state_dict(checkpoint["model_state"])
+        checkpoint = torch.load(checkpoint_path)
+        model.load_state_dict(checkpoint["model_state"])
 
-          model.to(device)
-          model.eval()
+        model.to(device)
+        model.eval()
 
-          self.device = device
-          self.model = model
-          self.transform = transforms.Compose([
-              # transforms.Resize((512, 1024)),
-              transforms.ToTensor(),
-              transforms.Normalize([0.485, 0.456, 0.406], [0.229, 0.224, 0.225]),
-          ])
-          self.counter = 0
+        self.device = device
+        self.model = model
+        self.transform = transforms.Compose([
+            # transforms.Resize((512, 1024)),
+            transforms.ToTensor(),
+            transforms.Normalize([0.485, 0.456, 0.406], [0.229, 0.224, 0.225]),
+        ])
+        self.counter = 0
 
-          # Output result video if needed
-          self.writer = video_writer
-          self.overlay = overlay
+        # Output result video if needed
+        self.writer = video_writer
+        self.overlay = overlay
 
           
 
