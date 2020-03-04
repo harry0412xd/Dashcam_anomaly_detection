@@ -14,13 +14,13 @@ from deeplabv3plus.voc import Voc_decoder
 
 class DeepLabv3plus():
     def __init__(self, device, video_writer=None, overlay=False):
-        url = "https://github.com/harry0412xd/YOLOv3_anomaly_detection/releases/download/v1.0/best_deeplabv3plus_mobilenet_cityscapes_os16.pth"
+        url = "https://github.com/harry0412xd/Dashcam_anomaly_detection/releases/download/v1.0/best_deeplabv3plus_mobilenet_cityscapes_os16.pth"
         checkpoint_path = "model_data/best_deeplabv3plus_mobilenet_cityscapes_os16.pth"
-        if not os.path.isfile(path):
-            torch.utils.model_zoo.load_url(url, model_dir=path)
+        if not os.path.isfile(checkpoint_path):
+            torch.utils.model_zoo.load_url(url, model_dir="model_data/")
             
         # checkpoint_path = '/content/MyDrive/pretrain_weights/deeplabv3+/best_deeplabv3plus_mobilenet_cityscapes_os16.pth'      
-        model = network.deeplabv3plus_mobilenet(num_classes=19, output_stride = 16)
+        model = network.deeplabv3plus_mobilenet(num_classes=19, output_stride = 16, pretrained_backbone=False)
         self.decoder = Cityscapes_decoder()
 
         # checkpoint_path = '/content/MyDrive/Code_to_test/best_deeplabv3plus_resnet101_voc_os16.pth'

@@ -843,8 +843,10 @@ def track_video():
   # init yolov3 model
     if opt.weights_path == "model_data/YOLOv3_bdd/bdd.weights":
         if not os.path.isfile(opt.weights_path):
-            url = "https://github.com/harry0412xd/YOLOv3_anomaly_detection/releases/download/v1.0/bdd.weights"
-            torch.utils.model_zoo.load_url(url, model_dir=opt.weights_path)
+            print("Downloading YOLO weights ... ")
+            url = "https://github.com/harry0412xd/Dashcam_anomaly_detection/releases/download/v1.0/bdd.weights"
+            import urllib.request
+            urllib.request.urlretrieve(url, "model_data/YOLOv3_bdd/bdd.weights")
     yolo_model = Darknet(opt.model_def, img_size=opt.img_size).to(device)
     yolo_model.load_darknet_weights(opt.weights_path)
     yolo_model.eval()
@@ -873,7 +875,7 @@ def track_video():
     
     # start iter frames
     in_frame_no, proc_frame_no = 0, 1
-
+    print("Start processing video ...")
     start = timer() #First
     while True:
         success, frame = vid.read()

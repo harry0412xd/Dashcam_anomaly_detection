@@ -12,10 +12,10 @@ import timm
 
 class Damage_detector():
     def __init__(self, device):
-        url = "https://github.com/harry0412xd/YOLOv3_anomaly_detection/releases/download/v1.0/gluon_seresnext101_32x4d-244_checkpoint-69.pth.tar"
+        url = "https://github.com/harry0412xd/Dashcam_anomaly_detection/releases/download/v1.0/gluon_seresnext101_32x4d-244_checkpoint-69.pth.tar"
         checkpoint_path = "model_data/gluon_seresnext101_32x4d-244_checkpoint-69.pth.tar"
-        if not os.path.isfile(path):
-            torch.utils.model_zoo.load_url(url, model_dir=path)
+        if not os.path.isfile(checkpoint_path):
+            torch.utils.model_zoo.load_url(url, model_dir="model_data/")
         # checkpoint_path = '/content/MyDrive/cls_model/train/20200209-152119-gluon_seresnext101_32x4d-224/checkpoint-69.pth.tar'
 
         model = timm.create_model('gluon_seresnext101_32x4d', num_classes=2, checkpoint_path = checkpoint_path)
