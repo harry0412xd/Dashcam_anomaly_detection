@@ -43,7 +43,7 @@ detection_size = 0
 smooth_dict = {}
 
 
-def proc_frame(writer, frames, frames_infos, ss_masks=None, test_writer=None):
+def proc_frame(writer, frames, frames_infos, frame_no, ss_masks=None, test_writer=None):
     start = timer()
     # print(f"{len(frames)} {len(frames_infos)} {len(ss_masks)}")
     frame2proc = frames.popleft()
@@ -68,6 +68,7 @@ def proc_frame(writer, frames, frames_infos, ss_masks=None, test_writer=None):
     else: #last frame
         is_moving = False
     
+    # Smooth moving detection
     if is_moving:
         smooth_dict['is_moving'] = 1
     elif 'is_moving' in smooth_dict and smooth_dict['is_moving'] >0:
@@ -79,14 +80,15 @@ def proc_frame(writer, frames, frames_infos, ss_masks=None, test_writer=None):
     if ss_masks is None:
         left_mean, right_mean = get_mean_shift(frames_infos, out_frame)
 
-    car_list, person_list = get_list_from_info(id_to_info)
-    car_collision_id_list = detect_car_collision(car_list, out_frame)
-
-    if not is_moving:
+    # car collision detect
+    if DC.DET_CAR_PERSON_COL or DC.DET_CAR_COL:
+        car_list, person_list = get_list_from_info(id_to_info)
+    if DC.DET_CAR_COL:
+        car_collision_id_list = detect_car_collision(car_list, out_frame)
+    # car-person collision detect
+    if DC.DET_CAR_PERSON_COL and not is_moving:
         cdtc_list = get_cdtc_list(frames_infos, car_list)
         car_person_collision_id_list = detect_person_car_collison(id_to_info, cdtc_list)
-
-
     # object-wise
     for obj_id in id_to_info:
         info = id_to_info[obj_id]
@@ -144,34 +146,44 @@ def proc_frame(writer, frames, frames_infos, ss_masks=None, test_writer=None):
 
 
     # Car collision
-            obj_col_key = f"{obj_id}_col"
-            if obj_id in car_collision_id_list:
-                ano_dict['collision'] = True
-                smooth_dict[obj_col_key] = vid_fps//6
-            elif obj_col_key in smooth_dict and smooth_dict[obj_col_key] > 0:
-                ano_dict['collision'] = True
-                smooth_dict[obj_col_key] -= 1
+            if DC.DET_CAR_COL:
+                obj_col_key = f"{obj_id}_col"
+                if obj_id in car_collision_id_list:
+                    ano_dict['collision'] = True
+                    smooth_dict[obj_col_key] = vid_fps//6
+                elif obj_col_key in smooth_dict and smooth_dict[obj_col_key] > 0:
+                    ano_dict['collision'] = True
+                    smooth_dict[obj_col_key] -= 1
     # ----Car collision end
 
 
     # Car distance 
-            if is_moving:
+            if DC.DET_CLOSE_DIS and is_moving:
                 # Detect lack of car distance
                 is_close = detect_close_distance(left, top, right, bottom)
                 ano_dict['close_distance'] = is_close
     # ----Car distance end
             else: #is not moving
-                if obj_id in car_person_collision_id_list:
+                if DC.DET_CAR_PERSON_COL and obj_id in car_person_collision_id_list:
                     ano_dict['collision'] = True
+                for (obj_id2, bbox) in cdtc_list:
+                    if obj_id == obj_id2:
+                        ano_dict["cdtc"] = True
+                        break
 
     # Jaywalker
         elif class_name=="person":
             if not is_moving:
-                if obj_id in car_person_collision_id_list:
+                if DC.DET_CAR_PERSON_COL and obj_id in car_person_collision_id_list:
                     ano_dict['jaywalker_crashing'] = True
             if ss_masks is not None: # Use semantic segmentation to find people on traffic road
-                if is_moving and is_on_traffic_road(bbox, ss_mask):
-                    ano_dict['jaywalker'] = True
+                if is_moving:
+                    obj_on_road_key = f"{obj_id}_on_road"
+                    if (frame_no-1)%opt.ss_interval == 0:
+                        smooth_dict[obj_on_road_key] =  is_on_traffic_road(bbox, ss_mask)
+                    elif obj_on_road_key in smooth_dict:
+                            ano_dict['jaywalker'] = smooth_dict[obj_on_road_key]                       
+
             else: # Use pre-defined baseline
                 if is_moving and detect_jaywalker(get_bboxes_by_id(frames_infos, obj_id), (left_mean, right_mean), out_frame):
                     ano_dict['jaywalker'] = True
@@ -212,19 +224,22 @@ def get_cdtc_list(frame_infos, car_list):
         future_bboxes = get_bboxes_by_id(frame_infos, obj_id)
 
         prev_width = None
-        count = 0
+        count, total = 0, 0
         for (bbox, _) in future_bboxes:
             width = bbox[2]-bbox[0]
+            center = (bbox[2]+bbox[0])//2
             if prev_width is not None:
+                total += 2
                 if prev_width>width:
                     count += 1
-                else:
-                    count -= 1
+                if center>prev_center:
+                    count += 1
             else:
                 bbox0 = bbox
             prev_width = width
+            prev_center = center
 
-        if count>0:
+        if total>0 and count/total > 0.5:
             cdtc_list.append((obj_id, bbox0))
     return cdtc_list
 
@@ -536,6 +551,7 @@ def draw_bbox(image, ano_dict, class_name, obj_id, score, bbox):
                  ("close_distance", (70,255,255) ),
                  ("jaywalker_crashing", (0,100,255) ),
                  ("jaywalker", (0,123,255) )
+                 ,("cdtc", (0,123,0))
                 ]
     is_drawn = False
     for (name, color) in anomalies:
@@ -726,7 +742,6 @@ def split_bboxes(detections):
         else:
             car_bboxes.append(box)
             car_classes.append(class_id)
-      
     return car_bboxes, car_classes, person_bboxes, person_classes 
 
 
@@ -862,6 +877,8 @@ def track_video():
         if opt.ss_out:
             ss_output_path =  output_path.replace("output", "ss")
             ss_writer = cv2.VideoWriter(ss_output_path, video_FourCC, vid_fps, (vid_width, vid_height))
+        else:
+            ss_writer = None
         dlv3 = DeepLabv3plus(device, ss_writer, opt.ss_overlay)
         ss_masks = deque()
     else:
@@ -885,7 +902,8 @@ def track_video():
 
         # semantic seg
         if opt.ss:
-            mask = dlv3.predict(frame)
+            if (in_frame_no-1)%opt.ss_interval == 0:
+                mask = dlv3.predict(frame)
             ss_masks.append(mask)
 
         # Obj Detection
@@ -921,7 +939,7 @@ def track_video():
         frames_infos.append(id_to_info)
         # frame buffer proc
         if len(prev_frames)>buffer_size:
-            proc_ms = proc_frame(out_writer, prev_frames, frames_infos, ss_masks=ss_masks, test_writer=test_writer)
+            proc_ms = proc_frame(out_writer, prev_frames, frames_infos, proc_frame_no, ss_masks=ss_masks, test_writer=test_writer)
             proc_frame_no += 1
 
         if in_frame_no % print_interval == 0:
@@ -940,7 +958,7 @@ def track_video():
 
     # Process the remaining frames in buffer
     while len(frames_infos)>0:
-        proc_frame(out_writer, prev_frames, frames_infos, ss_masks = ss_masks, test_writer=test_writer)
+        proc_frame(out_writer, prev_frames, frames_infos, proc_frame_no, ss_masks = ss_masks, test_writer=test_writer)
         proc_frame_no += 1
     end = timer()
     avg_s = (end-start)/(in_frame_no % print_interval)
@@ -983,6 +1001,7 @@ if __name__ == '__main__':
     parser.add_argument('--ss', action='store_true', default=False, help = "[Optional]Do semantic segmentation")
     parser.add_argument('--ss_out', action='store_true', default=False, help = "[Optional]Output semantic segmentation video")
     parser.add_argument('--ss_overlay', action='store_true', default=False, help = "[Optional]Overlay the result on the orignal video")
+    parser.add_argument('--ss_interval', type=int, default=1, help="frame(s) between segmentations")
 
     opt = parser.parse_args()
     track_video()

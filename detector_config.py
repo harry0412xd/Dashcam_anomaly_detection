@@ -1,9 +1,22 @@
-PRINT_INTERVAL_SEC = 10
+# Main config
+
+
+PRINT_INTERVAL_SEC = 10 #Time interval (of the video) between command line output
+
+# Detection toggle
+DET_CAR_COL = True
+DET_CAR_PERSON_COL = True
+DET_CLOSE_DIS = True
+DET_JAYWALKER = True
+
+
+
+
+
 
 
 # Width/height > IS_SIDE_RATIO : the side of the car is facing the camera 
 IS_SIDE_RATIO = 1.6
-
 
 # ---------------------------------------
 # ------Collision
