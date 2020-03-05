@@ -60,11 +60,11 @@ def proc_frame(writer, frames, frames_infos, frame_no, ss_masks=None, test_write
     # Detect whether the camera is moving
     if len(frames)>0:
         if test_writer:
-            test_frame, is_moving = detect_camera_moving(frame2proc, frames[0], True)
+            test_frame = out_frame.copy()
+            is_moving = detect_camera_moving(frame2proc, frames[0], out_frame=test_frame)
             test_writer.write(test_frame)
-
         else:
-            _, is_moving = detect_camera_moving(frame2proc, frames[0])
+            is_moving = detect_camera_moving(frame2proc, frames[0])
     else: #last frame
         is_moving = False
     
@@ -98,6 +98,7 @@ def proc_frame(writer, frames, frames_infos, frame_no, ss_masks=None, test_write
         ano_dict = {}
 
         if class_name=="car" or class_name=="bus" or class_name=="truck":
+            draw_future_center(frames_infos, obj_id, out_frame)
     # damage detection
             if opt.dmg_det:
                 # DAMAGE_SKIP_NUM = 2
@@ -160,16 +161,16 @@ def proc_frame(writer, frames, frames_infos, frame_no, ss_masks=None, test_write
     # Car distance 
             if DC.DET_CLOSE_DIS and is_moving:
                 # Detect lack of car distance
-                is_close = detect_close_distance(left, top, right, bottom)
+                is_close = detect_close_distance(bbox)
                 ano_dict['close_distance'] = is_close
     # ----Car distance end
             else: #is not moving
                 if DC.DET_CAR_PERSON_COL and obj_id in car_person_collision_id_list:
                     ano_dict['collision'] = True
-                for (obj_id2, bbox) in cdtc_list:
-                    if obj_id == obj_id2:
-                        ano_dict["cdtc"] = True
-                        break
+                # for (obj_id2, bbox) in cdtc_list:
+                #     if obj_id == obj_id2:
+                #         ano_dict["cdtc"] = True
+                #         break
 
     # Jaywalker
         elif class_name=="person":
@@ -215,6 +216,12 @@ def get_list_from_info(all_info):
 
     return car_list, person_list
 
+# testing function
+def draw_future_center(frames_infos, obj_id, out_frame):
+    bboxes = get_bboxes_by_id(frames_infos, obj_id)
+    for (bbox, _) in bboxes:
+      center_x, center_y = (bbox[2]+bbox[0])//2, (bbox[3]+bbox[1])//2
+      cv2.circle(out_frame,(center_x, center_y), 1, (0, 255, 255), -1)
 
 # car driving toward camera
 def get_cdtc_list(frame_infos, car_list):
@@ -551,7 +558,7 @@ def draw_bbox(image, ano_dict, class_name, obj_id, score, bbox):
                  ("close_distance", (70,255,255) ),
                  ("jaywalker_crashing", (0,100,255) ),
                  ("jaywalker", (0,123,255) )
-                 ,("cdtc", (0,123,0))
+                 ,("cdtc", (0,123,0)) #test only
                 ]
     is_drawn = False
     for (name, color) in anomalies:
@@ -566,11 +573,12 @@ def draw_bbox(image, ano_dict, class_name, obj_id, score, bbox):
           cv2.rectangle(image, (left, top), (right, bottom), (0, 255, 0), thickness)
 
     # print class name
-    label = f'{class_name} {obj_id} : {score:.2f}'
-    cv2.putText(image, label, ((right+left)//2, top-5), cv2.FONT_HERSHEY_SIMPLEX, font_size, (0, 255, 0), thickness)
-
-    # if not ano_label=="":
-    #     cv2.putText(image, ano_label, ((right+left)//2, top-5), cv2.FONT_HERSHEY_SIMPLEX, font_size, (0,0,255), thickness)
+    if DC.PRINT_CLASS_LABEL:
+        label = f'{class_name} {obj_id} : {score:.2f}'
+        cv2.putText(image, label, ((right+left)//2, top-5), cv2.FONT_HERSHEY_SIMPLEX, font_size, (0, 255, 0), thickness)
+    # print anomaly name
+    if DC.PRINT_ANOMALY_LABEL:
+        cv2.putText(image, ano_label, ((right+left)//2, top-5), cv2.FONT_HERSHEY_SIMPLEX, font_size, (0,0,255), thickness)
 
 
 # To check whether a point(x,y) is within a triangle area of interest
@@ -596,57 +604,24 @@ def area(x1, y1, x2, y2, x3, y3):
 def euclidean_distance(x1,x2,y1,y2):
     return math.sqrt( (x2-x1)**2 + (y2-y1)**2)
 
-def detect_close_distance(left, top, right, bottom):
+def detect_close_distance(bbox, out_frame=None):
     global vid_width, vid_height
-    pts = DC.get_roi_for_distance_detect(vid_width, vid_height)
+    pts = [(vid_width//2, vid_height//2), 
+           (vid_width//8, vid_height*8//9),
+           (vid_width*7//8, vid_height*8//9)]
 
-    # ignore roi if the bbox is too big
-    # since its center is hard to be within the roi
-    if (right-left)>(vid_width//2) or inside_roi((left+right)//2, (top+bottom)//2, pts):
-        box_center_x = (left+right)//2
-        
-        if box_center_x<vid_width//3:
-            frame_center_x = vid_width//3
-        elif box_center_x>vid_width//3*2:
-            frame_center_x = vid_width//3*2
-        else:
-            frame_center_x = box_center_x
+    left, top, right, bottom = bbox
+    center_x, center_y = (left+right)//2, (top+bottom)//2
 
-        dist = euclidean_distance(box_center_x,frame_center_x,bottom,vid_height)
-        if dist<(vid_height//3) and \
-           (right-left)>(vid_width//5): # To prevent some false positive caused by camera angle
-            # print(f"distance = {dist}")
+    if (bottom> vid_height*8//9) or inside_roi(center_x, center_y, pts):
+        width = right - left
+        dist_score = ( 1-(width/vid_width) )**2
+        if out_frame is not None:
+            cv2.putText(out_frame, f"{score:.2f}", (center_x, center_y), cv2.FONT_HERSHEY_SIMPLEX, font_size, (70,255,255), 2)
+        if dist_score < 0.5:
             return True
+        # elif dist_score < 0.5:
     return False
-
-# calculate the bboxes using video resolution for the detect_camera_moving func
-# def get_detection_boxes():
-#     result = []
-#     global vid_height, vid_width
-#     boxes_x = [vid_width*0.05, vid_width*0.85]
-#     boxes_y = [vid_height*0.05, vid_height*0.3]
-#     box_width = int(vid_width*0.1)
-#     box_height = int(vid_height*0.15)
-
-#     for box_x in boxes_x:
-#         for box_y in boxes_y:
-#             left, top = int(box_x), int(box_y)
-#             right, bottom = left+box_width, top+box_height
-#             result.append([left, top, right, bottom])
-#             # print(left, top, right, bottom)
-
-#     # add two more on top side
-#     top = int(vid_height*0.05)
-#     bottom = top+box_height
-#     left = int(vid_width*0.3)
-#     result.append([left, top, left+box_width, bottom])
-#     left = int(vid_width*0.6)
-#     result.append([left, top, left+box_width, bottom])
-#     # return box size and list of bboxes pos
-#     # return box_width*box_height, result
-#     global detection_boxes, detection_size
-#     detection_size = box_width*box_height
-#     detection_boxes = result
 
 
 # Set camera movement detection area
@@ -671,21 +646,14 @@ def set_move_det_area():
     detection_size = box_width*box_height
     detection_boxes = result
 
-
-    
-            
+   
 # detect whether the camera is moving, return img? and boolean
-def detect_camera_moving(cur_frame, prev_frame, should_return_img=False):
+def detect_camera_moving(cur_frame, prev_frame, out_frame=None):
     if prev_frame is None:
         # print("Last frame")
         return False
     threshold = 0.01
     global detection_boxes, detection_size
-
-    if should_return_img:
-        return_img = cur_frame.copy()
-    else: 
-        return_img = None
 
     count = 0
     for box in detection_boxes:
@@ -703,23 +671,22 @@ def detect_camera_moving(cur_frame, prev_frame, should_return_img=False):
             count+=1
 
         # testing purpose
-        if should_return_img:
+        if out_frame is not None:
             result_bgr = cv2.cvtColor(result, cv2.COLOR_GRAY2BGR)
             return_img[top:bottom, left:right] = result_bgr
             cv2.rectangle(return_img, (left, top), (right, bottom), (0,255,0), 2)
             label = "%.3f" % percentage
-            cv2.putText(return_img, label, ((left+right)//2, (top+bottom)//2), cv2.FONT_HERSHEY_SIMPLEX, 1.0, (0,255,0), 2)
+            cv2.putText(out_frame, label, ((left+right)//2, (top+bottom)//2), cv2.FONT_HERSHEY_SIMPLEX, 1.0, (0,255,0), 2)
 
     # 8 boxes in total
     is_moving = count>2
     if is_moving:
         # testing purpose
-        if should_return_img:
+        if out_frame is not None :
             global vid_width, vid_height
-            cv2.putText(return_img, "Is moving", (vid_width//2, vid_height-50), cv2.FONT_HERSHEY_SIMPLEX, 1.0, (0,0,255), 2)
+            cv2.putText(out_frame, "Is moving", (vid_width//2, vid_height-50), cv2.FONT_HERSHEY_SIMPLEX, 1.0, (0,0,255), 2)
     
-    # retur_img is None if not returning img
-    return return_img, is_moving
+    return is_moving
 
 # small func to help display progress
 def sec2length(time_sec):
