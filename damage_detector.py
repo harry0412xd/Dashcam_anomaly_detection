@@ -12,13 +12,14 @@ import timm
 
 class Damage_detector():
     def __init__(self, device):
-        url = "https://github.com/harry0412xd/Dashcam_anomaly_detection/releases/download/v1.0/gluon_seresnext101_32x4d-244_checkpoint-69.pth.tar"
-        checkpoint_path = "model_data/gluon_seresnext101_32x4d-244_checkpoint-69.pth.tar"
-        if not os.path.isfile(checkpoint_path):
-            torch.utils.model_zoo.load_url(url, model_dir="model_data/")
-        # checkpoint_path = '/content/MyDrive/cls_model/train/20200209-152119-gluon_seresnext101_32x4d-224/checkpoint-69.pth.tar'
+        # url = "https://github.com/harry0412xd/Dashcam_anomaly_detection/releases/download/v1.0/gluon_seresnext101_32x4d-244_checkpoint-69.pth.tar"
+        # checkpoint_path = "model_data/gluon_seresnext101_32x4d-244_checkpoint-69.pth.tar"
+        # if not os.path.isfile(checkpoint_path):
+        #     torch.utils.model_zoo.load_url(url, model_dir="model_data/")
 
-        model = timm.create_model('gluon_seresnext101_32x4d', num_classes=2, checkpoint_path = checkpoint_path)
+        checkpoint_path = '/content/MyDrive/cls_model/train/20200305-193322-tf_mobilenetv3_large_100-224/model_best.pth.tar'
+
+        model = timm.create_model('tf_mobilenetv3_large_100', num_classes=2, checkpoint_path = checkpoint_path)
         model.to(device)
         model.eval()
         self.device = device
@@ -31,7 +32,7 @@ class Damage_detector():
 
         self.test_counter = {}
 
-    def detect(self, frame, bbox, obj_id=None):
+    def detect(self, frame, bbox, erase_bbox=None, obj_id=None):
         
         left, top, right, bottom = bbox
         cropped_img = frame[top:bottom, left:right]
@@ -59,11 +60,43 @@ class Damage_detector():
 
         return damaged_prop
 
-
 def get_damaged_prop(output):
     # is damaged car prob
     prob = torch.softmax(output, dim=1)[0, 1].item()
     return prob 
+
+def crop_and_pad(frame, bbox, padding_size):
+    
+
+
+def erase_overlapped(cropped_img, bboxes, target_bbox, padding_size):
+    left, top, right, bottom = target_bbox
+    for bbox in bboxes:
+        left2, top2, right2, bottom2 = bbox
+
+        from_right = left2>left and left2<right
+        from_left = (right2>left and right2<right)
+        from_bot = (top2>top and top2<bottom)
+        from_top = (bottom2>top and bottom2<bottom)
+
+        if (from_left or from_right ) and (from_top or from_bot):
+            if from_left:
+                erase_left = 0
+                erase_right = right2-left
+            else:
+                erase_left = left2-left
+                erase_right = right - left
+                
+            if from_top:
+                erase_top = 0
+                erase_bot = bottom2 - top
+            else:
+                erase_top = top2-top
+                erase_bot = bottom - top
+
+            return [erase_left, erase_top, erase_right, erase_bot]
+        return None
+            
 
 
 

@@ -98,7 +98,7 @@ def proc_frame(writer, frames, frames_infos, frame_no, ss_masks=None, test_write
         ano_dict = {}
 
         if class_name=="car" or class_name=="bus" or class_name=="truck":
-            draw_future_center(frames_infos, obj_id, out_frame)
+            # draw_future_center(frames_infos, obj_id, out_frame)
     # damage detection
             if opt.dmg_det:
                 # DAMAGE_SKIP_NUM = 2
@@ -111,12 +111,14 @@ def proc_frame(writer, frames, frames_infos, frame_no, ss_masks=None, test_write
                     # 720p : 90px | 1080p: 135px
                     dmg_height_thres, dmg_width_thres = vid_height//12, vid_width//24
                     if (bottom-top)>dmg_height_thres and (right-left)>dmg_width_thres:
-                        if (right-left)/(bottom-top) > DC.IS_SIDE_RATIO :
-                            x_pad, y_pad = (right-left)//6, (bottom-top)//12
+                        if DC.DO_PADDING:
+                            if (right-left)/(bottom-top) > DC.IS_SIDE_RATIO :
+                                x_pad, y_pad = (right-left)//6, (bottom-top)//12
+                            else:
+                                x_pad, y_pad = (right-left)//12, (bottom-top)//12
                         else:
-                            x_pad, y_pad = (right-left)//12, (bottom-top)//12
+                            x_pad, y_pad = 0,0
 
-                        x_pad, y_pad = 0,0
                         left2, top2, right2, bottom2 = max(left-x_pad,0), max(top-y_pad,0),\
                                                           min(right+x_pad, vid_width), min(bottom+y_pad, vid_height)
 
