@@ -9,6 +9,7 @@ from PIL import Image
 from torchvision import transforms
 
 import timm
+from torchvision import models
 
 class Damage_detector():
     def __init__(self, device):
@@ -17,9 +18,14 @@ class Damage_detector():
         # if not os.path.isfile(checkpoint_path):
         #     torch.utils.model_zoo.load_url(url, model_dir="model_data/")
 
-        checkpoint_path = '/content/MyDrive/cls_model/train/20200305-193322-tf_mobilenetv3_large_100-224/model_best.pth.tar'
+        # checkpoint_path = '/content/MyDrive/cls_model/train/20200305-193322-tf_mobilenetv3_large_100-224/model_best.pth.tar'
 
-        model = timm.create_model('tf_mobilenetv3_large_100', num_classes=2, checkpoint_path = checkpoint_path)
+        model  = models.resnext101_32x8d(pretrained=False, num_classes=2)
+        checkpoint_path = "/content/MyDrive/cls_model/train/20200306-140733-resnext101_32x8d-224/model_best.pth.tar"
+        checkpoint = torch.load(checkpoint_path)
+        model.load_state_dict(checkpoint["state_dict"])
+
+        # model = timm.create_model('resnext101_32x8d', num_classes=2, checkpoint_path = checkpoint_path)
         model.to(device)
         model.eval()
         self.device = device
@@ -32,10 +38,13 @@ class Damage_detector():
 
         self.test_counter = {}
 
-    def detect(self, frame, bbox, erase_bbox=None, obj_id=None):
-        
-        left, top, right, bottom = bbox
-        cropped_img = frame[top:bottom, left:right]
+
+    def detect(self, frame, bbox, padding_size= (0,0), frame_info=None, erase_overlap=False, obj_id=None):
+        cropped_img = crop_and_pad(frame, bbox, padding_size)
+        if erase_overlap:
+            assert frame_info is not None, "Other bounding boxes are necessary to find overlapped region. Pass the frame_info param."
+            erase_overlapped(cropped_img, bbox, frame_info, padding_size)
+
         img_RGB = cv2.cvtColor(cropped_img,cv2.COLOR_BGR2RGB)
 
         img = Image.fromarray(img_RGB)
@@ -54,24 +63,34 @@ class Damage_detector():
                 self.test_counter[key] = 0
             self.test_counter[key] += 1
             counter = self.test_counter[key]
-            cv2.putText(cropped_img, f"{damaged_prop:.2f} ", ((right-left)//2, (bottom-top)//2), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0,0,255), 2)
-            cv2.putText(cropped_img, f"{get_whole_prop(output):.2f} ", ((right-left)//2, (bottom-top)//2 - 15), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0,255,0), 2)
+            # cv2.putText(cropped_img, f"{damaged_prop:.2f} ", ((right-left)//2, (bottom-top)//2), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0,0,255), 2)
+            # cv2.putText(cropped_img, f"{get_whole_prop(output):.2f} ", ((right-left)//2, (bottom-top)//2 - 15), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0,255,0), 2)
             cv2.imwrite(f'/content/test/obj{obj_id:04}_{counter:02}.jpg', cropped_img)
 
         return damaged_prop
+
 
 def get_damaged_prop(output):
     # is damaged car prob
     prob = torch.softmax(output, dim=1)[0, 1].item()
     return prob 
 
+
 def crop_and_pad(frame, bbox, padding_size):
+    left, top, right, bottom = bbox
+    x_pad, y_pad = padding_size
+    h, w, _ = frame.shape
+    left2, top2, right2, bottom2 = max(left-x_pad,0), max(top-y_pad,0),\
+                                  min(right+x_pad, w), min(bottom+y_pad, h)
+
+    return frame[top2:bottom2, left2:right2]
+
     
-
-
-def erase_overlapped(cropped_img, bboxes, target_bbox, padding_size):
+def erase_overlapped(cropped_img, target_bbox, frame_info, padding_size):
     left, top, right, bottom = target_bbox
-    for bbox in bboxes:
+    x_pad, y_pad = padding_size
+    for obj_id in frame_info:
+        _, _, bbox = frame_info[obj_id]
         left2, top2, right2, bottom2 = bbox
 
         from_right = left2>left and left2<right
@@ -82,20 +101,19 @@ def erase_overlapped(cropped_img, bboxes, target_bbox, padding_size):
         if (from_left or from_right ) and (from_top or from_bot):
             if from_left:
                 erase_left = 0
-                erase_right = right2-left
+                erase_right = right2-left + x_pad
             else:
-                erase_left = left2-left
-                erase_right = right - left
+                erase_left = left2-left + x_pad
+                erase_right = right - left + x_pad*2
                 
             if from_top:
                 erase_top = 0
-                erase_bot = bottom2 - top
+                erase_bot = bottom2 - top + y_pad
             else:
-                erase_top = top2-top
-                erase_bot = bottom - top
+                erase_top = top2-top + y_pad
+                erase_bot = bottom - top + 2*y_pad
 
-            return [erase_left, erase_top, erase_right, erase_bot]
-        return None
+            cv2.rectangle(cropped_img, (erase_left, erase_top), (erase_right, erase_bot), (0,0,0), -1)
             
 
 

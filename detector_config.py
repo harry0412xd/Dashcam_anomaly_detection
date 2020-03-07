@@ -15,7 +15,7 @@ PRINT_ANOMALY_LABEL = False # E.g. "Close Distance" near the bounding box
 
 # Damage detection
 DO_PADDING = True
-
+DO_ERASING = True
 
 
 

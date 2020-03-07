@@ -113,18 +113,17 @@ def proc_frame(writer, frames, frames_infos, frame_no, ss_masks=None, test_write
                     if (bottom-top)>dmg_height_thres and (right-left)>dmg_width_thres:
                         if DC.DO_PADDING:
                             if (right-left)/(bottom-top) > DC.IS_SIDE_RATIO :
-                                x_pad, y_pad = (right-left)//6, (bottom-top)//12
+                                x_pad, y_pad = (right-left)//8, (bottom-top)//12
                             else:
                                 x_pad, y_pad = (right-left)//12, (bottom-top)//12
                         else:
                             x_pad, y_pad = 0,0
 
-                        left2, top2, right2, bottom2 = max(left-x_pad,0), max(top-y_pad,0),\
-                                                          min(right+x_pad, vid_width), min(bottom+y_pad, vid_height)
-
-                        # Pass obj_id to output test image
-                        # dmg_prob = damage_detector.detect(frame2proc ,[left2, top2, right2, bottom2], obj_id=obj_id)
-                        dmg_prob = damage_detector.detect(frame2proc ,[left2, top2, right2, bottom2])
+                        if DC.DO_ERASING:
+                            dmg_prob = damage_detector.detect(frame2proc, bbox, padding_size=(x_pad, y_pad),
+                                                              frame_info = id_to_info, erase_overlap=True, obj_id=obj_id)
+                        else:
+                          dmg_prob = damage_detector.detect(frame2proc, bbox, padding_size=(x_pad, y_pad))
 
                         # smooth indication and skip checking to make faster
                         if dmg_prob>0.97:
