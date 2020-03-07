@@ -324,12 +324,13 @@ def detect_car_collision(car_list, out_frame):
             if (abs(bottom1-bottom2) / height1) < height_thres:
                 # ((right1>right2 and left1>left2) or (right2>right1 and left2>left1)):
                     is_possible = True
-            elif (is_side1 ^ is_side2):
-                        #similar height
-                if abs(height1-height2)/height1 < 0.06 and \
-                   ((bottom2>bottom1 and top2>top1) or (bottom1>bottom2 and top1>top2)): # back car crash into front car, y-axis may not be similar
-                    is_possible = True
-                    iou_thres = 0.25
+                    
+            # elif (is_side1 ^ is_side2):
+            #             #similar height
+            #     if abs(height1-height2)/height1 < 0.06 and \
+            #        ((bottom2>bottom1 and top2>top1) or (bottom1>bottom2 and top1>top2)): # back car crash into front car, y-axis may not be similar
+            #         is_possible = True
+            #         iou_thres = 0.25
 
             if is_possible: 
                 width_diff_perc = abs(width2-width1)/width1 
@@ -897,7 +898,9 @@ def track_video():
             obj_id = d[4]
             class_id, score = tracker_infos[c][0], tracker_infos[c][1]
             class_name = class_names[class_id]
-            if score <= -3: #detection is missing
+            if is_car(class_name) and score <0 : #detection is missing
+                continue
+            elif class_name=="person" and score <=-3:
                 continue
 
             info = [class_id, score, [left, top, right, bottom]]
