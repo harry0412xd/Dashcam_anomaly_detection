@@ -125,7 +125,7 @@ class KalmanBoxTracker(object):
     self.age += 1
     if(self.time_since_update>0):
       self.hit_streak = 0
-      self.score = -1
+      self.score = -(self.time_since_update)
     self.time_since_update += 1
     self.history.append(convert_x_to_bbox(self.kf.x))
     return self.history[-1]

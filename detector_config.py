@@ -1,5 +1,7 @@
-# Main config
+"""
+Main config
 
+"""
 # CMD
 PRINT_INTERVAL_SEC = 10 #Time interval (of the video) between command line output
 
@@ -13,9 +15,14 @@ DET_JAYWALKER = True
 PRINT_CLASS_LABEL = False # E.g. "Car:1 0.78" near the bounding box
 PRINT_ANOMALY_LABEL = False # E.g. "Close Distance" near the bounding box
 
+# Object detection
+OMIT_SMALL = True #omit small bounding boxes of car/person
+OMIT_SIGN = True #omit traffic signs / lights
+
 # Damage detection
 DO_PADDING = True
 DO_ERASING = True
+IGNORE_SMALL = True
 
 
 
@@ -24,6 +31,13 @@ DO_ERASING = True
 
 
 
+
+
+
+"""
+Other (constant used)
+
+"""
 # Width/height > IS_SIDE_RATIO : the side of the car is facing the camera 
 IS_SIDE_RATIO = 1.6
 

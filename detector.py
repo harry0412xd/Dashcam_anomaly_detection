@@ -97,7 +97,7 @@ def proc_frame(writer, frames, frames_infos, frame_no, ss_masks=None, test_write
         class_name = class_names[class_id]
         ano_dict = {}
 
-        if class_name=="car" or class_name=="bus" or class_name=="truck":
+        if is_car(class_name):
             # draw_future_center(frames_infos, obj_id, out_frame)
     # damage detection
             if opt.dmg_det:
@@ -110,7 +110,7 @@ def proc_frame(writer, frames, frames_infos, frame_no, ss_masks=None, test_write
                 else: 
                     # 720p : 90px | 1080p: 135px
                     dmg_height_thres, dmg_width_thres = vid_height//12, vid_width//24
-                    if (bottom-top)>dmg_height_thres and (right-left)>dmg_width_thres:
+                    if not DC.IGNORE_SMALL or ((bottom-top)>dmg_height_thres and (right-left)>dmg_width_thres) :
                         if DC.DO_PADDING:
                             if (right-left)/(bottom-top) > DC.IS_SIDE_RATIO :
                                 x_pad, y_pad = (right-left)//8, (bottom-top)//12
@@ -123,7 +123,7 @@ def proc_frame(writer, frames, frames_infos, frame_no, ss_masks=None, test_write
                             dmg_prob = damage_detector.detect(frame2proc, bbox, padding_size=(x_pad, y_pad),
                                                               frame_info = id_to_info, erase_overlap=True, obj_id=obj_id)
                         else:
-                          dmg_prob = damage_detector.detect(frame2proc, bbox, padding_size=(x_pad, y_pad))
+                            dmg_prob = damage_detector.detect(frame2proc, bbox, padding_size=(x_pad, y_pad))
 
                         # smooth indication and skip checking to make faster
                         if dmg_prob>0.97:
@@ -137,7 +137,7 @@ def proc_frame(writer, frames, frames_infos, frame_no, ss_masks=None, test_write
                     else:
                         dmg_prob = 0
 
-                if dmg_prob>=0.9:
+                if dmg_prob>=0.93:
                     ano_dict['damaged'] = True
                 cv2.putText(out_frame, f'{dmg_prob:.2f}', ((right+left)//2, (bottom+top)//2), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0,255,0), 2)
     # ----damage detection end
@@ -210,7 +210,7 @@ def get_list_from_info(all_info):
         info = all_info[obj_id]
         class_id, _, bbox = info
         class_name = class_names[class_id]
-        if class_name=="car" or class_name=="bus" or class_name=="truck":
+        if is_car(class_name):
             car_list.append((obj_id, bbox))
         elif class_name=="person":
             person_list.append((obj_id, bbox))
@@ -718,8 +718,8 @@ def omit_small_bboxes(detections):
     global vid_height
     # area_threshold = (vid_height//36)**2
     width_threshold, height_threshold = vid_width//30, vid_height//24
-
     omitted_count = 0
+
     i = 0
     while i<len(detections):
         bbox, class_id = detections[i]
@@ -727,12 +727,14 @@ def omit_small_bboxes(detections):
         height = bbox[3] - bbox[1]
         class_name = class_names[class_id]
 
-        if ((class_name=="car" or class_name=="bus" or class_name=="truck") and 
-            (width<width_threshold or height<height_threshold)) or \
-            class_name=="traffic light" or class_name=="traffic sign":
+        if DC.OMIT_SMALL and is_car(class_name) and \
+            (width<width_threshold or height<height_threshold):
             # print(f"{classes[i]} {width}x{height}")
             del detections[i]
             omitted_count +=1
+        elif DC.OMIT_SIGN and  (class_name=="traffic light" or class_name=="traffic sign") :
+            del detections[i]
+            omitted_count +=1           
         else:
             i += 1
     # print(f"Omitted {omitted_count} boxes due to small size")
@@ -768,6 +770,8 @@ def yolo_detect(frame, model):
     # return bboxes, classes
     return results
 
+def is_car(class_name):
+    return class_name=="car" or class_name=="bus" or class_name=="truck"
 
 def track_video():
     global device
@@ -790,7 +794,7 @@ def track_video():
     vid_fps = vid.get(cv2.CAP_PROP_FPS)
     if not vid_fps == int(vid_fps):
         old_fps = vid_fps
-        vid_fps = int(vid_fps)
+        vid_fps = round(vid_fps)
         print(f"Rounded {old_fps:2f} fps to {vid_fps}")
     video_length = sec2length(video_total_frame//vid_fps)
     
@@ -897,8 +901,8 @@ def track_video():
             obj_id = d[4]
             class_id, score = tracker_infos[c][0], tracker_infos[c][1]
             class_name = class_names[class_id]
-            if score == -1: #detection is missing
-              continue
+            if score > -3: #detection is missing
+                continue
 
             info = [class_id, score, [left, top, right, bottom]]
             id_to_info[obj_id] = info
