@@ -13,19 +13,19 @@ from torchvision import models
 
 class Damage_detector():
     def __init__(self, device):
-        # url = "https://github.com/harry0412xd/Dashcam_anomaly_detection/releases/download/v1.0/gluon_seresnext101_32x4d-244_checkpoint-69.pth.tar"
-        # checkpoint_path = "model_data/gluon_seresnext101_32x4d-244_checkpoint-69.pth.tar"
-        # if not os.path.isfile(checkpoint_path):
-        #     torch.utils.model_zoo.load_url(url, model_dir="model_data/")
+        url = "https://github.com/harry0412xd/Dashcam_anomaly_detection/releases/download/v1.0/gluon_seresnext101_32x4d-244_checkpoint-69.pth.tar"
+        checkpoint_path = "model_data/gluon_seresnext101_32x4d-244_checkpoint-69.pth.tar"
+        if not os.path.isfile(checkpoint_path):
+            torch.utils.model_zoo.load_url(url, model_dir="model_data/")
 
         # checkpoint_path = '/content/MyDrive/cls_model/train/20200305-193322-tf_mobilenetv3_large_100-224/model_best.pth.tar'
 
-        model  = models.resnext101_32x8d(pretrained=False, num_classes=2)
-        checkpoint_path = "/content/MyDrive/cls_model/train/20200306-140733-resnext101_32x8d-224/model_best.pth.tar"
-        checkpoint = torch.load(checkpoint_path)
-        model.load_state_dict(checkpoint["state_dict"])
+        # model  = models.resnext101_32x8d(pretrained=False, num_classes=2)
+        # checkpoint_path = "/content/MyDrive/cls_model/train/20200306-140733-resnext101_32x8d-224/model_best.pth.tar"
+        # checkpoint = torch.load(checkpoint_path)
+        # model.load_state_dict(checkpoint["state_dict"])
 
-        # model = timm.create_model('resnext101_32x8d', num_classes=2, checkpoint_path = checkpoint_path)
+        model = timm.create_model('gluon_seresnext101_32x4d', num_classes=2, checkpoint_path = checkpoint_path)
         model.to(device)
         model.eval()
         self.device = device
@@ -44,7 +44,6 @@ class Damage_detector():
         if erase_overlap:
             assert frame_info is not None, "Other bounding boxes are necessary to find overlapped region. Pass the frame_info param."
             erase_overlapped(cropped_img, bbox, frame_info, padding_size)
-
         img_RGB = cv2.cvtColor(cropped_img,cv2.COLOR_BGR2RGB)
 
         img = Image.fromarray(img_RGB)
@@ -94,19 +93,26 @@ def erase_overlapped(cropped_img, target_bbox, frame_info, padding_size):
         left2, top2, right2, bottom2 = bbox
 
         from_right = left2>left and left2<right
-        from_left = (right2>left and right2<right)
-        from_bot = (top2>top and top2<bottom)
-        from_top = (bottom2>top and bottom2<bottom)
+        from_left = right2>left and right2<right
+        from_bot = top2>top and top2<bottom
+        from_top = bottom2>top and bottom2<bottom
+
 
         if (from_left or from_right ) and (from_top or from_bot):
-            if from_left:
+            if from_left and from_right: #within
+                erase_left =  left2 - left + x_pad
+                erase_right = right2 - left + x_pad
+            elif from_left:
                 erase_left = 0
-                erase_right = right2-left + x_pad
+                erase_right = right2 - left + x_pad
             else:
-                erase_left = left2-left + x_pad
+                erase_left = left2 - left + x_pad
                 erase_right = right - left + x_pad*2
                 
-            if from_top:
+            if from_top and from_bot:
+                erase_top = top2 - top + y_pad
+                erase_bot = bottom2 - top + y_pad
+            elif from_top:
                 erase_top = 0
                 erase_bot = bottom2 - top + y_pad
             else:

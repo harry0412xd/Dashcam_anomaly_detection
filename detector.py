@@ -100,7 +100,7 @@ def proc_frame(writer, frames, frames_infos, frame_no, ss_masks=None, test_write
         if is_car(class_name):
             # draw_future_center(frames_infos, obj_id, out_frame)
     # damage detection
-            if opt.dmg_det:
+            if opt.dmg_det and score>0:
                 # DAMAGE_SKIP_NUM = 2
                 obj_dmg_key = f"{obj_id}_dmg"
                 if obj_dmg_key in smooth_dict and smooth_dict[obj_dmg_key][0]>0:
@@ -284,14 +284,14 @@ def detect_car_collision(car_list, out_frame):
     while len(car_list)>1:
         id1, bbox1 = car_list[0]
         left1, top1, right1, bottom1 = bbox1
-        box1_width, box1_height = right1-left1, bottom1-top1
+        width1, height1 = right1-left1, bottom1-top1
 
         # ignore small box
-        if box1_height<vid_height // DC.COLL_IGNORE_DENOMINATOR:
+        if height1<vid_height // DC.COLL_IGNORE_DENOMINATOR:
             del car_list[0]
             continue
 
-        if box1_width/box1_height > DC.IS_SIDE_RATIO:
+        if width1/height1 > DC.IS_SIDE_RATIO:
             is_side1 = True
         else:
             is_side1 = False
@@ -301,51 +301,47 @@ def detect_car_collision(car_list, out_frame):
         while i<len(car_list):
             id2, bbox2 = car_list[i]
             left2, top2, right2, bottom2 = bbox2
-            box2_width, box2_height = right2-left2, bottom2-top2
-
-            if box2_width/box2_height > DC.IS_SIDE_RATIO:
+            width2, height2 = right2-left2, bottom2-top2
+            if width2/height2 > DC.IS_SIDE_RATIO:
                 is_side2 = True
             else:
                 is_side2 = False
 
-            is_checked = False
+            is_possible = False
             if is_side1 and is_side2:
-                height_thres = DC.COLL_HEIGHT_THRES_STRICT
+                height_thres = 0.03
                 iou_thres = 0.06
-            else:  # is_side1 NOR is_side2:
-                height_thres = DC.COLL_HEIGHT_THRES
+            else:  
+                height_thres = 0.1
                 if is_side1 or is_side2:
                     iou_thres = 0.09
-                else:
+                else: # is_side1 NOR is_side2:
                     iou_thres = 0.12
 
             # if they have about the same bottom(height)
             # 1: two sided car i.e. left/right potion of bbox overlap
             # 2: two forward car left/right side crash
-            if (abs(bottom1-bottom2) / box1_height) < height_thres and \
-                ((right1>right2 and left1>left2) or (right2>right1 and left2>left1)):
-                    is_checked = True
-
-            # elif (abs(top1-top2) / box1_height) < (DC.COLL_HEIGHT_THRES_STRICT) and \
-            #      (right1>right2 and left1>left2) or (right2>right1 and left2>left1):
-            #         is_checked = True
-            #         iou_thres = 0.25
-       
+            if (abs(bottom1-bottom2) / height1) < height_thres:
+                # ((right1>right2 and left1>left2) or (right2>right1 and left2>left1)):
+                    is_possible = True
             elif (is_side1 ^ is_side2):
                         #similar height
-                if abs(box1_height-box2_height)/box2_height < height_thres and \
+                if abs(height1-height2)/height1 < 0.06 and \
                    ((bottom2>bottom1 and top2>top1) or (bottom1>bottom2 and top1>top2)): # back car crash into front car, y-axis may not be similar
-                    is_checked = True
+                    is_possible = True
                     iou_thres = 0.25
 
-            if is_checked:   
-                iou = compute_iou(bbox1, bbox2)
-                # cv2.putText(out_frame, f'{iou:.2f}', ((right1+left1+right2+left2)//4, (top1+bottom1+top2+bottom2)//4), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0,255,0), 2)
-                if iou > iou_thres and iou < DC.IOU_FALSE_THERS: # to exclude some false positive due to detection fault
-                    collision_list.append(id2)
-                    del car_list[i]
-                    has_match = True
-                    i -= 1 # compensate the effect of removing element
+            if is_possible: 
+                width_diff_perc = abs(width2-width1)/width1 
+                if width_diff_perc < 0.1 : #consider width to estimate depth
+                    iou = compute_iou(bbox1, bbox2)
+                    # cv2.putText(out_frame, f'{iou:.2f}', ((right1+left1+right2+left2)//4, (top1+bottom1+top2+bottom2)//4), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0,255,0), 2)
+                    if iou > iou_thres and iou < DC.IOU_FALSE_THERS: # to exclude some false positive due to detection fault
+                        collision_list.append(id2)
+                        del car_list[i]
+                        has_match = True
+                        i -= 1 # compensate the effect of removing element
+
             i += 1 #proceed to next box2
         if has_match:
             collision_list.append(id1)
@@ -901,7 +897,7 @@ def track_video():
             obj_id = d[4]
             class_id, score = tracker_infos[c][0], tracker_infos[c][1]
             class_name = class_names[class_id]
-            if score > -3: #detection is missing
+            if score <= -3: #detection is missing
                 continue
 
             info = [class_id, score, [left, top, right, bottom]]
