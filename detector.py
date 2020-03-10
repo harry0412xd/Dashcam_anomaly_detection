@@ -99,6 +99,7 @@ def proc_frame(writer, frames, frames_infos, frame_no, ss_masks=None, test_write
 
         if is_car(class_name):
             # draw_future_center(frames_infos, obj_id, out_frame)
+            normalize_car_width(bbox, out_frame)
     # damage detection
             if opt.dmg_det and score>0:
                 # DAMAGE_SKIP_NUM = 2
@@ -428,6 +429,27 @@ def detect_jaywalker(recent_bboxes, mean_shift, out_frame=None):
                 if max_dist > vid_width*0.4:
                   return True
     return False
+
+
+def normalize_car_width(bbox, out_frame=None):
+    left, top, right, bottom = bbox
+    width, height = right-left, bottom-top
+    ratio = width/height
+    center_x = (left+right)//2
+    center_y = (top+bottom)//2
+
+    distance = abs(center_x - vid_width//2)
+    forward_ratio = ((distance/vid_width)+1)*1.25
+    # side_ratio = 2.4
+    # ratio_thres = (forward_ratio + side_ratio)/2
+
+    if ratio>=2:
+        return None
+    else:
+        result = (width/forward_ratio)/ (vid_width//2)
+
+    if out_frame is not None:
+        cv2.putText(out_frame, f"{result:.2f} ", (center_x-5, center_y), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0,255,0), 2)
 
 def compute_overlapped(boxA, boxB):
     xA = max(boxA[0], boxB[0])
