@@ -88,7 +88,7 @@ def proc_frame(writer, frames, frames_infos, frame_no, ss_masks=None, test_write
     # car-person collision detect
     if DC.DET_CAR_PERSON_COL and not is_moving:
         cdtc_list = get_cdtc_list(frames_infos, car_list)
-        car_person_collision_id_list = detect_person_car_collison(id_to_info, cdtc_list)
+        car_person_collision_id_list = detect_car_person_collison(id_to_info, cdtc_list)
     # object-wise
     for obj_id in id_to_info:
         info = id_to_info[obj_id]
@@ -99,7 +99,7 @@ def proc_frame(writer, frames, frames_infos, frame_no, ss_masks=None, test_write
 
         if is_car(class_name):
             # draw_future_center(frames_infos, obj_id, out_frame)
-            normalize_car_width(bbox, out_frame)
+            # normalize_car_width(bbox, out_frame)
     # damage detection
             if opt.dmg_det and score>0:
                 # DAMAGE_SKIP_NUM = 2
@@ -127,9 +127,9 @@ def proc_frame(writer, frames, frames_infos, frame_no, ss_masks=None, test_write
                             dmg_prob = damage_detector.detect(frame2proc, bbox, padding_size=(x_pad, y_pad))
 
                         # smooth indication and skip checking to make faster
-                        if dmg_prob>0.97:
+                        if dmg_prob>0.9:
                             skip_num = 12
-                        elif dmg_prob>0.95:
+                        elif dmg_prob>0.85:
                             skip_num = 6
                         else:
                             skip_num = 3
@@ -138,7 +138,7 @@ def proc_frame(writer, frames, frames_infos, frame_no, ss_masks=None, test_write
                     else:
                         dmg_prob = 0
 
-                if dmg_prob>=0.93:
+                if dmg_prob>=0.8:
                     ano_dict['damaged'] = True
                 cv2.putText(out_frame, f'{dmg_prob:.2f}', ((right+left)//2, (bottom+top)//2), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0,255,0), 2)
     # ----damage detection end
@@ -255,7 +255,7 @@ def get_cdtc_list(frame_infos, car_list):
 
 # if the person is in front of a car
 # the car is driving toward camera
-def detect_person_car_collison(id_to_info, cdtc_list):
+def detect_car_person_collison(id_to_info, cdtc_list):
     results =[]
     for person_id in id_to_info:
         cls_id, _, person_bbox = id_to_info[person_id]
@@ -439,9 +439,7 @@ def normalize_car_width(bbox, out_frame=None):
     center_y = (top+bottom)//2
 
     distance = abs(center_x - vid_width//2)
-    forward_ratio = ((distance/vid_width)+1)*1.25
-    # side_ratio = 2.4
-    # ratio_thres = (forward_ratio + side_ratio)/2
+    forward_ratio = (distance+1)*1.2 - 0.2
 
     if ratio>=2:
         return None

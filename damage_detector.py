@@ -8,7 +8,9 @@ import os.path
 from PIL import Image
 from torchvision import transforms
 
-import timm
+from timm.models import create_model, resume_checkpoint, convert_splitbn_model
+from timm.utils import *
+
 from torchvision import models
 
 class Damage_detector():
@@ -19,7 +21,9 @@ class Damage_detector():
         #     torch.utils.model_zoo.load_url(url, model_dir="model_data/")
 
         # This with blurred image
-        checkpoint_path = "/content/MyDrive/cls_model/train/20200305-144015-gluon_seresnext101_32x4d-224/model_best.pth.tar"
+        # checkpoint_path = "/content/MyDrive/cls_model/train/20200305-144015-gluon_seresnext101_32x4d-224/model_best.pth.tar"
+
+        checkpoint_path ="/content/MyDrive/cls_model/train/20200310-102625-skresnext50_32x4d-224/model_best.pth.tar"
 
         # checkpoint_path = '/content/MyDrive/cls_model/train/20200305-193322-tf_mobilenetv3_large_100-224/model_best.pth.tar'
         
@@ -28,7 +32,14 @@ class Damage_detector():
         # checkpoint = torch.load(checkpoint_path)
         # model.load_state_dict(checkpoint["state_dict"])
 
-        model = timm.create_model('gluon_seresnext101_32x4d', num_classes=2, checkpoint_path = checkpoint_path)
+        # model = create_model('skresnext50_32x4d', num_classes=2, checkpoint_path = checkpoint_path)
+
+
+        model = create_model('skresnext50_32x4d', num_classes=2)
+        convert_splitbn_model(model,3)
+        # distribute_bn(model, 1, True)
+        resume_checkpoint(model, checkpoint_path)
+
         model.to(device)
         model.eval()
         self.device = device
