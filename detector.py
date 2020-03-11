@@ -191,7 +191,6 @@ def proc_frame(writer, frames, frames_infos, frame_no, ss_masks=None, test_write
                 if is_moving and detect_jaywalker(get_bboxes_by_id(frames_infos, obj_id), (left_mean, right_mean), out_frame):
                     ano_dict['jaywalker'] = True
     # ----Jaywalker end
-
         draw_bbox(out_frame, ano_dict, class_name, obj_id, score, bbox)
 # --- Objects iteration end
 
@@ -273,8 +272,30 @@ def detect_car_person_collison(id_to_info, cdtc_list):
                             results.append(car_id)
     return results
 
+def detect_car_person_collison_new(person_list, car_list):
+    results = []
+    for person_id in person_list:
+        person_bboxes = get_bboxes_by_id(person_id)
+        for car_id in car_list:
+            car_bboxes = get_bboxes_by_id(car_id)
 
-
+            i ,j = 0, 0
+            while i<len(person_bboxes) and j<len(car_bboxes):
+                person_bbox, person_offset = person_bboxes[i]
+                car_bbox, car_offset = car_bboxes[j]
+                if person_offset==car_offset:
+                    car_depth = estimate_depth_by_width(car_bbox, True)
+                    person_depth = estimate_depth_by_width(person_bbox, False)
+                    if  car_depth>person_depth and 
+                        if compute_overlapped(person_bbox, car_bbox) > 0.6:
+                            results.append([car_bbox, person_bbox, person_offset])
+                    i += 1
+                    j += 1 
+                elif person_offset<car_offset:
+                    i += 1
+                elif person_offset>car_offset:
+                    j += 1  
+    return results
 
 
 # car list [(obj_id, bbox),]
@@ -431,23 +452,31 @@ def detect_jaywalker(recent_bboxes, mean_shift, out_frame=None):
     return False
 
 
-def normalize_car_width(bbox, out_frame=None):
+def estimate_depth_by_width(bbox, is_car, out_frame=None):
+    multiplier = 100 #make the score eaiser to read
     left, top, right, bottom = bbox
     width, height = right-left, bottom-top
-    ratio = width/height
-    center_x = (left+right)//2
-    center_y = (top+bottom)//2
+    if is_car:
+        ratio = width/height
+        center_x = (left+right)//2
+        center_y = (top+bottom)//2
 
-    distance = abs(center_x - vid_width//2)
-    forward_ratio = (distance+1)*1.2 - 0.2
+        dist = abs(center_x - vid_width//2)
+        factor = (dist+1)*1.2 - 0.2
 
-    if ratio>=2:
-        return None
+        if ratio>=2:
+            return (width/2.4) / vid_width * multiplier
+        else:
+            result = (width/factor) / vid_width * multiplier
+
+        if out_frame is not None:
+            cv2.putText(out_frame, f"{result:.2f} ", (center_x-5, center_y), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0,255,0), 2)
+        
     else:
-        result = (width/forward_ratio)/ (vid_width//2)
-
-    if out_frame is not None:
+        result = 2*width/ vid_width * multiplier
         cv2.putText(out_frame, f"{result:.2f} ", (center_x-5, center_y), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0,255,0), 2)
+
+    return result
 
 def compute_overlapped(boxA, boxB):
     xA = max(boxA[0], boxB[0])
