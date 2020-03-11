@@ -88,7 +88,7 @@ def proc_frame(writer, frames, frames_infos, frame_no, ss_masks=None, test_write
     # car-person collision detect
     if DC.DET_CAR_PERSON_COL and not is_moving:
         cdtc_list = get_cdtc_list(frames_infos, car_list)
-        car_person_collision_id_list = detect_car_person_collison(id_to_info, cdtc_list)
+        car_person_collision_id_list = detect_car_person_collison_new(car_list, person_list, out_frame)
     # object-wise
     for obj_id in id_to_info:
         info = id_to_info[obj_id]
@@ -169,6 +169,7 @@ def proc_frame(writer, frames, frames_infos, frame_no, ss_masks=None, test_write
             else: #is not moving
                 if DC.DET_CAR_PERSON_COL and obj_id in car_person_collision_id_list:
                     ano_dict['collision'] = True
+
                 # for (obj_id2, bbox) in cdtc_list:
                 #     if obj_id == obj_id2:
                 #         ano_dict["cdtc"] = True
@@ -176,9 +177,11 @@ def proc_frame(writer, frames, frames_infos, frame_no, ss_masks=None, test_write
 
     # Jaywalker
         elif class_name=="person":
-            if not is_moving:
-                if DC.DET_CAR_PERSON_COL and obj_id in car_person_collision_id_list:
-                    ano_dict['jaywalker_crashing'] = True
+            # if not is_moving:
+            if DC.DET_CAR_PERSON_COL and obj_id in car_person_collision_id_list:
+                ano_dict['jaywalker_crashing'] = True
+
+
             if ss_masks is not None: # Use semantic segmentation to find people on traffic road
                 if is_moving:
                     obj_on_road_key = f"{obj_id}_on_road"
@@ -272,7 +275,7 @@ def detect_car_person_collison(id_to_info, cdtc_list):
                             results.append(car_id)
     return results
 
-def detect_car_person_collison_new(person_list, car_list):
+def detect_car_person_collison_new(car_list, person_list, out_frame=None):
     results = []
     for person_id in person_list:
         person_bboxes = get_bboxes_by_id(person_id)
@@ -284,11 +287,13 @@ def detect_car_person_collison_new(person_list, car_list):
                 person_bbox, person_offset = person_bboxes[i]
                 car_bbox, car_offset = car_bboxes[j]
                 if person_offset==car_offset:
-                    car_depth = estimate_depth_by_width(car_bbox, True)
-                    person_depth = estimate_depth_by_width(person_bbox, False)
-                    if  car_depth>person_depth and 
-                        if compute_overlapped(person_bbox, car_bbox) > 0.6:
-                            results.append([car_bbox, person_bbox, person_offset])
+                    car_depth = estimate_depth_by_width(car_bbox, True, out_frame)
+                    person_depth = estimate_depth_by_width(person_bbox, False, out_frame)
+                    out_frame = None
+                    if  car_depth>person_depth and compute_overlapped(person_bbox, car_bbox) > 0.6:
+                        # results.append([car_id, person_id, person_offset])
+                        results(car_id)
+                        results(person_id)
                     i += 1
                     j += 1 
                 elif person_offset<car_offset:
@@ -296,6 +301,11 @@ def detect_car_person_collison_new(person_list, car_list):
                 elif person_offset>car_offset:
                     j += 1  
     return results
+
+# def get_frameNum_by_collision_list(collision_list, obj_id):
+#       for (ccar_id, person_id, frame_offset) in collision_list:
+#           if obj_id==car_id or  obj_id==person_id:
+#               return frame_offset
 
 
 # car list [(obj_id, bbox),]
@@ -476,7 +486,7 @@ def estimate_depth_by_width(bbox, is_car, out_frame=None):
         result = 2*width/ vid_width * multiplier
         cv2.putText(out_frame, f"{result:.2f} ", (center_x-5, center_y), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0,255,0), 2)
 
-    return result
+    return multiplier - result
 
 def compute_overlapped(boxA, boxB):
     xA = max(boxA[0], boxB[0])
