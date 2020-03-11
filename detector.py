@@ -9,8 +9,6 @@ import numpy as np
 import torch
 
 from damage_detector import Damage_detector
-damage_detector = None
-
 from deeplabv3plus.deeplabv3plus import DeepLabv3plus
 
 from yolov3.models import *
@@ -21,6 +19,9 @@ from sort import *
 
 import detector_config as DC
 
+# model
+damage_detector = None
+dlv3 = None
 
 #Global Variable
 #Video properties : 
@@ -43,20 +44,22 @@ detection_size = 0
 smooth_dict = {}
 
 
-def proc_frame(writer, frames, frames_infos, frame_no, ss_masks=None, test_writer=None):
+def proc_frame(writer, frames, frames_infos, frame_no, test_writer=None):
     start = timer()
     # print(f"{len(frames)} {len(frames_infos)} {len(ss_masks)}")
     frame2proc = frames.popleft()
     out_frame = frame2proc.copy()
     id_to_info = frames_infos[0]
 
-    if ss_masks is not None:
-        ss_mask = ss_masks.popleft()
-        
+    # semantic seg
+    if opt.ss:
+        if (frame_no-1)%opt.ss_interval == 0:
+            mask = dlv3.predict(frame)
+    else:
+        #compute the average shift in pixel of bounding box, in left/right half of the frame
+        left_mean, right_mean = get_mean_shift(frames_infos, out_frame)
 
-    global class_names, damage_detector, smooth_dict
-    global vid_width, vid_height, vid_fps
-
+    global smooth_dict
     # Detect whether the camera is moving
     if len(frames)>0:
         if test_writer:
@@ -74,11 +77,6 @@ def proc_frame(writer, frames, frames_infos, frame_no, ss_masks=None, test_write
     elif 'is_moving' in smooth_dict and smooth_dict['is_moving'] >0:
         smooth_dict['is_moving'] -= 1
         is_moving = True
-
-
-    #compute the average shift in pixel of bounding box, in left/right half of the frame
-    if ss_masks is None:
-        left_mean, right_mean = get_mean_shift(frames_infos, out_frame)
 
     # car collision detect
     if DC.DET_CAR_PERSON_COL or DC.DET_CAR_COL:
@@ -99,7 +97,7 @@ def proc_frame(writer, frames, frames_infos, frame_no, ss_masks=None, test_write
 
         if is_car(class_name):
             # draw_future_center(frames_infos, obj_id, out_frame)
-            estimate_depth_by_width(car_bbox, True, out_frame)
+            estimate_depth_by_width(bbox, True, out_frame)
     # damage detection
             if opt.dmg_det and score>0:
                 # DAMAGE_SKIP_NUM = 2
@@ -177,13 +175,13 @@ def proc_frame(writer, frames, frames_infos, frame_no, ss_masks=None, test_write
 
     # Jaywalker
         elif class_name=="person":
-            estimate_depth_by_width(car_bbox, False, out_frame)
+            estimate_depth_by_width(bbox, False, out_frame)
             # if not is_moving:
             if DC.DET_CAR_PERSON_COL and obj_id in car_person_collision_id_list:
                 ano_dict['jaywalker_crashing'] = True
 
 
-            if ss_masks is not None: # Use semantic segmentation to find people on traffic road
+            if opt.ss: # Use semantic segmentation to find people on traffic road
                 if is_moving:
                     obj_on_road_key = f"{obj_id}_on_road"
                     if (frame_no-1)%opt.ss_interval == 0:
@@ -313,7 +311,6 @@ def detect_car_person_collison_new(car_list, person_list, out_frame=None):
 # return list of obj_id (car that is colliding)
 def detect_car_collision(car_list, out_frame):
     collision_list = []
-    global vid_width,vid_height
     while len(car_list)>1:
         id1, bbox1 = car_list[0]
         left1, top1, right1, bottom1 = bbox1
@@ -388,7 +385,6 @@ def is_on_traffic_road(bbox, ss_mask, out_frame=None):
     left, top, right, bottom = bbox
     # define check area
     height = bottom - top
-    global vid_width, vid_height
     left2, right2 = max(left, 0), min(right, vid_width)
     top2 = min(bottom, vid_height)
     bottom2 = min(bottom+height//10, vid_height)
@@ -420,8 +416,6 @@ def is_on_traffic_road(bbox, ss_mask, out_frame=None):
 
 
 def detect_jaywalker(recent_bboxes, mean_shift, out_frame=None):
-    global vid_height, vid_width
-
     # ROI = [(vid_width//10,vid_height), (vid_width//2,vid_height*3//7), (vid_width*9//10, vid_height) ]
     ROI = [(0,vid_height), (vid_width//2,vid_height*5//14), (vid_width, vid_height) ]
     y_thers_close = int(vid_height*0.65)
@@ -467,13 +461,14 @@ def estimate_depth_by_width(bbox, is_car, out_frame=None):
     multiplier = 100 #make the score eaiser to read
     left, top, right, bottom = bbox
     width, height = right-left, bottom-top
+    center_x = (left+right)//2
+    center_y = (top+bottom)//2
     if is_car:
         ratio = width/height
-        center_x = (left+right)//2
-        center_y = (top+bottom)//2
+        
 
         dist = abs(center_x - vid_width//2)
-        factor = (dist+1)*1.2 - 0.2
+        factor = (dist/(vid_width//2) + 1)*1.2 - 0.2
 
         if ratio>=2:
             return (width/2.4) / vid_width * multiplier
@@ -606,7 +601,6 @@ def cal_weighted_mean(shift_list, left_count, right_count):
 def draw_bbox(image, ano_dict, class_name, obj_id, score, bbox):
     left, top, right, bottom = bbox
     ano_label = ""
-    global vid_height
     thickness = vid_height//720+1
     font_size = vid_height/1080
 
@@ -643,7 +637,6 @@ def draw_bbox(image, ano_dict, class_name, obj_id, score, bbox):
 # by computer the 3 traingles form with any 2 point & (x,y)
 # and check if the total area of the 3 traingles equal to the triangle of interest
 def inside_roi(x,y, pts):
-    global vid_height, vid_width
     x1, y1 = pts[0]
     x2, y2 = pts[1]
     x3, y3 = pts[2]
@@ -685,7 +678,6 @@ def detect_close_distance(bbox, out_frame=None):
 # Set camera movement detection area
 def set_move_det_area():
     result = []
-    global vid_height, vid_width
 
     boxes_x = [vid_width*0.025,vid_width*0.225, vid_width*0.425, vid_width*0.625, vid_width*0.825]
     boxes_y = [vid_height*0.05, vid_height*0.3]
@@ -711,7 +703,6 @@ def detect_camera_moving(cur_frame, prev_frame, out_frame=None):
         # print("Last frame")
         return False
     threshold = 0.01
-    global detection_boxes, detection_size
 
     count = 0
     for box in detection_boxes:
@@ -741,7 +732,6 @@ def detect_camera_moving(cur_frame, prev_frame, out_frame=None):
     if is_moving:
         # testing purpose
         if out_frame is not None :
-            global vid_width, vid_height
             cv2.putText(out_frame, "Is moving", (vid_width//2, vid_height-50), cv2.FONT_HERSHEY_SIMPLEX, 1.0, (0,0,255), 2)
     
     return is_moving
@@ -772,7 +762,6 @@ def split_bboxes(detections):
 
 #omit small bboxes since they are not accurate and useful enought for detecting anomaly
 def omit_small_bboxes(detections):
-    global vid_height
     # area_threshold = (vid_height//36)**2
     width_threshold, height_threshold = vid_width//30, vid_height//24
     omitted_count = 0
@@ -799,7 +788,6 @@ def omit_small_bboxes(detections):
     
 # yolo wrapper, return list of bounding boxes and list of corresponding classes(id)
 def yolo_detect(frame, model):
-    global device
     frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
     x = torch.from_numpy(frame.transpose(2, 0, 1)).float().to(device)
     x = x.unsqueeze(0)
@@ -902,17 +890,15 @@ def track_video():
         damage_detector = Damage_detector(device)
 
     if opt.ss:
+        global dlv3
+        dlv3 = DeepLabv3plus(device, ss_writer, opt.ss_overlay)
         # Create video writer for semantic segmentation result video
         if opt.ss_out:
             ss_output_path =  output_path.replace("output", "ss")
             ss_writer = cv2.VideoWriter(ss_output_path, video_FourCC, vid_fps, (vid_width, vid_height))
         else:
             ss_writer = None
-        dlv3 = DeepLabv3plus(device, ss_writer, opt.ss_overlay)
-        ss_masks = deque()
-    else:
-        ss_masks = None
-
+        
     # Buffer
     buffer_size = vid_fps #store 1sec of frames
     prev_frames = deque()
@@ -928,12 +914,6 @@ def track_video():
         if not success: #end of video
             break
         in_frame_no += 1
-
-        # semantic seg
-        if opt.ss:
-            if (in_frame_no-1)%opt.ss_interval == 0:
-                mask = dlv3.predict(frame)
-            ss_masks.append(mask)
 
         # Obj Detection
         obj_det_results = yolo_detect(frame, yolo_model)
@@ -960,7 +940,7 @@ def track_video():
             class_name = class_names[class_id]
             if is_car(class_name) and score <0 : #detection is missing
                 continue
-            elif class_name=="person" and score <=-3:
+            elif class_name=="person" and score <=-2:
                 continue
 
             info = [class_id, score, [left, top, right, bottom]]
@@ -970,7 +950,7 @@ def track_video():
         frames_infos.append(id_to_info)
         # frame buffer proc
         if len(prev_frames)>buffer_size:
-            proc_ms = proc_frame(out_writer, prev_frames, frames_infos, proc_frame_no, ss_masks=ss_masks, test_writer=test_writer)
+            proc_ms = proc_frame(out_writer, prev_frames, frames_infos, proc_frame_no, test_writer=test_writer)
             proc_frame_no += 1
 
         if in_frame_no % print_interval == 0:
@@ -989,7 +969,7 @@ def track_video():
 
     # Process the remaining frames in buffer
     while len(frames_infos)>0:
-        proc_frame(out_writer, prev_frames, frames_infos, proc_frame_no, ss_masks = ss_masks, test_writer=test_writer)
+        proc_frame(out_writer, prev_frames, frames_infos, proc_frame_no, test_writer=test_writer)
         proc_frame_no += 1
     end = timer()
     avg_s = (end-start)/(in_frame_no % print_interval)
