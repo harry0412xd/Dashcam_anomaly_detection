@@ -54,7 +54,7 @@ def proc_frame(writer, frames, frames_infos, frame_no, test_writer=None):
     # semantic seg
     if opt.ss:
         if (frame_no-1)%opt.ss_interval == 0:
-            mask = dlv3.predict(frame)
+            ss_mask = dlv3.predict(frame2proc)
     else:
         #compute the average shift in pixel of bounding box, in left/right half of the frame
         left_mean, right_mean = get_mean_shift(frames_infos, out_frame)
@@ -891,14 +891,14 @@ def track_video():
 
     if opt.ss:
         global dlv3
-        dlv3 = DeepLabv3plus(device, ss_writer, opt.ss_overlay)
         # Create video writer for semantic segmentation result video
         if opt.ss_out:
             ss_output_path =  output_path.replace("output", "ss")
             ss_writer = cv2.VideoWriter(ss_output_path, video_FourCC, vid_fps, (vid_width, vid_height))
         else:
             ss_writer = None
-        
+        dlv3 = DeepLabv3plus(device, ss_writer, opt.ss_overlay)
+
     # Buffer
     buffer_size = vid_fps #store 1sec of frames
     prev_frames = deque()
