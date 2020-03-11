@@ -99,7 +99,7 @@ def proc_frame(writer, frames, frames_infos, frame_no, ss_masks=None, test_write
 
         if is_car(class_name):
             # draw_future_center(frames_infos, obj_id, out_frame)
-            # normalize_car_width(bbox, out_frame)
+            estimate_depth_by_width(car_bbox, True, out_frame)
     # damage detection
             if opt.dmg_det and score>0:
                 # DAMAGE_SKIP_NUM = 2
@@ -177,6 +177,7 @@ def proc_frame(writer, frames, frames_infos, frame_no, ss_masks=None, test_write
 
     # Jaywalker
         elif class_name=="person":
+            estimate_depth_by_width(car_bbox, False, out_frame)
             # if not is_moving:
             if DC.DET_CAR_PERSON_COL and obj_id in car_person_collision_id_list:
                 ano_dict['jaywalker_crashing'] = True
@@ -287,10 +288,10 @@ def detect_car_person_collison_new(car_list, person_list, out_frame=None):
                 person_bbox, person_offset = person_bboxes[i]
                 car_bbox, car_offset = car_bboxes[j]
                 if person_offset==car_offset:
-                    car_depth = estimate_depth_by_width(car_bbox, True, out_frame)
-                    person_depth = estimate_depth_by_width(person_bbox, False, out_frame)
-                    out_frame = None
-                    if  car_depth>person_depth and compute_overlapped(person_bbox, car_bbox) > 0.6:
+                    car_depth = estimate_depth_by_width(car_bbox, True)
+                    person_depth = estimate_depth_by_width(person_bbox, False)
+
+                    if  car_depth>person_depth and compute_overlapped(person_bbox, car_bbox) > 0.4:
                         # results.append([car_id, person_id, person_offset])
                         results(car_id)
                         results(person_id)
