@@ -4,3 +4,5 @@
 *.pth
 *.mp4
 *.mkv
+*.tar
+__pycache__/
