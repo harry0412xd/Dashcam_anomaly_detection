@@ -466,33 +466,28 @@ def detect_jaywalker(recent_bboxes, mean_shift, out_frame=None):
     return False
 
 
-# larger value = futher
 def estimate_depth_by_width(bbox, is_car, out_frame=None):
     multiplier = 100 #make the score eaiser to read
+
     left, top, right, bottom = bbox
     width, height = right-left, bottom-top
     center_x = (left+right)//2
     center_y = (top+bottom)//2
-    if is_car:
-        ratio = width/height
-        
-
+    if is_car:      
         dist = abs(center_x - vid_width//2)
         factor = (dist/(vid_width//2) + 1)*1.2 - 0.2
 
-        if ratio>=2:
-            return (width/2.4) / vid_width * multiplier
+        if width/height>=2:
+            result = (width/2.4) / vid_width * multiplier
         else:
-            result = (width/factor) / vid_width * multiplier
-
-        if out_frame is not None:
-            cv2.putText(out_frame, f"{result:.2f} ", (center_x-5, center_y), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0,255,0), 2)
-        
+            result = (width/factor) / vid_width * multiplier   
     else:
         result = 1.6*width/ vid_width * multiplier
-        cv2.putText(out_frame, f"{result:.2f} ", (center_x-5, center_y), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0,255,0), 2)
 
-    return multiplier - result
+    result = multiplier - result #revert so that larger value = futher
+    if out_frame is not None:
+        cv2.putText(out_frame, f"{result:.2f} ", (center_x-5, center_y), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0,255,0), 2)
+    return result
 
 def compute_overlapped(boxA, boxB):
     xA = max(boxA[0], boxB[0])
