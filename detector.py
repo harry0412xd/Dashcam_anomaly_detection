@@ -97,9 +97,12 @@ def proc_frame(writer, frames, frames_infos, frame_no, test_writer=None):
         class_name = class_names[class_id]
         ano_dict = {}
 
+        if DC.DET_CAR_PERSON_COL and obj_id in car_person_collision_id_list:
+            ano_dict['car_person_crash'] = True
+
         if is_car(class_name):
             # draw_future_center(frames_infos, obj_id, out_frame)
-            estimate_depth_by_width(bbox, True, out_frame)
+
     # damage detection
             if opt.dmg_det and score>0:
                 # DAMAGE_SKIP_NUM = 2
@@ -127,9 +130,9 @@ def proc_frame(writer, frames, frames_infos, frame_no, test_writer=None):
                             dmg_prob = damage_detector.detect(frame2proc, bbox, padding_size=(x_pad, y_pad))
 
                         # smooth indication and skip checking to make faster
-                        if dmg_prob>0.9:
+                        if dmg_prob>0.97:
                             skip_num = 12
-                        elif dmg_prob>0.85:
+                        elif dmg_prob>0.95:
                             skip_num = 6
                         else:
                             skip_num = 3
@@ -138,7 +141,7 @@ def proc_frame(writer, frames, frames_infos, frame_no, test_writer=None):
                     else:
                         dmg_prob = 0
 
-                if dmg_prob>=0.8:
+                if dmg_prob>=0.9:
                     ano_dict['damaged'] = True
                 cv2.putText(out_frame, f'{dmg_prob:.2f}', ((right+left)//2, (bottom+top)//2), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0,255,0), 2)
     # ----damage detection end
@@ -166,22 +169,10 @@ def proc_frame(writer, frames, frames_infos, frame_no, test_writer=None):
                 is_close = detect_close_distance(bbox)
                 ano_dict['close_distance'] = is_close
     # ----Car distance end
-            else: #is not moving
-                if DC.DET_CAR_PERSON_COL and obj_id in car_person_collision_id_list:
-                    ano_dict['collision'] = True
 
-                # for (obj_id2, bbox) in cdtc_list:
-                #     if obj_id == obj_id2:
-                #         ano_dict["cdtc"] = True
-                #         break
 
     # Jaywalker
         elif class_name=="person":
-            estimate_depth_by_width(bbox, False, out_frame)
-            # if not is_moving:
-            if DC.DET_CAR_PERSON_COL and obj_id in car_person_collision_id_list:
-                ano_dict['jaywalker_crashing'] = True
-
 
             if opt.ss: # Use semantic segmentation to find people on traffic road
                 if is_moving:
@@ -289,17 +280,19 @@ def detect_car_person_collison_new(car_list, person_list, out_frame=None):
                 person_bbox, person_offset = person_bboxes[i]
                 car_bbox, car_offset = car_bboxes[j]
                 if person_offset==car_offset:
-                    car_depth = estimate_depth_by_width(car_bbox, True)
-                    person_depth = estimate_depth_by_width(person_bbox, False)
+                    if person_offset==0:
+                        car_depth = estimate_depth_by_width(car_bbox, True, out_frame)
+                        person_depth = estimate_depth_by_width(person_bbox, False, out_frame)
+                    else:
+                        car_depth = estimate_depth_by_width(car_bbox, True)
+                        person_depth = estimate_depth_by_width(person_bbox, False)
 
-                    # if  car_depth>person_depth and compute_overlapped(person_bbox, car_bbox) > 0.4:
-                        # results.append([car_id, person_id, person_offset])
-                    if abs(car_depth-person_depth)<2:
+                    if abs(car_depth-person_depth)<3:
                         car_center_x, car_center_y = (car_bbox[2]+car_bbox[0])//2, (car_bbox[3]+car_bbox[1])//2
                         person_center_x, person_center_y = (person_bbox[2]+person_bbox[0])//2, (person_bbox[3]+person_bbox[1])//2
                         dist = euclidean_distance(car_center_x, person_center_x, car_center_y, person_center_y)
                         person_width = person_bbox[2]-person_bbox[0]
-                        if dist< 3*person_width:
+                        if dist< 2.5*person_width:
                             results.append(car_id)
                             results.append(person_id)
                     i += 1
@@ -613,9 +606,8 @@ def draw_bbox(image, ano_dict, class_name, obj_id, score, bbox):
                  ("lost_control", (255,255,0) ),
                  ("damaged", (123,0,255) ),
                  ("close_distance", (70,255,255) ),
-                 ("jaywalker_crashing", (0,100,255) ),
                  ("jaywalker", (0,123,255) )
-                 ,("cdtc", (0,123,0)) #test only
+                 ,("car_person_crash", (0,51,153)) #brown
                 ]
     is_drawn = False
     for (name, color) in anomalies:
