@@ -841,7 +841,7 @@ def track_video():
     if not vid.isOpened():
         raise IOError("Couldn't open webcam or video")
 
-    # get video prop
+    # get&set video prop
     global vid_width, vid_height, vid_fps
     vid_width = int(vid.get(cv2.CAP_PROP_FRAME_WIDTH))
     vid_height = int(vid.get(cv2.CAP_PROP_FRAME_HEIGHT))
@@ -872,9 +872,8 @@ def track_video():
     else:
         test_writer = None
 
-  # global init
+ 
     set_move_det_area()
-
     global class_names
     class_names = load_classes(opt.class_path)
   # init SORT tracker
@@ -914,7 +913,6 @@ def track_video():
     prev_frames = deque()
     frames_infos = deque()
     
-    
     # start iter frames
     in_frame_no, proc_frame_no = 0, 1
     print("Start processing video ...")
@@ -928,31 +926,26 @@ def track_video():
         # Obj Detection
         obj_det_results = yolo_detect(frame, yolo_model)
         omitted_count = omit_small_bboxes(obj_det_results)
-
         car_bboxes,car_classes, person_bboxes, person_classes = split_bboxes(obj_det_results)
+        
         # tracker_infos is added to return link the class name & the object tracked
-
         car_trackers, car_tracker_infos = car_tracker.update(np.array(car_bboxes), np.array(car_classes))
         person_trackers, person_tracker_infos = person_tracker.update(np.array(person_bboxes), np.array(person_classes))
-
-        # print(car_trackers, car_tracker_infos)
-        # print(person_trackers, person_tracker_infos)
-
+        # join the trackers
         trackers = [*car_trackers, *person_trackers]
         tracker_infos =  [*car_tracker_infos, *person_tracker_infos]
 
-        id_to_info = {}
+        id_to_info = {} #key: id  value: info
         for c, d in enumerate(trackers):
             d = d.astype(np.int32) 
-            left, top, right, bottom = int(d[0]), int(d[1]), int(d[2]), int(d[3])
-            obj_id = d[4]
+            left, top, right, bottom, obj_id = int(d[0]), int(d[1]), int(d[2]), int(d[3]), d[4]
             class_id, score = tracker_infos[c][0], tracker_infos[c][1]
             class_name = class_names[class_id]
             if is_car(class_name) and score <0 : #detection is missing
                 continue
-            elif class_name=="person" and score <=-2:
+            elif class_name=="person" and score <= -(DC.PERSON_MISS_TOLERATE):
                 continue
-
+            # add to dict
             info = [class_id, score, [left, top, right, bottom]]
             id_to_info[obj_id] = info
 
@@ -965,17 +958,11 @@ def track_video():
 
         if in_frame_no % print_interval == 0:
             end = timer()
-            # msg = f"[{sec2length(in_frame_no//vid_fps)}/{video_length}]"
-                   # + f"  Found {len(bboxes)} boxes  | {omitted_count} omitted "
-
             avg_s = (end-start)/print_interval
             fps = str(round(1/avg_s, 2))
             msg = f"[{sec2length(in_frame_no//vid_fps)}/{video_length}] avg_fps: {fps} time: {avg_s*1000}ms"
             print(msg)
             start = timer()
-
-        # if proc_frame_no% print_interval == 0:
-            # print(f">> Processing frame {proc_frame_no}, time: {proc_ms:.2f}ms")
 
     # Process the remaining frames in buffer
     while len(frames_infos)>0:
