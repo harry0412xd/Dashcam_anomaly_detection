@@ -292,10 +292,16 @@ def detect_car_person_collison_new(car_list, person_list, out_frame=None):
                     car_depth = estimate_depth_by_width(car_bbox, True)
                     person_depth = estimate_depth_by_width(person_bbox, False)
 
-                    if  car_depth>person_depth and compute_overlapped(person_bbox, car_bbox) > 0.4:
+                    # if  car_depth>person_depth and compute_overlapped(person_bbox, car_bbox) > 0.4:
                         # results.append([car_id, person_id, person_offset])
-                        results(car_id)
-                        results(person_id)
+                    if abs(car_depth-person_depth)<2:
+                        car_center_x, car_center_y = (car_bbox[2]+car_bbox[0])//2, (car_bbox[3]+car_bbox[1])//2
+                        person_center_x, person_center_y = (person_bbox[2]+person_bbox[0])//2, (person_bbox[3]+person_bbox[1])//2
+                        dist = euclidean_distance(car_center_x, person_center_x, car_center_y, person_center_y)
+                        person_width = person_bbox[2]-person_bbox[0]
+                        if dist< 3*person_width:
+                            results.append(car_id)
+                            results.append(person_id)
                     i += 1
                     j += 1 
                 elif person_offset<car_offset:
@@ -460,6 +466,7 @@ def detect_jaywalker(recent_bboxes, mean_shift, out_frame=None):
     return False
 
 
+# larger value = futher
 def estimate_depth_by_width(bbox, is_car, out_frame=None):
     multiplier = 100 #make the score eaiser to read
     left, top, right, bottom = bbox
