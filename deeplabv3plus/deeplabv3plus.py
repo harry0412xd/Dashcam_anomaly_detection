@@ -41,7 +41,9 @@ class DeepLabv3plus():
             transforms.ToTensor(),
             transforms.Normalize([0.485, 0.456, 0.406], [0.229, 0.224, 0.225]),
         ])
-        self.counter = 0
+        # self.counter = 0
+
+        self.last_result = None
 
         # Output result video if needed
         self.writer = video_writer
@@ -90,8 +92,10 @@ class DeepLabv3plus():
                 self.writer.write(overlay_img)
             else:
                 self.writer.write(frame)
-        
+
+        self.last_result = out_img
         return out_img
             
-
+    def get_last_result(self):
+        return self.last_result
 

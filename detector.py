@@ -55,6 +55,8 @@ def proc_frame(writer, frames, frames_infos, frame_no, test_writer=None):
     if opt.ss:
         if (frame_no-1)%opt.ss_interval == 0:
             ss_mask = dlv3.predict(frame2proc)
+        else:
+            ss_mask = dlv3.get_last_result()
     else:
         #compute the average shift in pixel of bounding box, in left/right half of the frame
         left_mean, right_mean = get_mean_shift(frames_infos, out_frame)
@@ -62,7 +64,7 @@ def proc_frame(writer, frames, frames_infos, frame_no, test_writer=None):
     global smooth_dict
     # Detect whether the camera is moving
     if len(frames)>0:
-        if test_writer:
+        if test_writer is not None:
             test_frame = out_frame.copy()
             is_moving = detect_camera_moving(frame2proc, frames[0], out_frame=test_frame)
             test_writer.write(test_frame)
@@ -183,11 +185,12 @@ def proc_frame(writer, frames, frames_infos, frame_no, test_writer=None):
 
             if opt.ss: # Use semantic segmentation to find people on traffic road
                 if is_moving:
-                    obj_on_road_key = f"{obj_id}_on_road"
-                    if (frame_no-1)%opt.ss_interval == 0:
-                        smooth_dict[obj_on_road_key] =  is_on_traffic_road(bbox, ss_mask)
-                    elif obj_on_road_key in smooth_dict:
-                            ano_dict['jaywalker'] = smooth_dict[obj_on_road_key]                       
+                    ano_dict['jaywalker'] = is_on_traffic_road(bbox, ss_mask)
+                    # obj_on_road_key = f"{obj_id}_on_road"
+                    # if (frame_no-1)%opt.ss_interval == 0:
+                    #     smooth_dict[obj_on_road_key] =  is_on_traffic_road(bbox, ss_mask)
+                    # elif obj_on_road_key in smooth_dict:
+                    #         ano_dict['jaywalker'] = smooth_dict[obj_on_road_key]                       
 
             else: # Use pre-defined baseline
                 if is_moving and detect_jaywalker(get_bboxes_by_id(frames_infos, obj_id), (left_mean, right_mean), out_frame):
@@ -479,7 +482,7 @@ def estimate_depth_by_width(bbox, is_car, out_frame=None):
             cv2.putText(out_frame, f"{result:.2f} ", (center_x-5, center_y), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0,255,0), 2)
         
     else:
-        result = 2*width/ vid_width * multiplier
+        result = 1.6*width/ vid_width * multiplier
         cv2.putText(out_frame, f"{result:.2f} ", (center_x-5, center_y), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0,255,0), 2)
 
     return multiplier - result
