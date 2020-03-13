@@ -130,9 +130,9 @@ def proc_frame(writer, frames, frames_infos, frame_no, test_writer=None):
                             dmg_prob = damage_detector.detect(frame2proc, bbox, padding_size=(x_pad, y_pad))
 
                         # smooth indication and skip checking to make faster
-                        if dmg_prob>0.97:
+                        if dmg_prob>0.8:
                             skip_num = 12
-                        elif dmg_prob>0.95:
+                        elif dmg_prob>0.75:
                             skip_num = 6
                         else:
                             skip_num = 3
@@ -141,7 +141,7 @@ def proc_frame(writer, frames, frames_infos, frame_no, test_writer=None):
                     else:
                         dmg_prob = 0
 
-                if dmg_prob>=0.9:
+                if dmg_prob>=0.7:
                     ano_dict['damaged'] = True
                 cv2.putText(out_frame, f'{dmg_prob:.2f}', ((right+left)//2, (bottom+top)//2), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0,255,0), 2)
     # ----damage detection end
@@ -287,7 +287,7 @@ def detect_car_person_collison_new(car_list, person_list, out_frame=None):
                         car_depth = estimate_depth_by_width(car_bbox, True)
                         person_depth = estimate_depth_by_width(person_bbox, False)
 
-                    if abs(car_depth-person_depth)<3:
+                    if abs(car_depth-person_depth)<5:
                         car_center_x, car_center_y = (car_bbox[2]+car_bbox[0])//2, (car_bbox[3]+car_bbox[1])//2
                         person_center_x, person_center_y = (person_bbox[2]+person_bbox[0])//2, (person_bbox[3]+person_bbox[1])//2
                         dist = euclidean_distance(car_center_x, person_center_x, car_center_y, person_center_y)
@@ -841,7 +841,7 @@ def track_video():
     video_length = sec2length(video_total_frame//vid_fps)
     
     # init video writer
-    video_FourCC = cv2.VideoWriter_fourcc(*'x264')
+    video_FourCC = cv2.VideoWriter_fourcc(*'mp4v')
     isOutput = True if output_path != "" else False
     if isOutput:
         # print("!!! TYPE:", type(output_path), type(video_FourCC), type(vid_fps), type(video_size))

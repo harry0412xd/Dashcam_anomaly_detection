@@ -23,7 +23,8 @@ class Damage_detector():
         # This with blurred image
         # checkpoint_path = "/content/MyDrive/cls_model/train/20200305-144015-gluon_seresnext101_32x4d-224/model_best.pth.tar"
 
-        checkpoint_path ="/content/MyDrive/cls_model/train/20200310-102625-skresnext50_32x4d-224/model_best.pth.tar"
+        # checkpoint_path ="/content/MyDrive/cls_model/train/20200310-102625-skresnext50_32x4d-224/model_best.pth.tar"
+        checkpoint_path = "/content/MyDrive/cls_model/train/20200313-163014-gluon_seresnext101_32x4d-224/checkpoint-258.pth.tar"
 
         # checkpoint_path = '/content/MyDrive/cls_model/train/20200305-193322-tf_mobilenetv3_large_100-224/model_best.pth.tar'
         
@@ -35,7 +36,7 @@ class Damage_detector():
         # model = create_model('skresnext50_32x4d', num_classes=2, checkpoint_path = checkpoint_path)
 
 
-        model = create_model('skresnext50_32x4d', num_classes=2)
+        model = create_model('gluon_seresnext101_32x4d', num_classes=2)
         convert_splitbn_model(model,3)
         # distribute_bn(model, 1, True)
         resume_checkpoint(model, checkpoint_path)
