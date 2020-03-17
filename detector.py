@@ -130,9 +130,9 @@ def proc_frame(writer, frames, frames_infos, frame_no, test_writer=None):
                             dmg_prob = damage_detector.detect(frame2proc, bbox, padding_size=(x_pad, y_pad))
 
                         # smooth indication and skip checking to make faster
-                        if dmg_prob>0.8:
+                        if dmg_prob>0.95:
                             skip_num = 12
-                        elif dmg_prob>0.75:
+                        elif dmg_prob>0.93:
                             skip_num = 6
                         else:
                             skip_num = 3
@@ -141,7 +141,7 @@ def proc_frame(writer, frames, frames_infos, frame_no, test_writer=None):
                     else:
                         dmg_prob = 0
 
-                if dmg_prob>=0.7:
+                if dmg_prob>=0.9:
                     ano_dict['damaged'] = True
                 cv2.putText(out_frame, f'{dmg_prob:.2f}', ((right+left)//2, (bottom+top)//2), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0,255,0), 2)
     # ----damage detection end
