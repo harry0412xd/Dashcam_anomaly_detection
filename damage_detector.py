@@ -20,28 +20,18 @@ class Damage_detector():
         # if not os.path.isfile(checkpoint_path):
         #     torch.utils.model_zoo.load_url(url, model_dir="model_data/")
 
-        # This with blurred image
-        # checkpoint_path = "/content/MyDrive/cls_model/train/20200305-144015-gluon_seresnext101_32x4d-224/model_best.pth.tar"
-
-        # checkpoint_path ="/content/MyDrive/cls_model/train/20200310-102625-skresnext50_32x4d-224/model_best.pth.tar"
-
         # new data(5) 2020/3/17
-        # checkpoint_path = "/content/MyDrive/cls_model/train/20200317-083104-gluon_seresnext101_32x4d-224/model_best.pth.tar"
-        checkpoint_path = "/content/MyDrive/cls_model/train/20200317-063921-skresnext50_32x4d-224/model_best.pth.tar"
-        # checkpoint_path = '/content/MyDrive/cls_model/train/20200305-193322-tf_mobilenetv3_large_100-224/model_best.pth.tar'
-        
-        # model  = models.resnext101_32x8d(pretrained=False, num_classes=2)
-        # checkpoint_path = "/content/MyDrive/cls_model/train/20200306-140733-resnext101_32x8d-224/model_best.pth.tar"
-        # checkpoint = torch.load(checkpoint_path)
-        # model.load_state_dict(checkpoint["state_dict"])
-
+        # checkpoint_path = "/content/MyDrive/cls_model/20200317-083104-gluon_seresnext101_32x4d-224/model_best.pth.tar"
         # model = create_model('skresnext50_32x4d', num_classes=2, checkpoint_path = checkpoint_path)
 
+        # augmix
+        checkpoint_path = "/content/MyDrive/cls_model/train/20200318-112718-gluon_seresnext101_32x4d-224/model_best.pth.tar"
+        model = create_model('gluon_seresnext101_32x4d', num_classes=2, checkpoint_path = checkpoint_path)
 
-        model = create_model('gluon_seresnext101_32x4d', num_classes=2)
+        # model = create_model('gluon_seresnext101_32x4d', num_classes=2)
         # convert_splitbn_model(model,3)
         # distribute_bn(model, 1, True)
-        resume_checkpoint(model, checkpoint_path)
+        # resume_checkpoint(model, checkpoint_path)
 
         model.to(device)
         model.eval()
