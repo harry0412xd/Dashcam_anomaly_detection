@@ -812,8 +812,19 @@ def yolo_detect(frame, model):
     # return bboxes, classes
     return results
 
+
+def save_det_result(id_to_info, frame_no):
+
+    for obj_id in id_to_info:
+        class_id, score, bbox = id_to_info[obj_id]
+
+
+
+
+
 def is_car(class_name):
     return class_name=="car" or class_name=="bus" or class_name=="truck"
+
 
 def track_video():
     global device
@@ -859,6 +870,11 @@ def track_video():
     else:
         test_writer = None
 
+    if opt.save_result:
+        # assert not load_result
+        _filename = opt.input.split("/")
+        result_filename = _filename[len(_filename)-1].split(".")[0] + ".txt"
+        det_result_file = open(result_filename, 'w')
  
     set_move_det_area()
     global class_names
@@ -998,5 +1014,6 @@ if __name__ == '__main__':
     parser.add_argument('--ss_overlay', action='store_true', default=False, help = "[Optional]Overlay the result on the orignal video")
     parser.add_argument('--ss_interval', type=int, default=1, help="frame(s) between segmentations")
 
+    parser.add_argument('--save_result', action='store_true', default=False, help = "[Optional]Output the Object detection/tracking result to a text file")
     opt = parser.parse_args()
     track_video()
