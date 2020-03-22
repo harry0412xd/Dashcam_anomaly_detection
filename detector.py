@@ -820,17 +820,44 @@ def save_det_result(result_file, id_to_info, frame_no):
         result_file.write(f"{frame_no},{obj_id},{class_id},{score},{left},{top},{right},{bottom}\n")
 
 
-def load_det_result(result_file):
+def load_det_result(result_path):
     all_results = []
-    frame_no = 1
-    for line in result_file:
-        
+    last_frame_no = -1
+    frame_results = []
+    with open(result_path, "r") as result_file:
+        for line in result_file:
+            _line = line.strip()
+            frame_no, obj_id, class_id, score, left, top, right, bottom = _line.split(",")
+            frame_no, class_id = int(frame_no), int(class_id)
+            score = float(score)
+            left, top, right, bottom = int(left), int(top), int(right), int(bottom)
+            
+            if last_frame_no == -1:#first line
+                last_frame_no = frame_no
 
+            if frame_no>last_frame_no:
+                # print(frame_no, frame_results)
+                all_results.append(frame_results)
+                for i in range(1, frame_no-last_frame_no):
+                    all_results.append([])
+                frame_results = []
+                frame_results = []
+                last_frame_no = frame_no
+
+            frame_results.append([obj_id, class_id, score, left, top, right, bottom])
+
+    all_results.append(frame_results) #last frame
+    result_file.close()
+    print(len(all_results))
     return all_results
 
 
-def use_det_result(frame_no):
-
+def use_det_result(all_results, frame_no):
+    id_to_info = {}
+    frame_results = all_results[frame_no-1]
+    for (obj_id, class_id, score, left, top, right, bottom) in frame_results:
+        info = [class_id, score, [left, top, right, bottom]]
+        id_to_info[obj_id] = info
     return id_to_info
 
 
@@ -884,30 +911,40 @@ def track_video():
         test_writer = None
 
     if opt.save_result:
-        # assert not load_result
+        assert opt.load_result=="", "Save result & load result are both chosen."
         _filename = opt.input.split("/")
         result_filename = _filename[len(_filename)-1].split(".")[0] + ".txt"
         det_result_file = open(result_filename, 'w')
- 
+    
+    if opt.load_result=="":
+        is_use_result = False
+    else:
+        assert not opt.save_result, "Save result & load result are both chosen."
+        is_use_result = True
+        all_results = load_det_result(opt.load_result)
+
+
     set_move_det_area()
     global class_names
     class_names = load_classes(opt.class_path)
-  # init SORT tracker
-    max_age = max(3,vid_fps//2)
-    car_tracker = Sort(max_age=max_age, min_hits=1)
-    person_tracker = Sort(max_age=max_age, min_hits=1)
-    print("SORT initialized")
-  # init yolov3 model
-    if opt.weights_path == "model_data/YOLOv3_bdd/bdd.weights":
-        if not os.path.isfile(opt.weights_path):
-            print("Downloading YOLO weights ... ")
-            url = "https://github.com/harry0412xd/Dashcam_anomaly_detection/releases/download/v1.0/bdd.weights"
-            import urllib.request
-            urllib.request.urlretrieve(url, "model_data/YOLOv3_bdd/bdd.weights")
-    yolo_model = Darknet(opt.model_def, img_size=opt.img_size).to(device)
-    yolo_model.load_darknet_weights(opt.weights_path)
-    yolo_model.eval()
-    print("YOLO model loaded")
+
+    if not is_use_result:
+      # init SORT tracker
+        max_age = max(3,vid_fps//2)
+        car_tracker = Sort(max_age=max_age, min_hits=1)
+        person_tracker = Sort(max_age=max_age, min_hits=1)
+        print("SORT initialized")
+      # init yolov3 model
+        if opt.weights_path == "model_data/YOLOv3_bdd/bdd.weights":
+            if not os.path.isfile(opt.weights_path):
+                print("Downloading YOLO weights ... ")
+                url = "https://github.com/harry0412xd/Dashcam_anomaly_detection/releases/download/v1.0/bdd.weights"
+                import urllib.request
+                urllib.request.urlretrieve(url, "model_data/YOLOv3_bdd/bdd.weights")
+        yolo_model = Darknet(opt.model_def, img_size=opt.img_size).to(device)
+        yolo_model.load_darknet_weights(opt.weights_path)
+        yolo_model.eval()
+        print("YOLO model loaded")
 
   # Car damage detection
     if opt.dmg_det:
@@ -939,34 +976,37 @@ def track_video():
             break
         in_frame_no += 1
 
-        # Obj Detection
-        obj_det_results = yolo_detect(frame, yolo_model)
-        omitted_count = omit_small_bboxes(obj_det_results)
-        car_bboxes,car_classes, person_bboxes, person_classes = split_bboxes(obj_det_results)
-        
-        # tracker_infos is added to return link the class name & the object tracked
-        car_trackers, car_tracker_infos = car_tracker.update(np.array(car_bboxes), np.array(car_classes))
-        person_trackers, person_tracker_infos = person_tracker.update(np.array(person_bboxes), np.array(person_classes))
-        # join the trackers
-        trackers = [*car_trackers, *person_trackers]
-        tracker_infos =  [*car_tracker_infos, *person_tracker_infos]
+        if is_use_result:
+            id_to_info = use_det_result(all_results, in_frame_no)
+        else:
+            # Obj Detection
+            obj_det_results = yolo_detect(frame, yolo_model)
+            omitted_count = omit_small_bboxes(obj_det_results)
+            car_bboxes,car_classes, person_bboxes, person_classes = split_bboxes(obj_det_results)
+            
+            # tracker_infos is added to return link the class name & the object tracked
+            car_trackers, car_tracker_infos = car_tracker.update(np.array(car_bboxes), np.array(car_classes))
+            person_trackers, person_tracker_infos = person_tracker.update(np.array(person_bboxes), np.array(person_classes))
+            # join the trackers
+            trackers = [*car_trackers, *person_trackers]
+            tracker_infos =  [*car_tracker_infos, *person_tracker_infos]
 
-        id_to_info = {} #key: id  value: info
-        for c, d in enumerate(trackers):
-            d = d.astype(np.int32) 
-            left, top, right, bottom, obj_id = int(d[0]), int(d[1]), int(d[2]), int(d[3]), d[4]
-            class_id, score = tracker_infos[c][0], tracker_infos[c][1]
-            class_name = class_names[class_id]
-            if is_car(class_name) and score <0 : #detection is missing
-                continue
-            elif class_name=="person" and score <= -(DC.PERSON_MISS_TOLERATE):
-                continue
-            # add to dict
-            info = [class_id, score, [left, top, right, bottom]]
-            id_to_info[obj_id] = info
+            id_to_info = {} #key: id  value: info
+            for c, d in enumerate(trackers):
+                d = d.astype(np.int32) 
+                left, top, right, bottom, obj_id = int(d[0]), int(d[1]), int(d[2]), int(d[3]), d[4]
+                class_id, score = tracker_infos[c][0], tracker_infos[c][1]
+                class_name = class_names[class_id]
+                if is_car(class_name) and score <0 : #detection is missing
+                    continue
+                elif class_name=="person" and score <= -(DC.PERSON_MISS_TOLERATE):
+                    continue
+                # add to dict
+                info = [class_id, score, [left, top, right, bottom]]
+                id_to_info[obj_id] = info
 
-        if opt.save_result:
-            save_det_result(det_result_file, id_to_info, in_frame_no)
+            if opt.save_result:
+                save_det_result(det_result_file, id_to_info, in_frame_no)
 
         prev_frames.append(frame)
         frames_infos.append(id_to_info)
@@ -993,6 +1033,7 @@ def track_video():
     msg = f"[{sec2length(in_frame_no//vid_fps)}/{video_length}] avg_fps: {fps} time: {avg_s*1000}ms"
     print(msg)
 
+
     # release cv2 writer
     if isOutput:
         out_writer.release()
@@ -1000,6 +1041,9 @@ def track_video():
         test_writer.release()
     if opt.ss_out:
         ss_writer.release()
+
+    if opt.save_result:
+        det_result_file.close()
 
 
 
@@ -1030,6 +1074,7 @@ if __name__ == '__main__':
     parser.add_argument('--ss_overlay', action='store_true', default=False, help = "[Optional]Overlay the result on the orignal video")
     parser.add_argument('--ss_interval', type=int, default=1, help="frame(s) between segmentations")
 
-    parser.add_argument('--save_result', action='store_true', default=False, help = "[Optional]Output the Object detection/tracking result to a text file")
+    parser.add_argument('--save_result', action='store_true', default=False, help = "[Optional]Output the Object detection/tracking results to a text file")
+    parser.add_argument('--load_result', type=str, default="", help = "[Optional]Path of file which save the Object detection/tracking results")
     opt = parser.parse_args()
     track_video()
