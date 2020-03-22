@@ -813,12 +813,25 @@ def yolo_detect(frame, model):
     return results
 
 
-def save_det_result(id_to_info, frame_no):
-
+def save_det_result(result_file, id_to_info, frame_no):
     for obj_id in id_to_info:
         class_id, score, bbox = id_to_info[obj_id]
+        left, top, right, bottom = bbox
+        result_file.write(f"{frame_no},{obj_id},{class_id},{score},{left},{top},{right},{bottom}\n")
 
 
+def load_det_result(result_file):
+    all_results = []
+    frame_no = 1
+    for line in result_file:
+        
+
+    return all_results
+
+
+def use_det_result(frame_no):
+
+    return id_to_info
 
 
 
@@ -951,6 +964,9 @@ def track_video():
             # add to dict
             info = [class_id, score, [left, top, right, bottom]]
             id_to_info[obj_id] = info
+
+        if opt.save_result:
+            save_det_result(det_result_file, id_to_info, in_frame_no)
 
         prev_frames.append(frame)
         frames_infos.append(id_to_info)
