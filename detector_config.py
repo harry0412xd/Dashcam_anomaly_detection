@@ -12,7 +12,11 @@ DET_CLOSE_DIS = True
 DET_JAYWALKER = True
 
 # Labelling
+# User only one of these:
+PRINT_OBJ_ID = True
 PRINT_CLASS_LABEL = False # E.g. "Car:1 0.78" near the bounding box
+
+
 PRINT_ANOMALY_LABEL = False # E.g. "Close Distance" near the bounding box
 
 # Object detection

@@ -588,7 +588,9 @@ def draw_bbox(image, ano_dict, class_name, obj_id, score, bbox):
           cv2.rectangle(image, (left, top), (right, bottom), (0, 255, 0), thickness)
 
     # print class name
-    if DC.PRINT_CLASS_LABEL:
+    if DC.PRINT_OBJ_ID:
+        cv2.putText(image, str(obj_id), ((right+left)//2, top-5), cv2.FONT_HERSHEY_SIMPLEX, font_size, (0, 255, 0), thickness)
+    elif DC.PRINT_CLASS_LABEL:
         label = f'{class_name} {obj_id} : {score:.2f}'
         cv2.putText(image, label, ((right+left)//2, top-5), cv2.FONT_HERSHEY_SIMPLEX, font_size, (0, 255, 0), thickness)
     # print anomaly name
@@ -806,17 +808,17 @@ def track_video():
         test_writer = None
 
     if opt.save_result:
-        assert opt.load_result=="", "Save result & load result are both chosen."
+        assert opt.load_path=="", "Save result & load result are both chosen."
         _filename = opt.input.split("/")
-        result_filename = _filename[len(_filename)-1].split(".")[0] + ".txt"
+        result_filename = "detection_results/" + _filename[len(_filename)-1].split(".")[0] + ".txt"
         det_result_file = open(result_filename, 'w')
     
-    if opt.load_result=="":
+    if opt.load_path=="":
         is_use_result = False
     else:
         assert not opt.save_result, "Save result & load result are both chosen."
         is_use_result = True
-        all_results = load_det_result(opt.load_result)
+        all_results = load_det_result(opt.load_path)
 
 
     set_move_det_area()
@@ -966,6 +968,6 @@ if __name__ == '__main__':
     parser.add_argument('--ss_interval', type=int, default=1, help="frame(s) between segmentations")
     # save/load detection&tracking results
     parser.add_argument('--save_result', action='store_true', default=False, help = "[Optional]Output the Object detection/tracking results to a text file")
-    parser.add_argument('--load_result', type=str, default="", help = "[Optional]Path of file which save the Object detection/tracking results")
+    parser.add_argument('--load_path', type=str, default="", help = "[Optional]Path of file which save the Object detection/tracking results")
     opt = parser.parse_args()
     track_video()
