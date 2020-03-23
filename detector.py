@@ -808,17 +808,17 @@ def track_video():
         test_writer = None
 
     if opt.save_result:
-        assert opt.load_path=="", "Save result & load result are both chosen."
+        assert opt.result_path=="", "Save result & load result are both chosen."
         _filename = opt.input.split("/")
         result_filename = "detection_results/" + _filename[len(_filename)-1].split(".")[0] + ".txt"
         det_result_file = open(result_filename, 'w')
     
-    if opt.load_path=="":
+    if opt.result_path=="":
         is_use_result = False
     else:
         assert not opt.save_result, "Save result & load result are both chosen."
         is_use_result = True
-        all_results = load_det_result(opt.load_path)
+        all_results = load_det_result(opt.result_path)
 
 
     set_move_det_area()
@@ -968,6 +968,6 @@ if __name__ == '__main__':
     parser.add_argument('--ss_interval', type=int, default=1, help="frame(s) between segmentations")
     # save/load detection&tracking results
     parser.add_argument('--save_result', action='store_true', default=False, help = "[Optional]Output the Object detection/tracking results to a text file")
-    parser.add_argument('--load_path', type=str, default="", help = "[Optional]Path of file which save the Object detection/tracking results")
+    parser.add_argument('--result_path', type=str, default="", help = "[Optional]Path of file which save the Object detection/tracking results")
     opt = parser.parse_args()
     track_video()
