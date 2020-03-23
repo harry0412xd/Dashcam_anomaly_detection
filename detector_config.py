@@ -28,7 +28,7 @@ PERSON_MISS_TOLERATE = 2 # No. of frame tolerated, when the detection is missing
 
 # Damage detection
 DO_PADDING = True
-DO_ERASING = True
+DO_ERASING = False
 IGNORE_SMALL = True
 
 

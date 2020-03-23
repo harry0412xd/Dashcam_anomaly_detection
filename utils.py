@@ -37,7 +37,7 @@ def load_det_result(result_path):
 
     all_results.append(frame_results) #last frame
     result_file.close()
-    print(f"Loaded results of {len(all_results)} frames")
+    print(f"Loaded results of {len(all_results)} frames from {result_path}")
     return all_results
 
 

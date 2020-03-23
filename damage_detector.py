@@ -21,12 +21,12 @@ class Damage_detector():
         #     torch.utils.model_zoo.load_url(url, model_dir="model_data/")
 
         # new data(5) 2020/3/17
-        # checkpoint_path = "/content/MyDrive/cls_model/20200317-083104-gluon_seresnext101_32x4d-224/model_best.pth.tar"
-        # model = create_model('gluon_seresnext101_32x4d', num_classes=2, checkpoint_path = checkpoint_path)
+        checkpoint_path = "/content/MyDrive/cls_model/20200317-083104-gluon_seresnext101_32x4d-224/model_best.pth.tar"
+        model = create_model('gluon_seresnext101_32x4d', num_classes=2, checkpoint_path = checkpoint_path)
 
         # new data(6)
-        checkpoint_path = "/content/MyDrive/cls_model/train/20200321-165626-gluon_seresnext101_32x4d-224/averaged.pth"
-        model = create_model('gluon_seresnext101_32x4d', num_classes=2, checkpoint_path = checkpoint_path)
+        # checkpoint_path = "/content/MyDrive/cls_model/train/20200321-165626-gluon_seresnext101_32x4d-224/averaged.pth"
+        # model = create_model('gluon_seresnext101_32x4d', num_classes=2, checkpoint_path = checkpoint_path)
        
         # augmix test
         # checkpoint_path = "/content/MyDrive/cls_model/train/20200318-112718-gluon_seresnext101_32x4d-224/model_best.pth.tar"
