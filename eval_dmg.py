@@ -119,12 +119,15 @@ def draw_bbox(image, obj_id, dmg_prob, bbox):
 
     cv2.rectangle(image, (left, top), (right, bottom), box_color, thickness)
 
+    label = f"#{obj_id}"
+
     if obj_id in obj_id2case_id:
         case_id = obj_id2case_id[obj_id]
         if case_id in case_metric:
             total, tp, fp, tn, fn = case_metric[case_id]
-
-    label = f"#{obj_id} a:{tp+tn}/{total} |p: {tp}/{tp+fp} |r: {tp}/{tp+fn}"
+            label += f"a:{tp+tn}/{total} |p: {tp}/{tp+fp} |r: {tp}/{tp+fn}"
+        label = f"C{case_id}-" + label
+        
     # print id
     cv2.putText(image, label, ((right+left)//2, top-5), cv2.FONT_HERSHEY_SIMPLEX, font_size*0.67, label_color, thickness)
 
@@ -138,11 +141,13 @@ def compute_total_metric():
     total, tp, fp, tn, fn = total_metric
     lognPrint(f"Results (all):  Acc:{tp+tn}/{total} |prec: {tp}/{tp+fp} |recall: {tp}/{tp+fn}")
 
+
 def compute_case_metric(thres_list):
     case_count = {}
     for case_id in case_metric:
         total, true_positive, false_positive, true_negative, false_negative = case_metric[case_id]
-        lognPrint(f"Case {case_id}: tp: {true_positive} fp: {false_positive} tn: {true_negative} fn:{false_negative}")
+        lognPrint(f"Case {case_id}: obj id: {case_id2obj_id[case_id]} ")
+        lognPrint(f"---- tp: {true_positive} fp: {false_positive} tn: {true_negative} fn:{false_negative}")
         acc = (true_positive + true_negative) / total
         if true_positive >0:
             recall = true_positive / (true_positive + false_negative)
@@ -174,6 +179,7 @@ def update_metric(obj_id, mode):
       case_metric[case_id][mode] += 1
   # else not in case
 
+
 # for eval car damage detection
 def load_damage_label(label_path):
     global obj_id_to_truth, obj_id2case_id
@@ -196,12 +202,18 @@ def load_damage_label(label_path):
                 obj_id_to_truth[obj_id] = []
             obj_id_to_truth[obj_id].append([start_frame_no, end_frame_no])
 
+            # for convenience
             obj_id2case_id[obj_id] = case_id
+            if case_id not in case_id2obj_id:
+                case_id2obj_id[case_id] = []
+            else:
+                case_id2obj_id[case_id].append(obj_id)
 
     label_file.close()
     lognPrint(f"Loaded {len(obj_id_to_truth)} labels from {label_path}, {max_case_id} test cases.")
 
     # return obj_id_to_truth
+
 
 def get_damage_truth(obj_id, frame_no):
     if obj_id in obj_id_to_truth:
@@ -211,11 +223,14 @@ def get_damage_truth(obj_id, frame_no):
                 return obj_id2case_id[obj_id]
     return None
 
+
+# log and print
 def lognPrint(text):
     print(text)
     log_path = "eval_results/" + opt.log
     with open("eval_result.txt", 'a') as log_file:
         log_file.write(text + '\n')
+
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
@@ -229,7 +244,7 @@ if __name__ == '__main__':
     parser.add_argument("--log", type=str, default="eval_result.txt",  help = "Use cuda or cpu")
   
     opt = parser.parse_args()
-    obj_id_to_truth, obj_id2case_id, case_metric = {}, {}, {}
+    obj_id_to_truth, obj_id2case_id, case_id2obj_id, case_metric = {}, {}, {}, {}
     total_metric = [0,0,0,0,0]# total, tp, fp, tn, fn
     load_damage_label(opt.label_path)
     vid_width, vid_height = 0, 0

@@ -79,8 +79,8 @@ class Damage_detector():
 
         return damaged_prop
 
-    def get_checkpoint_path():
-        return checkpoint_path
+    def get_checkpoint_path(self):
+        return self.checkpoint_path
 
 def get_damaged_prop(output):
     # is damaged car prob
