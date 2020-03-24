@@ -1,0 +1,4 @@
+Loaded 62 labels from crash_damage_label.txt, 57 test cases.
+Loaded Model weight: /content/MyDrive/cls_model/20200317-083104-gluon_seresnext101_32x4d-224/model_best.pth.tar
+Threshold: 0.8
+Start loading video_in/Crash_damage.mp4...

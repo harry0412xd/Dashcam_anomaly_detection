@@ -95,7 +95,7 @@ def evaluate():
 
         out_writer.write(out_frame)
         
-    compute_case_metric([0.25,0.50,0.75])
+    compute_case_metric([0.25,0.33,0.5,0.75])
     compute_total_metric()
 
 # draw bounding box on image given label and coordinate
@@ -106,7 +106,20 @@ def draw_bbox(image, obj_id, dmg_prob, bbox, frame_no):
 
     # if obj_id in obj_id_to_truth:
     #     if obj_id_to_truth[obj_id] is not None: # is damaged (truth)
-        if get_damage_truth(obj_id, frame_no)
+
+    label = f"#{obj_id}"
+
+    case_id = None
+    if obj_id in obj_id2case_id:
+        case_id = obj_id2case_id[obj_id]
+        if case_id in case_metric:
+            total, tp, fp, tn, fn = case_metric[case_id]
+            label += f"a:{tp+tn}/{total} |p: {tp}/{tp+fp} |r: {tp}/{tp+fn}"
+        label = f"C{case_id}-" + label
+
+
+    if case_id is not None:
+        if get_damage_truth(obj_id, frame_no):
             label_color = (123,0,255)
         else:
             label_color = (255,255,0)
@@ -119,15 +132,6 @@ def draw_bbox(image, obj_id, dmg_prob, bbox, frame_no):
         box_color = (0, 255, 0)
 
     cv2.rectangle(image, (left, top), (right, bottom), box_color, thickness)
-
-    label = f"#{obj_id}"
-
-    if obj_id in obj_id2case_id:
-        case_id = obj_id2case_id[obj_id]
-        if case_id in case_metric:
-            total, tp, fp, tn, fn = case_metric[case_id]
-            label += f"a:{tp+tn}/{total} |p: {tp}/{tp+fp} |r: {tp}/{tp+fn}"
-        label = f"C{case_id}-" + label
 
     # print id
     cv2.putText(image, label, ((right+left)//2, top-5), cv2.FONT_HERSHEY_SIMPLEX, font_size*0.8, label_color, thickness)
