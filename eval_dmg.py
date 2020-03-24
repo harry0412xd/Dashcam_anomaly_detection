@@ -28,7 +28,7 @@ def evaluate():
     out_writer = cv2.VideoWriter(output_path, video_FourCC, vid_fps, (vid_width, vid_height))
 
     all_results = load_det_result(opt.result_path)
-    print("Start loading video...")
+    lognPrint(f"Start loading {video_path}...")
     pbar = tqdm.tqdm(total=video_total_frame)
 
     in_frame_no = 0
@@ -118,19 +118,30 @@ def draw_bbox(image, obj_id, dmg_prob, bbox):
 
     cv2.rectangle(image, (left, top), (right, bottom), box_color, thickness)
 
+    if obj_id in obj_id2case_id:
+        case_id = obj_id2case_id[obj_id]
+        if case_id in case_metric:
+            total, tp, fp, tn, fn = case_metric[case_id]
+
+    label = f"#{obj_id} a:{tp+tn}/{total} |p: {tp}/{tp+fp} |r: {tp}/{tp+fn}"
     # print id
-    cv2.putText(image, str(obj_id), ((right+left)//2, top-5), cv2.FONT_HERSHEY_SIMPLEX, font_size, label_color, thickness)
+    cv2.putText(image, label, ((right+left)//2, top-5), cv2.FONT_HERSHEY_SIMPLEX, font_size*0.67, label_color, thickness)
 
     # print damage score
-    cv2.putText(image, str(obj_id), ((right+left)//2, (top+bottom)//2), cv2.FONT_HERSHEY_SIMPLEX, font_size, (0, 255, 0), thickness)
+    cv2.putText(image, f"{dmg_prob:.2f}", ((right+left)//2, (top+bottom)//2), cv2.FONT_HERSHEY_SIMPLEX, font_size, (0, 255, 0), thickness)
+
+    # print recall related
 
     
+def compute_total_metric():
+    total, tp, fp, tn, fn = total_metric
+    lognPrint(f"Results (all):  Acc:{tp+tn}/{total} |prec: {tp}/{tp+fp} |recall: {tp}/{tp+fn}")
 
 def compute_case_metric(thres_list):
     case_count = {}
     for case_id in case_metric:
         total, true_positive, false_positive, true_negative, false_negative = case_metric[case_id]
-        print(f"Case {case_id}: tp: {true_positive} fp: {false_positive} tn: {true_negative} fn:{false_negative}")
+        lognPrint(f"Case {case_id}: tp: {true_positive} fp: {false_positive} tn: {true_negative} fn:{false_negative}")
         acc = (true_positive + true_negative) / total
         if true_positive >0:
             recall = true_positive / (true_positive + false_negative)
@@ -138,14 +149,14 @@ def compute_case_metric(thres_list):
         else:
             recall=prec=0
         # print(f"Case {case_id}: prec: {prec} recall: {recall} acc: {acc}")
-        print(f"----prec: {prec} recall: {recall} acc: {acc}")
+        lognPrint(f"----prec: {prec} recall: {recall} acc: {acc}")
 
         for thres in thres_list:
             if recall>thres:
                 case_count[thres] = case_count[thres]+1 if (thres in case_count) else 1
     
     for thres in thres_list:
-        print(f"Recall@{int(thres*100)}% = {case_count[thres]}/{len(case_metric)} = {case_count[thres]/len(case_metric)}")
+        lognPrint(f"Recall@{int(thres*100)}% = {case_count[thres]}/{len(case_metric)} = {case_count[thres]/len(case_metric)}")
 
 
 def update_metric(obj_id, mode):
@@ -187,7 +198,7 @@ def load_damage_label(label_path):
             obj_id2case_id[obj_id] = case_id
 
     label_file.close()
-    print(f"Loaded {len(obj_id_to_truth)} labels from {label_path}, {max_case_id} test cases.")
+    lognPrint(f"Loaded {len(obj_id_to_truth)} labels from {label_path}, {max_case_id} test cases.")
 
     # return obj_id_to_truth
 
@@ -198,6 +209,11 @@ def get_damage_truth(obj_id, frame_no):
             if frame_no >= int(start_frame_no) and frame_no <= int(end_frame_no):
                 return obj_id2case_id[obj_id]
     return None
+
+def lognPrint(text):
+    print(text)
+    with open("eval_result.txt", 'a') as log_file:
+        log_file.write(text + '\n')
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
@@ -215,6 +231,9 @@ if __name__ == '__main__':
     vid_width, vid_height = 0, 0
     damage_detector = Damage_detector(opt.device)
     print("Loaded damage model")
+
+    
+
     evaluate()
 
     
