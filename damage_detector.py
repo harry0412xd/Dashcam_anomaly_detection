@@ -49,6 +49,8 @@ class Damage_detector():
         self.checkpoint_path = checkpoint_path
         self.test_counter = {}
 
+        self.id2props = {}
+
 
     def detect(self, frame, bbox, padding_size= (0,0), frame_info=None, erase_overlap=False, obj_id=None):
         cropped_img = crop_and_pad(frame, bbox, padding_size)
@@ -77,10 +79,31 @@ class Damage_detector():
             # cv2.putText(cropped_img, f"{get_whole_prop(output):.2f} ", ((right-left)//2, (bottom-top)//2 - 15), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0,255,0), 2)
             cv2.imwrite(f'/content/test/obj{obj_id:04}_{counter:02}.jpg', cropped_img)
 
+        # store all props
+        # if not obj_id in id2props:
+        #     frame_no2prop = {}
+        #     frame_no2prop[frame_no] = damaged_prop
+        #     id2props[obj_id] = frame_no2prop
+        # else:
+        #     frame_no2prop = id2props[obj_id]
+        #     frame_no2prop[frame_no] = damaged_prop
+
         return damaged_prop
 
     def get_checkpoint_path(self):
         return self.checkpoint_path
+
+    def get_avg_prop():
+        return
+
+
+
+
+
+
+
+
+
 
 def get_damaged_prop(output):
     # is damaged car prob

@@ -148,15 +148,18 @@ def compute_total_metric():
 
 
 def compute_case_metric(thres_list):
-    prec_case_wise = recall_case_wise = {}
+    prec_case_wise, recall_case_wise = {}, {}
     for case_id in case_metric:
-        total, true_positive, false_positive, true_negative, false_negative = case_metric[case_id]
+        total, tp, fp, tn, fn = case_metric[case_id]
         lognPrint(f"Case {case_id}: obj id: {case_id2obj_id[case_id]} ")
-        lognPrint(f"---- tp: {true_positive} fp: {false_positive} tn: {true_negative} fn:{false_negative}")
-        acc = (true_positive + true_negative) / total
-        if true_positive >0:
-            recall = true_positive / (true_positive + false_negative)
-            prec = true_positive / (true_positive + false_positive)
+        lognPrint(f"---- tp: {tp} fp: {fp} tn: {tn} fn:{fn}")
+
+        log_csv("{case_id},{tp},{fp},{tn},{fn},{acc},{prec},{recall}")
+
+        acc = (tp + tn) / total
+        if tp >0:
+            recall = tp / (tp + fn)
+            prec = tp / (tp + fp)
         else:
             recall=prec=0
         # print(f"Case {case_id}: prec: {prec} recall: {recall} acc: {acc}")
@@ -170,10 +173,8 @@ def compute_case_metric(thres_list):
 
     # prec
     for thres in thres_list:
-        lognPrint(f"Precision@{int(thres*100)}% = {recall_case_wise[thres]}/{len(case_metric)} = {recall_case_wise[thres]/len(case_metric)}")       
-    # recall
-    for thres in thres_list:
-        lognPrint(f"Recall@{int(thres*100)}% = {recall_case_wise[thres]}/{len(case_metric)} = {recall_case_wise[thres]/len(case_metric)}")
+        lognPrint(f"Precision@{int(thres*100)}% = {prec_case_wise[thres]}/{len(case_metric)} = {prec_case_wise[thres]/len(case_metric)}") # prec
+        lognPrint(f"Recall@{int(thres*100)}% = {recall_case_wise[thres]}/{len(case_metric)} = {recall_case_wise[thres]/len(case_metric)}") # recall
 
 
 
@@ -244,6 +245,12 @@ def lognPrint(text):
         log_file.write(text + '\n')
 
 
+def log_csv(text):
+    log_path = "eval_results/" + opt.log
+    log_path.replace(".txt", ".csv")
+    with open(log_path, 'a') as log_file:
+        log_file.write(text + '\n')
+
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
     # I/O
@@ -263,6 +270,7 @@ if __name__ == '__main__':
     damage_detector = Damage_detector(opt.device)
     lognPrint(f"Loaded Model weight: {damage_detector.get_checkpoint_path()}")
     lognPrint(f"Threshold: {opt.dmg_thres}")
+    log_csv("case_id,tp,fp,tn,fn,acc,prec,recall")
 
 
     evaluate()

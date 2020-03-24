@@ -2,3 +2,183 @@ Loaded 62 labels from crash_damage_label.txt, 57 test cases.
 Loaded Model weight: /content/MyDrive/cls_model/20200317-083104-gluon_seresnext101_32x4d-224/model_best.pth.tar
 Threshold: 0.8
 Start loading video_in/Crash_damage.mp4...
+Loaded 62 labels from crash_damage_label.txt, 56 test cases.
+Loaded Model weight: /content/MyDrive/cls_model/20200317-083104-gluon_seresnext101_32x4d-224/model_best.pth.tar
+Threshold: 0.8
+Start loading video_in/Crash_damage.mp4...
+Case 2: obj id: ['11'] 
+---- tp: 198 fp: 20 tn: 4 fn:18
+----prec: 0.908256880733945 recall: 0.9166666666666666 acc: 0.8416666666666667
+Case 1: obj id: ['10'] 
+---- tp: 179 fp: 1 tn: 1 fn:40
+----prec: 0.9944444444444445 recall: 0.817351598173516 acc: 0.8144796380090498
+Case 3: obj id: ['37', '42'] 
+---- tp: 215 fp: 6 tn: 72 fn:16
+----prec: 0.9728506787330317 recall: 0.9307359307359307 acc: 0.9288025889967637
+Case 5: obj id: ['48'] 
+---- tp: 0 fp: 0 tn: 28 fn:25
+----prec: 0 recall: 0 acc: 0.5283018867924528
+Case 4: obj id: ['51'] 
+---- tp: 153 fp: 2 tn: 1 fn:13
+----prec: 0.9870967741935484 recall: 0.9216867469879518 acc: 0.9112426035502958
+Case 6: obj id: ['63', '64'] 
+---- tp: 207 fp: 17 tn: 8 fn:13
+----prec: 0.9241071428571429 recall: 0.9409090909090909 acc: 0.8775510204081632
+Case 7: obj id: ['74', '75'] 
+---- tp: 36 fp: 1 tn: 3 fn:18
+----prec: 0.972972972972973 recall: 0.6666666666666666 acc: 0.6724137931034483
+Case 8: obj id: ['77'] 
+---- tp: 12 fp: 0 tn: 38 fn:132
+----prec: 1.0 recall: 0.08333333333333333 acc: 0.27472527472527475
+Case 9: obj id: ['83'] 
+---- tp: 20 fp: 3 tn: 21 fn:41
+----prec: 0.8695652173913043 recall: 0.32786885245901637 acc: 0.4823529411764706
+Case 10: obj id: ['87'] 
+---- tp: 45 fp: 53 tn: 49 fn:23
+----prec: 0.45918367346938777 recall: 0.6617647058823529 acc: 0.5529411764705883
+Case 11: obj id: ['106'] 
+---- tp: 2 fp: 9 tn: 91 fn:6
+----prec: 0.18181818181818182 recall: 0.25 acc: 0.8611111111111112
+Case 12: obj id: ['120'] 
+---- tp: 32 fp: 9 tn: 8 fn:175
+----prec: 0.7804878048780488 recall: 0.15458937198067632 acc: 0.17857142857142858
+Case 13: obj id: ['161'] 
+---- tp: 0 fp: 0 tn: 16 fn:4
+----prec: 0 recall: 0 acc: 0.8
+Case 15: obj id: ['175'] 
+---- tp: 1 fp: 0 tn: 1 fn:7
+----prec: 1.0 recall: 0.125 acc: 0.2222222222222222
+Case 14: obj id: ['174'] 
+---- tp: 4 fp: 0 tn: 1 fn:35
+----prec: 1.0 recall: 0.10256410256410256 acc: 0.125
+Case 16: obj id: ['178'] 
+---- tp: 13 fp: 3 tn: 9 fn:1
+----prec: 0.8125 recall: 0.9285714285714286 acc: 0.8461538461538461
+Case 17: obj id: ['194'] 
+---- tp: 0 fp: 0 tn: 3 fn:86
+----prec: 0 recall: 0 acc: 0.033707865168539325
+Case 18: obj id: ['200'] 
+---- tp: 17 fp: 10 tn: 73 fn:24
+----prec: 0.6296296296296297 recall: 0.4146341463414634 acc: 0.7258064516129032
+Case 19: obj id: ['241'] 
+---- tp: 162 fp: 0 tn: 3 fn:59
+----prec: 1.0 recall: 0.7330316742081447 acc: 0.7366071428571429
+Case 20: obj id: ['248'] 
+---- tp: 174 fp: 2 tn: 55 fn:52
+----prec: 0.9886363636363636 recall: 0.7699115044247787 acc: 0.8091872791519434
+Case 22: obj id: ['272'] 
+---- tp: 49 fp: 11 tn: 69 fn:8
+----prec: 0.8166666666666667 recall: 0.8596491228070176 acc: 0.8613138686131386
+Case 21: obj id: ['277'] 
+---- tp: 13 fp: 3 tn: 3 fn:6
+----prec: 0.8125 recall: 0.6842105263157895 acc: 0.64
+Case 23: obj id: ['287'] 
+---- tp: 25 fp: 0 tn: 8 fn:7
+----prec: 1.0 recall: 0.78125 acc: 0.825
+Case 26: obj id: ['324'] 
+---- tp: 36 fp: 4 tn: 5 fn:0
+----prec: 0.9 recall: 1.0 acc: 0.9111111111111111
+Case 27: obj id: ['337'] 
+---- tp: 152 fp: 2 tn: 1 fn:0
+----prec: 0.987012987012987 recall: 1.0 acc: 0.9870967741935484
+Case 28: obj id: ['355'] 
+---- tp: 90 fp: 2 tn: 9 fn:104
+----prec: 0.9782608695652174 recall: 0.4639175257731959 acc: 0.48292682926829267
+Case 29: obj id: ['384'] 
+---- tp: 206 fp: 4 tn: 3 fn:3
+----prec: 0.9809523809523809 recall: 0.9856459330143541 acc: 0.9675925925925926
+Case 30: obj id: ['388'] 
+---- tp: 0 fp: 0 tn: 3 fn:165
+----prec: 0 recall: 0 acc: 0.017857142857142856
+Case 31: obj id: ['404'] 
+---- tp: 148 fp: 4 tn: 9 fn:1
+----prec: 0.9736842105263158 recall: 0.9932885906040269 acc: 0.9691358024691358
+Case 32: obj id: ['413', '415'] 
+---- tp: 21 fp: 5 tn: 59 fn:13
+----prec: 0.8076923076923077 recall: 0.6176470588235294 acc: 0.8163265306122449
+Case 33: obj id: ['414'] 
+---- tp: 4 fp: 2 tn: 1 fn:0
+----prec: 0.6666666666666666 recall: 1.0 acc: 0.7142857142857143
+Case 34: obj id: ['420'] 
+---- tp: 2 fp: 1 tn: 98 fn:145
+----prec: 0.6666666666666666 recall: 0.013605442176870748 acc: 0.4065040650406504
+Case 36: obj id: ['432'] 
+---- tp: 4 fp: 3 tn: 5 fn:6
+----prec: 0.5714285714285714 recall: 0.4 acc: 0.5
+Case 38: obj id: ['439'] 
+---- tp: 0 fp: 0 tn: 124 fn:133
+----prec: 0 recall: 0 acc: 0.48249027237354086
+Case 37: obj id: ['450', '451'] 
+---- tp: 4 fp: 1 tn: 1 fn:18
+----prec: 0.8 recall: 0.18181818181818182 acc: 0.20833333333333334
+Case 39: obj id: ['458'] 
+---- tp: 94 fp: 0 tn: 44 fn:289
+----prec: 1.0 recall: 0.2454308093994778 acc: 0.3231850117096019
+Case 40: obj id: ['502'] 
+---- tp: 0 fp: 0 tn: 26 fn:354
+----prec: 0 recall: 0 acc: 0.06842105263157895
+Case 41: obj id: ['587'] 
+---- tp: 234 fp: 2 tn: 1 fn:34
+----prec: 0.9915254237288136 recall: 0.8731343283582089 acc: 0.8671586715867159
+Case 42: obj id: ['602'] 
+---- tp: 47 fp: 1 tn: 80 fn:79
+----prec: 0.9791666666666666 recall: 0.373015873015873 acc: 0.6135265700483091
+Case 25: obj id: ['611'] 
+---- tp: 0 fp: 0 tn: 33 fn:0
+----prec: 0 recall: 0 acc: 1.0
+Case 43: obj id: ['620'] 
+---- tp: 4 fp: 12 tn: 20 fn:37
+----prec: 0.25 recall: 0.0975609756097561 acc: 0.3287671232876712
+Case 44: obj id: ['627'] 
+---- tp: 8 fp: 4 tn: 161 fn:181
+----prec: 0.6666666666666666 recall: 0.042328042328042326 acc: 0.4774011299435028
+Case 46: obj id: ['631'] 
+---- tp: 7 fp: 11 tn: 8 fn:15
+----prec: 0.3888888888888889 recall: 0.3181818181818182 acc: 0.36585365853658536
+Case 45: obj id: ['628'] 
+---- tp: 13 fp: 0 tn: 8 fn:24
+----prec: 1.0 recall: 0.35135135135135137 acc: 0.4666666666666667
+Case 47: obj id: ['652'] 
+---- tp: 106 fp: 1 tn: 1 fn:252
+----prec: 0.9906542056074766 recall: 0.29608938547486036 acc: 0.2972222222222222
+Case 48: obj id: ['668'] 
+---- tp: 0 fp: 0 tn: 42 fn:134
+----prec: 0 recall: 0 acc: 0.23863636363636365
+Case 49: obj id: ['669'] 
+---- tp: 0 fp: 0 tn: 102 fn:283
+----prec: 0 recall: 0 acc: 0.2649350649350649
+Case 50: obj id: ['687'] 
+---- tp: 23 fp: 0 tn: 12 fn:25
+----prec: 1.0 recall: 0.4791666666666667 acc: 0.5833333333333334
+Case 51: obj id: ['709'] 
+---- tp: 189 fp: 10 tn: 20 fn:20
+----prec: 0.949748743718593 recall: 0.9043062200956937 acc: 0.8744769874476988
+Case 52: obj id: ['729'] 
+---- tp: 11 fp: 0 tn: 14 fn:2
+----prec: 1.0 recall: 0.8461538461538461 acc: 0.9259259259259259
+Case 53: obj id: ['753'] 
+---- tp: 0 fp: 0 tn: 53 fn:16
+----prec: 0 recall: 0 acc: 0.7681159420289855
+Case 54: obj id: ['764'] 
+---- tp: 2 fp: 0 tn: 7 fn:2
+----prec: 1.0 recall: 0.5 acc: 0.8181818181818182
+Case 55: obj id: ['794', '799'] 
+---- tp: 39 fp: 10 tn: 63 fn:41
+----prec: 0.7959183673469388 recall: 0.4875 acc: 0.6666666666666666
+Case 56: obj id: ['814'] 
+---- tp: 170 fp: 2 tn: 0 fn:56
+----prec: 0.9883720930232558 recall: 0.7522123893805309 acc: 0.7456140350877193
+Precision@25% = 78/54 = 1.4444444444444444
+Precision@33% = 73/54 = 1.3518518518518519
+Precision@50% = 64/54 = 1.1851851851851851
+Precision@75% = 53/54 = 0.9814814814814815
+Recall@25% = 78/54 = 1.4444444444444444
+Recall@33% = 73/54 = 1.3518518518518519
+Recall@50% = 64/54 = 1.1851851851851851
+Recall@75% = 53/54 = 0.9814814814814815
+Results (all):  Acc:21854/27159 |prec: 3171/5235 |recall: 3171/6412
+Loaded 62 labels from crash_damage_label.txt, 56 test cases.
+Loaded Model weight: /content/MyDrive/cls_model/20200317-083104-gluon_seresnext101_32x4d-224/model_best.pth.tar
+Threshold: 0.8
+case_id,tp,fp,tn,fn,acc,prec,recall
+Start loading video_in/Crash_damage.mp4...
