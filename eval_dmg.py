@@ -31,9 +31,9 @@ def evaluate():
     lognPrint(f"Start loading {video_path}...")
     pbar = tqdm.tqdm(total=video_total_frame)
 
-    in_frame_no = 0
+    frame_no = 0
     while True:
-        in_frame_no += 1
+        frame_no += 1
         pbar.update(1)
         success, frame = vid.read()
         if not success: #end of video
@@ -41,7 +41,7 @@ def evaluate():
         out_frame = frame.copy()
 
 
-        id_to_info = use_det_result(all_results, in_frame_no)
+        id_to_info = use_det_result(all_results, frame_no)
         for obj_id in id_to_info:
             info = id_to_info[obj_id]
             class_id, score, bbox = info
@@ -68,13 +68,13 @@ def evaluate():
 
 
                 if dmg_prob>=opt.dmg_thres: #positive
-                    if get_damage_truth(obj_id, in_frame_no) is not None: # True positive
+                    if get_damage_truth(obj_id, frame_no) is not None: # True positive
                         mode = 1
                     else:# False positive
                         mode = 2
                 
                 else:# negative
-                    if get_damage_truth(obj_id, in_frame_no) is None: # True negative
+                    if get_damage_truth(obj_id, frame_no) is None: # True negative
                         mode = 3
                     else:# False negative
                         mode = 4
@@ -84,7 +84,7 @@ def evaluate():
             else:
                 dmg_prob = -1
               
-            draw_bbox(out_frame, obj_id, dmg_prob, bbox)
+            draw_bbox(out_frame, obj_id, dmg_prob, bbox, frame_no)
             # # to construct a metric_dict case_id -> true positive, true negative, false positive, false negative total
             # # accuracy = hit / total
             # if obj_id not in metric_dict:
@@ -99,13 +99,14 @@ def evaluate():
     compute_total_metric()
 
 # draw bounding box on image given label and coordinate
-def draw_bbox(image, obj_id, dmg_prob, bbox):
+def draw_bbox(image, obj_id, dmg_prob, bbox, frame_no):
     left, top, right, bottom = bbox
     thickness = vid_height//720+1
     font_size = vid_height/1080
 
-    if obj_id in obj_id_to_truth:
-        if obj_id_to_truth[obj_id] is not None: # is damaged (truth)
+    # if obj_id in obj_id_to_truth:
+    #     if obj_id_to_truth[obj_id] is not None: # is damaged (truth)
+        if get_damage_truth(obj_id, frame_no)
             label_color = (123,0,255)
         else:
             label_color = (255,255,0)
@@ -127,9 +128,9 @@ def draw_bbox(image, obj_id, dmg_prob, bbox):
             total, tp, fp, tn, fn = case_metric[case_id]
             label += f"a:{tp+tn}/{total} |p: {tp}/{tp+fp} |r: {tp}/{tp+fn}"
         label = f"C{case_id}-" + label
-        
+
     # print id
-    cv2.putText(image, label, ((right+left)//2, top-5), cv2.FONT_HERSHEY_SIMPLEX, font_size*0.67, label_color, thickness)
+    cv2.putText(image, label, ((right+left)//2, top-5), cv2.FONT_HERSHEY_SIMPLEX, font_size*0.8, label_color, thickness)
 
     # print damage score
     cv2.putText(image, f"{dmg_prob:.2f}", ((right+left)//2, (top+bottom)//2), cv2.FONT_HERSHEY_SIMPLEX, font_size, (0, 255, 0), thickness)
@@ -143,7 +144,7 @@ def compute_total_metric():
 
 
 def compute_case_metric(thres_list):
-    case_count = {}
+    prec_case_wise = recall_case_wise = {}
     for case_id in case_metric:
         total, true_positive, false_positive, true_negative, false_negative = case_metric[case_id]
         lognPrint(f"Case {case_id}: obj id: {case_id2obj_id[case_id]} ")
@@ -158,11 +159,18 @@ def compute_case_metric(thres_list):
         lognPrint(f"----prec: {prec} recall: {recall} acc: {acc}")
 
         for thres in thres_list:
-            if recall>thres:
-                case_count[thres] = case_count[thres]+1 if (thres in case_count) else 1
-    
+            if recall>=thres:
+                recall_case_wise[thres] = recall_case_wise[thres]+1 if (thres in recall_case_wise) else 1
+            if prec>=thres:
+                prec_case_wise[thres] = prec_case_wise[thres]+1 if (thres in prec_case_wise) else 1
+
+    # prec
     for thres in thres_list:
-        lognPrint(f"Recall@{int(thres*100)}% = {case_count[thres]}/{len(case_metric)} = {case_count[thres]/len(case_metric)}")
+        lognPrint(f"Precision@{int(thres*100)}% = {recall_case_wise[thres]}/{len(case_metric)} = {recall_case_wise[thres]/len(case_metric)}")       
+    # recall
+    for thres in thres_list:
+        lognPrint(f"Recall@{int(thres*100)}% = {recall_case_wise[thres]}/{len(case_metric)} = {recall_case_wise[thres]/len(case_metric)}")
+
 
 
 def update_metric(obj_id, mode):
@@ -204,10 +212,10 @@ def load_damage_label(label_path):
 
             # for convenience
             obj_id2case_id[obj_id] = case_id
+
             if case_id not in case_id2obj_id:
                 case_id2obj_id[case_id] = []
-            else:
-                case_id2obj_id[case_id].append(obj_id)
+            case_id2obj_id[case_id].append(obj_id)
 
     label_file.close()
     lognPrint(f"Loaded {len(obj_id_to_truth)} labels from {label_path}, {max_case_id} test cases.")
@@ -228,7 +236,7 @@ def get_damage_truth(obj_id, frame_no):
 def lognPrint(text):
     print(text)
     log_path = "eval_results/" + opt.log
-    with open("eval_result.txt", 'a') as log_file:
+    with open(log_path, 'a') as log_file:
         log_file.write(text + '\n')
 
 
@@ -249,8 +257,8 @@ if __name__ == '__main__':
     load_damage_label(opt.label_path)
     vid_width, vid_height = 0, 0
     damage_detector = Damage_detector(opt.device)
-    print("Loaded damage model")
-    lognPrint(f"Model weight: {damage_detector.get_checkpoint_path()}")
+    lognPrint(f"Loaded Model weight: {damage_detector.get_checkpoint_path()}")
+    lognPrint(f"Threshold: {opt.dmg_thres}")
 
 
     evaluate()
