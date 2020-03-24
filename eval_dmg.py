@@ -34,6 +34,9 @@ def evaluate():
     in_frame_no = 0
     while True:
         in_frame_no += 1
+        if in_frame_no == 1000:
+            pbar.update(video_total_frame-1000)
+            break
         pbar.update(1)
         success, frame = vid.read()
         if not success: #end of video
@@ -68,13 +71,13 @@ def evaluate():
 
 
                 if dmg_prob>=opt.dmg_thres: #positive
-                    if get_damage_truth is not None: # True positive
+                    if get_damage_truth(obj_id, in_frame_no) is not None: # True positive
                         mode = 1
                     else:# False positive
                         mode = 2
                 
                 else:# negative
-                    if get_damage_truth is None: # True negative
+                    if get_damage_truth(obj_id, in_frame_no) is None: # True negative
                         mode = 3
                     else:# False negative
                         mode = 4
@@ -132,8 +135,11 @@ def compute_case_metric(thres_list):
         total, true_positive, false_positive, true_negative, false_negative = case_metric[case_id]
         print(f"Case {case_id}: tp: {true_positive} fp: {false_positive} tn: {true_negative} fn:{false_negative}")
         acc = (true_positive + true_negative) / total
-        recall = true_positive / (true_positive + false_negative)
-        prec = true_positive / (true_positive + false_positive)
+        if true_positive >0:
+            recall = true_positive / (true_positive + false_negative)
+            prec = true_positive / (true_positive + false_positive)
+        else:
+            recall=prec=0
         # print(f"Case {case_id}: prec: {prec} recall: {recall} acc: {acc}")
         print(f"----prec: {prec} recall: {recall} acc: {acc}")
 
@@ -191,7 +197,8 @@ def load_damage_label(label_path):
 def get_damage_truth(obj_id, frame_no):
     if obj_id in obj_id_to_truth:
         for (start_frame_no, end_frame_no) in obj_id_to_truth[obj_id]:
-            if frame_no >= start_frame_no and frame_no <= end_frame_no:
+
+            if frame_no >= int(start_frame_no) and frame_no <= int(end_frame_no):
                 return obj_id2case_id[obj_id]
     return None
 
