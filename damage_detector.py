@@ -46,7 +46,7 @@ class Damage_detector():
             transforms.ToTensor(),
             transforms.Normalize([0.485, 0.456, 0.406], [0.229, 0.224, 0.225]),
         ])
-
+        self.checkpoint_path = checkpoint_path
         self.test_counter = {}
 
 
@@ -79,6 +79,8 @@ class Damage_detector():
 
         return damaged_prop
 
+    def get_checkpoint_path():
+        return checkpoint_path
 
 def get_damaged_prop(output):
     # is damaged car prob

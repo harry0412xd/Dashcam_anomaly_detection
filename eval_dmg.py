@@ -96,6 +96,7 @@ def evaluate():
         out_writer.write(out_frame)
         
     compute_case_metric([0.25,0.50,0.75])
+    compute_total_metric()
 
 # draw bounding box on image given label and coordinate
 def draw_bbox(image, obj_id, dmg_prob, bbox):
@@ -212,6 +213,7 @@ def get_damage_truth(obj_id, frame_no):
 
 def lognPrint(text):
     print(text)
+    log_path = "eval_results/" + opt.log
     with open("eval_result.txt", 'a') as log_file:
         log_file.write(text + '\n')
 
@@ -224,6 +226,8 @@ if __name__ == '__main__':
     parser.add_argument('--label_path', type=str, default="crash_damage_label.txt", help = "Path of label file indicating the damaged car(s)")
     parser.add_argument('--dmg_thres', type=float, default=0.8, help = "Thershold of confidence to consider a car as damaged")
     parser.add_argument("--device", type=str, default="cuda",  help = "Use cuda or cpu")
+    parser.add_argument("--log", type=str, default="eval_result.txt",  help = "Use cuda or cpu")
+  
     opt = parser.parse_args()
     obj_id_to_truth, obj_id2case_id, case_metric = {}, {}, {}
     total_metric = [0,0,0,0,0]# total, tp, fp, tn, fn
@@ -231,8 +235,8 @@ if __name__ == '__main__':
     vid_width, vid_height = 0, 0
     damage_detector = Damage_detector(opt.device)
     print("Loaded damage model")
+    lognPrint(f"Model weight: {damage_detector.get_checkpoint_path()}")
 
-    
 
     evaluate()
 
