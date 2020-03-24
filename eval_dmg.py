@@ -34,9 +34,6 @@ def evaluate():
     in_frame_no = 0
     while True:
         in_frame_no += 1
-        if in_frame_no == 1000:
-            pbar.update(video_total_frame-1000)
-            break
         pbar.update(1)
         success, frame = vid.read()
         if not success: #end of video
