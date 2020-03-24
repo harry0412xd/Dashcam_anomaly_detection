@@ -1,0 +1,62 @@
+#,Car id,Start frame,End frame,Obvious,remark
+1,10,87,308,h,
+2,11,93,308,m,
+3,37,416,648,h,
+4,51,709,876,h,
+5,48,702,726,m,
+6,63,955,1091,h,id switch 63->64
+6,64,1138,1225,h,id switch 63->64
+7,74,1484,1493,m,
+8,75,1515,1572,m,
+9,77,1656,1804,l,
+10,83,1856,1916,l,
+11,87,1903,1970,l,
+12,106,2184,2194,m,
+13,120,2184,2390,m,
+14,161,2470,2475,m,
+15,174,2618,2679,m,
+16,175,2613,2627,m,
+17,178,2783,2798,m,
+18,194,2959,3045,l,
+19,200,3152,3194,m,
+20,241,3336,3565,l,
+21,248,3651,3876,l,
+22,277,4022,4043,h,
+23,272,4028,4084,m,
+24,287,4167,4277,h,
+25,300,4214,4277,l,id switch 298->300. 298 is ignored
+26,611,4314,4462,m,
+27,324,4547,4582,m,
+28,337,4691,4844,m,the car is split into 2 detection: 337&344
+29,355,4911,5104,l,no broken part. just slightly deform
+30,384,5358,5568,h,
+31,388,5403,5568,l,
+32,404,5670,5818,m,
+33,413,5900,5913,m,id switch: 413 -> 415. frame duplicated due to low frame rate
+33,415,5917,5937,m,id switch: 413 -> 415. frame duplicated due to low frame rate
+34,414,5904,5912,m,short appear time. frame duplicated due to low frame rate
+35,420,6029,6175,l-m,low resolution
+36,421,6029,6300,h,low resolution
+37,432,6390,9698,m,dark. detection is missing
+38,450,6687,6693,m,id switch: 450->451->452 due to missing detection(?). 452 is ignored due to small size
+38,451,6695,6711,m,id switch: 450->451->452 due to missing detection(?). 453 is ignored due to small size
+39,439,6692,6824,l,slightly deform only
+40,458,6897,7284,l,I am not quite sure if it is broken
+41,502,7383,7736,vl,
+42,587,7865,8154,m,
+43,602,8265,8390,h,
+44,620,8526,8566,l,
+45,627,8853,9042,m,The forehead of the damaged truck  is detected as a whole with another undamaged truck. 
+46,628,9081,9117,m,628&631 are overlapping
+47,631,9089,9113,m,
+48,652,9737,10118,m,
+49,668,10217,10350,l,slightly deform only
+50,669,10483,10765,m,
+51,687,10862,10927,m,
+52,709,11415,11624,m->h,
+53,729,11718,11948,l-m,
+54,753,12030,12046,,id switch:753->764
+55,764,12057,12065,,id switch:753->764
+56,794,12250,12280,,hard to decide the exact frame that the car become visibly damaged
+56,799,12295,12344,,id switch:794->799
+57,814,12490,12718,m,
