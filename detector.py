@@ -44,8 +44,7 @@ smooth_dict = {}
 
 
 def proc_frame(writer, frames, frames_infos, frame_no, test_writer=None):
-    start = timer()
-    # print(f"{len(frames)} {len(frames_infos)} {len(ss_masks)}")
+    # start = timer()
     frame2proc = frames.popleft()
     out_frame = frame2proc.copy()
     id_to_info = frames_infos[0]
@@ -60,7 +59,6 @@ def proc_frame(writer, frames, frames_infos, frame_no, test_writer=None):
         #compute the average shift in pixel of bounding box, in left/right half of the frame
         left_mean, right_mean = get_mean_shift(frames_infos, out_frame)
 
-    global smooth_dict
     # Detect whether the camera is moving
     if len(frames)>0:
         if test_writer is not None:
@@ -71,7 +69,8 @@ def proc_frame(writer, frames, frames_infos, frame_no, test_writer=None):
             is_moving = detect_camera_moving(frame2proc, frames[0])
     else: #last frame
         is_moving = False
-    
+
+    global smooth_dict
     # Smooth moving detection
     if is_moving:
         smooth_dict['is_moving'] = 1
@@ -101,54 +100,30 @@ def proc_frame(writer, frames, frames_infos, frame_no, test_writer=None):
 
         if is_car(class_name):
             # draw_future_center(frames_infos, obj_id, out_frame)
-
     # damage detection
-            if opt.dmg_det and score>0:
+            if opt.dmg_det:
+                damage_detector.get_avg_score(obj_id, frame_no)
                 # DAMAGE_SKIP_NUM = 2
                 obj_dmg_key = f"{obj_id}_dmg"
                 if obj_dmg_key in smooth_dict and smooth_dict[obj_dmg_key][0]>0:
                     smooth_dict[obj_dmg_key][0] -= 1
                     dmg_prob = smooth_dict[obj_dmg_key][1]
-
-                else: 
-                    # 720p : 90px | 1080p: 135px
-                    dmg_height_thres, dmg_width_thres = vid_height//12, vid_width//24
-                    if not DC.IGNORE_SMALL or ((bottom-top)>dmg_height_thres and (right-left)>dmg_width_thres) :
-                        if DC.DO_PADDING:
-                            if (right-left)/(bottom-top) > DC.IS_SIDE_RATIO :
-                                x_pad, y_pad = (right-left)//8, (bottom-top)//12
-                            else:
-                                x_pad, y_pad = (right-left)//12, (bottom-top)//12
-                        else:
-                            x_pad, y_pad = 0,0
-
-                        if DC.DO_ERASING:
-                            dmg_prob = damage_detector.detect(frame2proc, bbox, padding_size=(x_pad, y_pad),
-                                                              frame_info = id_to_info, erase_overlap=True, obj_id=obj_id)
-                        else:
-                            dmg_prob = damage_detector.detect(frame2proc, bbox, padding_size=(x_pad, y_pad))
-
-                        # smooth indication and skip checking to make faster
-                        if dmg_prob>0.95:
-                            skip_num = 12
-                        elif dmg_prob>0.93:
-                            skip_num = 6
-                        else:
-                            skip_num = 3
-                        smooth_dict[obj_dmg_key] = [skip_num, dmg_prob]
-
-                    else:
-                        dmg_prob = 0
-
-                if dmg_prob>=0.9:
+                else:
+                   dmg_prob = damage_detector.get_avg_prob(obj_id, frame_no)
+                #
+                #         # smooth indication and skip checking to make faster
+                #         if dmg_prob>0.95:
+                #             skip_num = 12
+                #         elif dmg_prob>0.93:
+                #             skip_num = 6
+                #         else:
+                #             skip_num = 3
+                #         smooth_dict[obj_dmg_key] = [skip_num, dmg_prob]
+                #     else:
+                #         dmg_prob = 0
+                if dmg_prob>=0.85:
                     ano_dict['damaged'] = True
-                cv2.putText(out_frame, f'{dmg_prob:.2f}', ((right+left)//2, (bottom+top)//2), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0,255,0), 2)
     # ----damage detection end
-            # print(obj_id)
-            # if not (left<=0 or right>=vid_width or top<=0 or bottom>=vid_height):
-            #     if detect_car_spin(get_bboxes_by_id(frames_infos, obj_id), out_frame):
-            #         ano_dict['lost_control'] = True
-
 
     # Car collision
             if DC.DET_CAR_COL:
@@ -161,7 +136,6 @@ def proc_frame(writer, frames, frames_infos, frame_no, test_writer=None):
                     smooth_dict[obj_col_key] -= 1
     # ----Car collision end
 
-
     # Car distance 
             if DC.DET_CLOSE_DIS and is_moving:
                 # Detect lack of car distance
@@ -169,23 +143,17 @@ def proc_frame(writer, frames, frames_infos, frame_no, test_writer=None):
                 ano_dict['close_distance'] = is_close
     # ----Car distance end
 
-
     # Jaywalker
         elif class_name=="person":
-
             if opt.ss: # Use semantic segmentation to find people on traffic road
                 if is_moving:
                     ano_dict['jaywalker'] = is_on_traffic_road(bbox, ss_mask)
-                    # obj_on_road_key = f"{obj_id}_on_road"
-                    # if (frame_no-1)%opt.ss_interval == 0:
-                    #     smooth_dict[obj_on_road_key] =  is_on_traffic_road(bbox, ss_mask)
-                    # elif obj_on_road_key in smooth_dict:
-                    #         ano_dict['jaywalker'] = smooth_dict[obj_on_road_key]                       
 
             else: # Use pre-defined baseline
                 if is_moving and detect_jaywalker(get_bboxes_by_id(frames_infos, obj_id), (left_mean, right_mean), out_frame):
                     ano_dict['jaywalker'] = True
     # ----Jaywalker end
+
         draw_bbox(out_frame, ano_dict, class_name, obj_id, score, bbox)
 # --- Objects iteration end
 
@@ -195,8 +163,8 @@ def proc_frame(writer, frames, frames_infos, frame_no, test_writer=None):
 
     writer.write(out_frame)
     frames_infos.popleft()
-    end = timer()
-    return (end-start)*1000
+    # end = timer()
+    # return (end-start)*1000
 
 
 def get_list_from_info(all_info):
@@ -322,7 +290,7 @@ def detect_car_collision(car_list, out_frame):
             del car_list[0]
             continue
 
-        if width1/height1 > DC.IS_SIDE_RATIO:
+        if width1/height1 > DC.SIDE_THRES:
             is_side1 = True
         else:
             is_side1 = False
@@ -333,7 +301,7 @@ def detect_car_collision(car_list, out_frame):
             id2, bbox2 = car_list[i]
             left2, top2, right2, bottom2 = bbox2
             width2, height2 = right2-left2, bottom2-top2
-            if width2/height2 > DC.IS_SIDE_RATIO:
+            if width2/height2 > DC.SIDE_THRES:
                 is_side2 = True
             else:
                 is_side2 = False
@@ -763,6 +731,15 @@ def is_car(class_name):
     return class_name=="car" or class_name=="bus" or class_name=="truck"
 
 
+def detect_damaged_car(id_to_info, frame, frame_no):
+    for obj_id in id_to_info:
+        class_id, score, bbox = id_to_info[obj_id]
+        left, top, right, bottom = bbox
+        dmg_height_thres, dmg_width_thres = 64, 64
+        if not DC.IGNORE_SMALL or ((bottom-top)>dmg_height_thres and (right-left)>dmg_width_thres):
+            damage_detector.detect(frame, bbox, id_to_info, frame_no)
+
+
 def track_video():
     global device
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
@@ -846,7 +823,8 @@ def track_video():
   # Car damage detection
     if opt.dmg_det:
         global damage_detector
-        damage_detector = Damage_detector(device)
+        damage_detector = Damage_detector(device, do_erasing=DC.DO_ERASING, do_padding=DC.DO_PADDING,
+                                          side_thres=DC.SIDE_THRES, avg_amount=5)
   # Semantic segmentation
     if opt.ss:
         global dlv3
@@ -904,6 +882,9 @@ def track_video():
 
             if opt.save_result:
                 save_det_result(det_result_file, id_to_info, in_frame_no)
+
+        if opt.dmg_det:
+            detect_damaged_car(id_to_info, frame, frame_no) #wrapper function to iterate all obj
 
         prev_frames.append(frame)
         frames_infos.append(id_to_info)
