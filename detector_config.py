@@ -47,7 +47,7 @@ Other (constant used)
 
 """
 # Width/height > IS_SIDE_RATIO : the side of the car is facing the camera 
-IS_SIDE_RATIO = 1.6
+SIDE_THRES = 1.6
 
 # ---------------------------------------
 # ------Collision
@@ -60,3 +60,4 @@ COLL_HEIGHT_THRES_STRICT = 0.05
 
 IOU_FALSE_THERS = 0.6
 # Camera Moving Detection
+
