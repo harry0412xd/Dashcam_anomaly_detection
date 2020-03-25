@@ -10,26 +10,21 @@ from torchvision import transforms
 
 from timm.models import create_model, resume_checkpoint, convert_splitbn_model
 from timm.utils import *
-
 from torchvision import models
 
 class Damage_detector():
-    def __init__(self, device):
+    def __init__(self, device. do_erasing=False, do_padding=False, side_thres=1.6, avg_amount=5):
         # url = "https://github.com/harry0412xd/Dashcam_anomaly_detection/releases/download/v1.0/gluon_seresnext101_32x4d-244_checkpoint-69.pth.tar"
         # checkpoint_path = "model_data/gluon_seresnext101_32x4d-244_checkpoint-69.pth.tar"
         # if not os.path.isfile(checkpoint_path):
         #     torch.utils.model_zoo.load_url(url, model_dir="model_data/")
 
         # new data(5) 2020/3/17
-        checkpoint_path = "/content/MyDrive/cls_model/20200317-083104-gluon_seresnext101_32x4d-224/model_best.pth.tar"
-        model = create_model('gluon_seresnext101_32x4d', num_classes=2, checkpoint_path = checkpoint_path)
-
-        # new data(6)
-        # checkpoint_path = "/content/MyDrive/cls_model/train/20200321-165626-gluon_seresnext101_32x4d-224/averaged.pth"
-        # model = create_model('gluon_seresnext101_32x4d', num_classes=2, checkpoint_path = checkpoint_path)
-       
+        # checkpoint_path = "/content/MyDrive/cls_model/20200317-083104-gluon_seresnext101_32x4d-224/model_best.pth.tar"
         # augmix test
         # checkpoint_path = "/content/MyDrive/cls_model/train/20200318-112718-gluon_seresnext101_32x4d-224/model_best.pth.tar"
+        # new data(6)
+        checkpoint_path = "/content/MyDrive/cls_model/train/20200321-165626-gluon_seresnext101_32x4d-224/averaged.pth"
         # model = create_model('gluon_seresnext101_32x4d', num_classes=2, checkpoint_path = checkpoint_path)
 
         # model = create_model('gluon_seresnext101_32x4d', num_classes=2)
@@ -48,68 +43,84 @@ class Damage_detector():
         ])
         self.checkpoint_path = checkpoint_path
         self.test_counter = {}
+        self.do_erasing = do_erasing
+        self.do_padding = do_padding
+        self.avg_amount = avg_amount # |<- n-th before --- current --- nth after->|
+        self.side_thres = side_thres
+        self.id2probs = {}
 
-        self.id2props = {}
 
+    def detect(self, frame, bbox, frame_info, frame_no, obj_id=None):
 
-    def detect(self, frame, bbox, padding_size= (0,0), frame_info=None, erase_overlap=False, obj_id=None):
-        cropped_img = crop_and_pad(frame, bbox, padding_size)
-        if erase_overlap:
+        # Extend the bounding box by a bit to include more pixels
+        if self.do_padding:
+            left, top, right, bottom = bbox
+            if (right - left) / (bottom - top) > self.side_thres:
+                x_pad, y_pad = (right - left) // 8, (bottom - top) // 12
+            else:
+                x_pad, y_pad = (right - left) // 12, (bottom - top) // 12
+        else:
+            x_pad, y_pad = 0, 0
+        cropped_img = crop_and_pad(frame, bbox, (x_pad, y_pad))
+
+        if self.do_erasing:
             assert frame_info is not None, "Other bounding boxes are necessary to find overlapped region. Pass the frame_info param."
-            erase_overlapped(cropped_img, bbox, frame_info, padding_size)
-        img_RGB = cv2.cvtColor(cropped_img,cv2.COLOR_BGR2RGB)
+            erase_overlapped(cropped_img, bbox, frame_info, (x_pad, y_pad))
 
+        img_RGB = cv2.cvtColor(cropped_img,cv2.COLOR_BGR2RGB)
         img = Image.fromarray(img_RGB)
         img = self.transform(img)
-        # img.save("test.jpg")
-        
         x = img.unsqueeze(0).to(self.device)
         with torch.no_grad():
             output = self.model(x)
-        damaged_prop = get_damaged_prop(output)
+        damaged_prob = get_damaged_prob(output)
 
-        # testing purpose : save the input image with prop printed
+        # testing purpose : save the input image with prob printed
         if obj_id:
             key = str(obj_id)
             if not (key in self.test_counter):
                 self.test_counter[key] = 0
             self.test_counter[key] += 1
             counter = self.test_counter[key]
-            # cv2.putText(cropped_img, f"{damaged_prop:.2f} ", ((right-left)//2, (bottom-top)//2), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0,0,255), 2)
-            # cv2.putText(cropped_img, f"{get_whole_prop(output):.2f} ", ((right-left)//2, (bottom-top)//2 - 15), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0,255,0), 2)
+            # cv2.putText(cropped_img, f"{damaged_prob:.2f} ", ((right-left)//2, (bottom-top)//2), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0,0,255), 2)
             cv2.imwrite(f'/content/test/obj{obj_id:04}_{counter:02}.jpg', cropped_img)
 
-        # store all props
-        # if not obj_id in id2props:
-        #     frame_no2prop = {}
-        #     frame_no2prop[frame_no] = damaged_prop
-        #     id2props[obj_id] = frame_no2prop
-        # else:
-        #     frame_no2prop = id2props[obj_id]
-        #     frame_no2prop[frame_no] = damaged_prop
+        # store all probs
+        if not obj_id in self.id2probs:
+            frame_no2prob = {}
+        else:
+            frame_no2prob = self.id2probs[obj_id]
+        frame_no2prob[frame_no] = damaged_prob
+        self.id2probs[obj_id] = frame_no2prob
 
-        return damaged_prop
+        return damaged_prob
+
 
     def get_checkpoint_path(self):
         return self.checkpoint_path
 
-    def get_avg_prop():
-        return
+    def get_avg_prob(self, obj_id, cur_frame_no):
+        if
+        total, count = 0.0, 0
+        if obj_id in self.id2probs:
+            frame_no2prob = self.id2probs[obj_id
+            for frame_no in frame_no2prob:
+                if frame_no < cur_frame_no - self.avg_amount:
+                    del frame_no2prob[frame_no]
+                elif frame_no <= cur_frame_no + self.avg_amount:
+                    count +=1
+                    total += frame_no2prob[frame_no]
+            if count=0:
+                return 0
+            return total/count
+        return -1
 
 
 
-
-
-
-
-
-
-
-def get_damaged_prop(output):
+def get_damaged_prob(output):
     # is damaged car prob
     prob = torch.softmax(output, dim=1)[0, 1].item()
-    return prob 
-
+    return prob
 
 def crop_and_pad(frame, bbox, padding_size):
     left, top, right, bottom = bbox
@@ -120,7 +131,8 @@ def crop_and_pad(frame, bbox, padding_size):
 
     return frame[top2:bottom2, left2:right2]
 
-    
+
+# this is for after padding
 def erase_overlapped(cropped_img, target_bbox, frame_info, padding_size):
     left, top, right, bottom = target_bbox
     x_pad, y_pad = padding_size
@@ -144,7 +156,7 @@ def erase_overlapped(cropped_img, target_bbox, frame_info, padding_size):
             else:
                 erase_left = left2 - left + x_pad
                 erase_right = right - left + x_pad*2
-                
+
             if from_top and from_bot:
                 erase_top = top2 - top + y_pad
                 erase_bot = bottom2 - top + y_pad
@@ -156,7 +168,7 @@ def erase_overlapped(cropped_img, target_bbox, frame_info, padding_size):
                 erase_bot = bottom - top + 2*y_pad
 
             cv2.rectangle(cropped_img, (erase_left, erase_top), (erase_right, erase_bot), (0,0,0), -1)
-            
+
 
 
 
