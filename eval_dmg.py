@@ -104,7 +104,7 @@ def draw_bbox(image, obj_id, dmg_prob, bbox, frame_no):
         case_id = obj_id2case_id[obj_id]
 
         if opt.dmg_thres in case_metrics:
-            case_metric = case_metrics[opt]
+            case_metric = case_metrics[opt.dmg_thres]
             if case_id in case_metric:
                 total, tp, fp, tn, fn = case_metric[case_id]
                 label += f"a:{tp+tn}/{total} |p: {tp}/{tp+fp} |r: {tp}/{tp+fn}"
