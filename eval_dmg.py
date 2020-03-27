@@ -149,9 +149,9 @@ def compute_case_metric(m_thres_list, p_thres_list):
         case_metric = case_metrics[p_thres]
         for case_id in case_metric:
             total, tp, fp, tn, fn = case_metric[case_id]
-            lognPrint(f"Case {case_id}: obj id: {case_id2obj_id[case_id]} ")
-            lognPrint(f"---- tp: {tp} fp: {fp} tn: {tn} fn:{fn}")
-
+            # lognPrint(f"Case {case_id}: obj id: {case_id2obj_id[case_id]} ")
+            # lognPrint(f"---- tp: {tp} fp: {fp} tn: {tn} fn:{fn}")
+            lognPrint(f"Case {case_id}: obj id: {case_id2obj_id[case_id]}  ----  tp: {tp} fp: {fp} tn: {tn} fn:{fn}")
             log_csv("{case_id},{tp},{fp},{tn},{fn},{acc},{prec},{recall}")
 
             acc = (tp + tn) / total

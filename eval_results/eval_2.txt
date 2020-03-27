@@ -1,0 +1,689 @@
+Loaded 62 labels from crash_damage_label.txt, 56 test cases.
+Loaded Model weight: /content/MyDrive/cls_model/train/20200321-183951-gluon_seresnext101_32x4d-224/checkpoint-120.pth.tar
+Threshold: 0.8
+case_id,tp,fp,tn,fn,acc,prec,recall
+Start loading video_in/Crash_damage.mp4...
+Case 2: obj id: ['11']  ----  tp: 152 fp: 15 tn: 9 fn:64
+{case_id},{tp},{fp},{tn},{fn},{acc},{prec},{recall}
+----prec: 0.9101796407185628 recall: 0.7037037037037037 acc: 0.6708333333333333
+Case 1: obj id: ['10']  ----  tp: 91 fp: 0 tn: 2 fn:128
+{case_id},{tp},{fp},{tn},{fn},{acc},{prec},{recall}
+----prec: 1.0 recall: 0.4155251141552511 acc: 0.42081447963800905
+Case 3: obj id: ['37', '42']  ----  tp: 220 fp: 5 tn: 73 fn:11
+{case_id},{tp},{fp},{tn},{fn},{acc},{prec},{recall}
+----prec: 0.9777777777777777 recall: 0.9523809523809523 acc: 0.948220064724919
+Case 5: obj id: ['48']  ----  tp: 0 fp: 0 tn: 28 fn:25
+{case_id},{tp},{fp},{tn},{fn},{acc},{prec},{recall}
+----prec: 0 recall: 0 acc: 0.5283018867924528
+Case 4: obj id: ['51']  ----  tp: 155 fp: 2 tn: 1 fn:11
+{case_id},{tp},{fp},{tn},{fn},{acc},{prec},{recall}
+----prec: 0.9872611464968153 recall: 0.9337349397590361 acc: 0.9230769230769231
+Case 6: obj id: ['63', '64']  ----  tp: 195 fp: 15 tn: 10 fn:25
+{case_id},{tp},{fp},{tn},{fn},{acc},{prec},{recall}
+----prec: 0.9285714285714286 recall: 0.8863636363636364 acc: 0.8367346938775511
+Case 7: obj id: ['74', '75']  ----  tp: 45 fp: 2 tn: 2 fn:9
+{case_id},{tp},{fp},{tn},{fn},{acc},{prec},{recall}
+----prec: 0.9574468085106383 recall: 0.8333333333333334 acc: 0.8103448275862069
+Case 8: obj id: ['77']  ----  tp: 59 fp: 2 tn: 36 fn:85
+{case_id},{tp},{fp},{tn},{fn},{acc},{prec},{recall}
+----prec: 0.9672131147540983 recall: 0.4097222222222222 acc: 0.521978021978022
+Case 9: obj id: ['83']  ----  tp: 13 fp: 1 tn: 23 fn:48
+{case_id},{tp},{fp},{tn},{fn},{acc},{prec},{recall}
+----prec: 0.9285714285714286 recall: 0.21311475409836064 acc: 0.4235294117647059
+Case 10: obj id: ['87']  ----  tp: 23 fp: 46 tn: 56 fn:45
+{case_id},{tp},{fp},{tn},{fn},{acc},{prec},{recall}
+----prec: 0.3333333333333333 recall: 0.3382352941176471 acc: 0.4647058823529412
+Case 11: obj id: ['106']  ----  tp: 3 fp: 19 tn: 81 fn:5
+{case_id},{tp},{fp},{tn},{fn},{acc},{prec},{recall}
+----prec: 0.13636363636363635 recall: 0.375 acc: 0.7777777777777778
+Case 12: obj id: ['120']  ----  tp: 26 fp: 8 tn: 9 fn:181
+{case_id},{tp},{fp},{tn},{fn},{acc},{prec},{recall}
+----prec: 0.7647058823529411 recall: 0.12560386473429952 acc: 0.15625
+Case 13: obj id: ['161']  ----  tp: 0 fp: 0 tn: 16 fn:4
+{case_id},{tp},{fp},{tn},{fn},{acc},{prec},{recall}
+----prec: 0 recall: 0 acc: 0.8
+Case 15: obj id: ['175']  ----  tp: 3 fp: 1 tn: 0 fn:5
+{case_id},{tp},{fp},{tn},{fn},{acc},{prec},{recall}
+----prec: 0.75 recall: 0.375 acc: 0.3333333333333333
+Case 14: obj id: ['174']  ----  tp: 4 fp: 0 tn: 1 fn:35
+{case_id},{tp},{fp},{tn},{fn},{acc},{prec},{recall}
+----prec: 1.0 recall: 0.10256410256410256 acc: 0.125
+Case 16: obj id: ['178']  ----  tp: 11 fp: 2 tn: 10 fn:3
+{case_id},{tp},{fp},{tn},{fn},{acc},{prec},{recall}
+----prec: 0.8461538461538461 recall: 0.7857142857142857 acc: 0.8076923076923077
+Case 17: obj id: ['194']  ----  tp: 0 fp: 0 tn: 3 fn:86
+{case_id},{tp},{fp},{tn},{fn},{acc},{prec},{recall}
+----prec: 0 recall: 0 acc: 0.033707865168539325
+Case 18: obj id: ['200']  ----  tp: 18 fp: 13 tn: 70 fn:23
+{case_id},{tp},{fp},{tn},{fn},{acc},{prec},{recall}
+----prec: 0.5806451612903226 recall: 0.43902439024390244 acc: 0.7096774193548387
+Case 19: obj id: ['241']  ----  tp: 148 fp: 0 tn: 3 fn:73
+{case_id},{tp},{fp},{tn},{fn},{acc},{prec},{recall}
+----prec: 1.0 recall: 0.669683257918552 acc: 0.6741071428571429
+Case 20: obj id: ['248']  ----  tp: 220 fp: 2 tn: 55 fn:6
+{case_id},{tp},{fp},{tn},{fn},{acc},{prec},{recall}
+----prec: 0.990990990990991 recall: 0.9734513274336283 acc: 0.9717314487632509
+Case 22: obj id: ['272']  ----  tp: 49 fp: 9 tn: 71 fn:8
+{case_id},{tp},{fp},{tn},{fn},{acc},{prec},{recall}
+----prec: 0.8448275862068966 recall: 0.8596491228070176 acc: 0.8759124087591241
+Case 21: obj id: ['277']  ----  tp: 10 fp: 3 tn: 3 fn:9
+{case_id},{tp},{fp},{tn},{fn},{acc},{prec},{recall}
+----prec: 0.7692307692307693 recall: 0.5263157894736842 acc: 0.52
+Case 23: obj id: ['287']  ----  tp: 27 fp: 0 tn: 8 fn:5
+{case_id},{tp},{fp},{tn},{fn},{acc},{prec},{recall}
+----prec: 1.0 recall: 0.84375 acc: 0.875
+Case 26: obj id: ['324']  ----  tp: 33 fp: 3 tn: 6 fn:3
+{case_id},{tp},{fp},{tn},{fn},{acc},{prec},{recall}
+----prec: 0.9166666666666666 recall: 0.9166666666666666 acc: 0.8666666666666667
+Case 27: obj id: ['337']  ----  tp: 150 fp: 2 tn: 1 fn:2
+{case_id},{tp},{fp},{tn},{fn},{acc},{prec},{recall}
+----prec: 0.9868421052631579 recall: 0.9868421052631579 acc: 0.9741935483870968
+Case 28: obj id: ['355']  ----  tp: 64 fp: 2 tn: 9 fn:130
+{case_id},{tp},{fp},{tn},{fn},{acc},{prec},{recall}
+----prec: 0.9696969696969697 recall: 0.32989690721649484 acc: 0.35609756097560974
+Case 29: obj id: ['384']  ----  tp: 209 fp: 6 tn: 1 fn:0
+{case_id},{tp},{fp},{tn},{fn},{acc},{prec},{recall}
+----prec: 0.9720930232558139 recall: 1.0 acc: 0.9722222222222222
+Case 30: obj id: ['388']  ----  tp: 17 fp: 0 tn: 3 fn:148
+{case_id},{tp},{fp},{tn},{fn},{acc},{prec},{recall}
+----prec: 1.0 recall: 0.10303030303030303 acc: 0.11904761904761904
+Case 31: obj id: ['404']  ----  tp: 149 fp: 4 tn: 9 fn:0
+{case_id},{tp},{fp},{tn},{fn},{acc},{prec},{recall}
+----prec: 0.9738562091503268 recall: 1.0 acc: 0.9753086419753086
+Case 32: obj id: ['413', '415']  ----  tp: 19 fp: 8 tn: 56 fn:15
+{case_id},{tp},{fp},{tn},{fn},{acc},{prec},{recall}
+----prec: 0.7037037037037037 recall: 0.5588235294117647 acc: 0.7653061224489796
+Case 33: obj id: ['414']  ----  tp: 4 fp: 2 tn: 1 fn:0
+{case_id},{tp},{fp},{tn},{fn},{acc},{prec},{recall}
+----prec: 0.6666666666666666 recall: 1.0 acc: 0.7142857142857143
+Case 34: obj id: ['420']  ----  tp: 1 fp: 0 tn: 99 fn:146
+{case_id},{tp},{fp},{tn},{fn},{acc},{prec},{recall}
+----prec: 1.0 recall: 0.006802721088435374 acc: 0.4065040650406504
+Case 36: obj id: ['432']  ----  tp: 7 fp: 5 tn: 3 fn:3
+{case_id},{tp},{fp},{tn},{fn},{acc},{prec},{recall}
+----prec: 0.5833333333333334 recall: 0.7 acc: 0.5555555555555556
+Case 38: obj id: ['439']  ----  tp: 0 fp: 0 tn: 124 fn:133
+{case_id},{tp},{fp},{tn},{fn},{acc},{prec},{recall}
+----prec: 0 recall: 0 acc: 0.48249027237354086
+Case 37: obj id: ['450', '451']  ----  tp: 3 fp: 0 tn: 2 fn:19
+{case_id},{tp},{fp},{tn},{fn},{acc},{prec},{recall}
+----prec: 1.0 recall: 0.13636363636363635 acc: 0.20833333333333334
+Case 39: obj id: ['458']  ----  tp: 100 fp: 2 tn: 42 fn:283
+{case_id},{tp},{fp},{tn},{fn},{acc},{prec},{recall}
+----prec: 0.9803921568627451 recall: 0.26109660574412535 acc: 0.3325526932084309
+Case 40: obj id: ['502']  ----  tp: 0 fp: 0 tn: 26 fn:354
+{case_id},{tp},{fp},{tn},{fn},{acc},{prec},{recall}
+----prec: 0 recall: 0 acc: 0.06842105263157895
+Case 41: obj id: ['587']  ----  tp: 248 fp: 2 tn: 1 fn:20
+{case_id},{tp},{fp},{tn},{fn},{acc},{prec},{recall}
+----prec: 0.992 recall: 0.9253731343283582 acc: 0.9188191881918819
+Case 42: obj id: ['602']  ----  tp: 61 fp: 1 tn: 80 fn:65
+{case_id},{tp},{fp},{tn},{fn},{acc},{prec},{recall}
+----prec: 0.9838709677419355 recall: 0.48412698412698413 acc: 0.6811594202898551
+Case 25: obj id: ['611']  ----  tp: 0 fp: 0 tn: 33 fn:0
+{case_id},{tp},{fp},{tn},{fn},{acc},{prec},{recall}
+----prec: 0 recall: 0 acc: 1.0
+Case 43: obj id: ['620']  ----  tp: 6 fp: 8 tn: 24 fn:35
+{case_id},{tp},{fp},{tn},{fn},{acc},{prec},{recall}
+----prec: 0.42857142857142855 recall: 0.14634146341463414 acc: 0.410958904109589
+Case 44: obj id: ['627']  ----  tp: 32 fp: 36 tn: 129 fn:157
+{case_id},{tp},{fp},{tn},{fn},{acc},{prec},{recall}
+----prec: 0.47058823529411764 recall: 0.1693121693121693 acc: 0.4548022598870056
+Case 46: obj id: ['631']  ----  tp: 6 fp: 12 tn: 7 fn:16
+{case_id},{tp},{fp},{tn},{fn},{acc},{prec},{recall}
+----prec: 0.3333333333333333 recall: 0.2727272727272727 acc: 0.3170731707317073
+Case 45: obj id: ['628']  ----  tp: 17 fp: 0 tn: 8 fn:20
+{case_id},{tp},{fp},{tn},{fn},{acc},{prec},{recall}
+----prec: 1.0 recall: 0.4594594594594595 acc: 0.5555555555555556
+Case 47: obj id: ['652']  ----  tp: 20 fp: 1 tn: 1 fn:338
+{case_id},{tp},{fp},{tn},{fn},{acc},{prec},{recall}
+----prec: 0.9523809523809523 recall: 0.055865921787709494 acc: 0.058333333333333334
+Case 48: obj id: ['668']  ----  tp: 0 fp: 0 tn: 42 fn:134
+{case_id},{tp},{fp},{tn},{fn},{acc},{prec},{recall}
+----prec: 0 recall: 0 acc: 0.23863636363636365
+Case 49: obj id: ['669']  ----  tp: 0 fp: 0 tn: 102 fn:283
+{case_id},{tp},{fp},{tn},{fn},{acc},{prec},{recall}
+----prec: 0 recall: 0 acc: 0.2649350649350649
+Case 50: obj id: ['687']  ----  tp: 42 fp: 1 tn: 11 fn:6
+{case_id},{tp},{fp},{tn},{fn},{acc},{prec},{recall}
+----prec: 0.9767441860465116 recall: 0.875 acc: 0.8833333333333333
+Case 51: obj id: ['709']  ----  tp: 208 fp: 12 tn: 18 fn:1
+{case_id},{tp},{fp},{tn},{fn},{acc},{prec},{recall}
+----prec: 0.9454545454545454 recall: 0.9952153110047847 acc: 0.9456066945606695
+Case 52: obj id: ['729']  ----  tp: 11 fp: 0 tn: 14 fn:2
+{case_id},{tp},{fp},{tn},{fn},{acc},{prec},{recall}
+----prec: 1.0 recall: 0.8461538461538461 acc: 0.9259259259259259
+Case 53: obj id: ['753']  ----  tp: 0 fp: 0 tn: 53 fn:16
+{case_id},{tp},{fp},{tn},{fn},{acc},{prec},{recall}
+----prec: 0 recall: 0 acc: 0.7681159420289855
+Case 54: obj id: ['764']  ----  tp: 2 fp: 0 tn: 7 fn:2
+{case_id},{tp},{fp},{tn},{fn},{acc},{prec},{recall}
+----prec: 1.0 recall: 0.5 acc: 0.8181818181818182
+Case 55: obj id: ['794', '799']  ----  tp: 54 fp: 10 tn: 63 fn:26
+{case_id},{tp},{fp},{tn},{fn},{acc},{prec},{recall}
+----prec: 0.84375 recall: 0.675 acc: 0.7647058823529411
+Case 56: obj id: ['814']  ----  tp: 180 fp: 2 tn: 0 fn:46
+{case_id},{tp},{fp},{tn},{fn},{acc},{prec},{recall}
+----prec: 0.989010989010989 recall: 0.7964601769911505 acc: 0.7894736842105263
+Precision@25% = 44/54 = 0.8148148148148148
+Recall@25% = 36/54 = 0.6666666666666666
+Precision@33% = 44/54 = 0.8148148148148148
+Recall@33% = 33/54 = 0.6111111111111112
+Precision@50% = 40/54 = 0.7407407407407407
+Recall@50% = 25/54 = 0.46296296296296297
+Precision@75% = 36/54 = 0.6666666666666666
+Recall@75% = 18/54 = 0.3333333333333333
+Case 2: obj id: ['11']  ----  tp: 109 fp: 11 tn: 13 fn:107
+{case_id},{tp},{fp},{tn},{fn},{acc},{prec},{recall}
+----prec: 0.9083333333333333 recall: 0.5046296296296297 acc: 0.5083333333333333
+Case 1: obj id: ['10']  ----  tp: 60 fp: 0 tn: 2 fn:159
+{case_id},{tp},{fp},{tn},{fn},{acc},{prec},{recall}
+----prec: 1.0 recall: 0.273972602739726 acc: 0.28054298642533937
+Case 3: obj id: ['37', '42']  ----  tp: 208 fp: 5 tn: 73 fn:23
+{case_id},{tp},{fp},{tn},{fn},{acc},{prec},{recall}
+----prec: 0.9765258215962441 recall: 0.9004329004329005 acc: 0.9093851132686084
+Case 5: obj id: ['48']  ----  tp: 0 fp: 0 tn: 28 fn:25
+{case_id},{tp},{fp},{tn},{fn},{acc},{prec},{recall}
+----prec: 0 recall: 0 acc: 0.5283018867924528
+Case 4: obj id: ['51']  ----  tp: 154 fp: 2 tn: 1 fn:12
+{case_id},{tp},{fp},{tn},{fn},{acc},{prec},{recall}
+----prec: 0.9871794871794872 recall: 0.927710843373494 acc: 0.9171597633136095
+Case 6: obj id: ['63', '64']  ----  tp: 175 fp: 12 tn: 13 fn:45
+{case_id},{tp},{fp},{tn},{fn},{acc},{prec},{recall}
+----prec: 0.9358288770053476 recall: 0.7954545454545454 acc: 0.7673469387755102
+Case 7: obj id: ['74', '75']  ----  tp: 40 fp: 2 tn: 2 fn:14
+{case_id},{tp},{fp},{tn},{fn},{acc},{prec},{recall}
+----prec: 0.9523809523809523 recall: 0.7407407407407407 acc: 0.7241379310344828
+Case 8: obj id: ['77']  ----  tp: 47 fp: 2 tn: 36 fn:97
+{case_id},{tp},{fp},{tn},{fn},{acc},{prec},{recall}
+----prec: 0.9591836734693877 recall: 0.3263888888888889 acc: 0.45604395604395603
+Case 9: obj id: ['83']  ----  tp: 3 fp: 0 tn: 24 fn:58
+{case_id},{tp},{fp},{tn},{fn},{acc},{prec},{recall}
+----prec: 1.0 recall: 0.04918032786885246 acc: 0.3176470588235294
+Case 10: obj id: ['87']  ----  tp: 13 fp: 35 tn: 67 fn:55
+{case_id},{tp},{fp},{tn},{fn},{acc},{prec},{recall}
+----prec: 0.2708333333333333 recall: 0.19117647058823528 acc: 0.47058823529411764
+Case 11: obj id: ['106']  ----  tp: 0 fp: 12 tn: 88 fn:8
+{case_id},{tp},{fp},{tn},{fn},{acc},{prec},{recall}
+----prec: 0 recall: 0 acc: 0.8148148148148148
+Case 12: obj id: ['120']  ----  tp: 24 fp: 5 tn: 12 fn:183
+{case_id},{tp},{fp},{tn},{fn},{acc},{prec},{recall}
+----prec: 0.8275862068965517 recall: 0.11594202898550725 acc: 0.16071428571428573
+Case 13: obj id: ['161']  ----  tp: 0 fp: 0 tn: 16 fn:4
+{case_id},{tp},{fp},{tn},{fn},{acc},{prec},{recall}
+----prec: 0 recall: 0 acc: 0.8
+Case 15: obj id: ['175']  ----  tp: 2 fp: 0 tn: 1 fn:6
+{case_id},{tp},{fp},{tn},{fn},{acc},{prec},{recall}
+----prec: 1.0 recall: 0.25 acc: 0.3333333333333333
+Case 14: obj id: ['174']  ----  tp: 3 fp: 0 tn: 1 fn:36
+{case_id},{tp},{fp},{tn},{fn},{acc},{prec},{recall}
+----prec: 1.0 recall: 0.07692307692307693 acc: 0.1
+Case 16: obj id: ['178']  ----  tp: 7 fp: 1 tn: 11 fn:7
+{case_id},{tp},{fp},{tn},{fn},{acc},{prec},{recall}
+----prec: 0.875 recall: 0.5 acc: 0.6923076923076923
+Case 17: obj id: ['194']  ----  tp: 0 fp: 0 tn: 3 fn:86
+{case_id},{tp},{fp},{tn},{fn},{acc},{prec},{recall}
+----prec: 0 recall: 0 acc: 0.033707865168539325
+Case 18: obj id: ['200']  ----  tp: 13 fp: 6 tn: 77 fn:28
+{case_id},{tp},{fp},{tn},{fn},{acc},{prec},{recall}
+----prec: 0.6842105263157895 recall: 0.3170731707317073 acc: 0.7258064516129032
+Case 19: obj id: ['241']  ----  tp: 129 fp: 0 tn: 3 fn:92
+{case_id},{tp},{fp},{tn},{fn},{acc},{prec},{recall}
+----prec: 1.0 recall: 0.583710407239819 acc: 0.5892857142857143
+Case 20: obj id: ['248']  ----  tp: 209 fp: 2 tn: 55 fn:17
+{case_id},{tp},{fp},{tn},{fn},{acc},{prec},{recall}
+----prec: 0.990521327014218 recall: 0.9247787610619469 acc: 0.9328621908127208
+Case 22: obj id: ['272']  ----  tp: 48 fp: 8 tn: 72 fn:9
+{case_id},{tp},{fp},{tn},{fn},{acc},{prec},{recall}
+----prec: 0.8571428571428571 recall: 0.8421052631578947 acc: 0.8759124087591241
+Case 21: obj id: ['277']  ----  tp: 8 fp: 1 tn: 5 fn:11
+{case_id},{tp},{fp},{tn},{fn},{acc},{prec},{recall}
+----prec: 0.8888888888888888 recall: 0.42105263157894735 acc: 0.52
+Case 23: obj id: ['287']  ----  tp: 25 fp: 0 tn: 8 fn:7
+{case_id},{tp},{fp},{tn},{fn},{acc},{prec},{recall}
+----prec: 1.0 recall: 0.78125 acc: 0.825
+Case 26: obj id: ['324']  ----  tp: 30 fp: 3 tn: 6 fn:6
+{case_id},{tp},{fp},{tn},{fn},{acc},{prec},{recall}
+----prec: 0.9090909090909091 recall: 0.8333333333333334 acc: 0.8
+Case 27: obj id: ['337']  ----  tp: 137 fp: 2 tn: 1 fn:15
+{case_id},{tp},{fp},{tn},{fn},{acc},{prec},{recall}
+----prec: 0.9856115107913669 recall: 0.9013157894736842 acc: 0.8903225806451613
+Case 28: obj id: ['355']  ----  tp: 51 fp: 2 tn: 9 fn:143
+{case_id},{tp},{fp},{tn},{fn},{acc},{prec},{recall}
+----prec: 0.9622641509433962 recall: 0.26288659793814434 acc: 0.2926829268292683
+Case 29: obj id: ['384']  ----  tp: 207 fp: 4 tn: 3 fn:2
+{case_id},{tp},{fp},{tn},{fn},{acc},{prec},{recall}
+----prec: 0.981042654028436 recall: 0.9904306220095693 acc: 0.9722222222222222
+Case 30: obj id: ['388']  ----  tp: 2 fp: 0 tn: 3 fn:163
+{case_id},{tp},{fp},{tn},{fn},{acc},{prec},{recall}
+----prec: 1.0 recall: 0.012121212121212121 acc: 0.02976190476190476
+Case 31: obj id: ['404']  ----  tp: 148 fp: 3 tn: 10 fn:1
+{case_id},{tp},{fp},{tn},{fn},{acc},{prec},{recall}
+----prec: 0.9801324503311258 recall: 0.9932885906040269 acc: 0.9753086419753086
+Case 32: obj id: ['413', '415']  ----  tp: 17 fp: 7 tn: 57 fn:17
+{case_id},{tp},{fp},{tn},{fn},{acc},{prec},{recall}
+----prec: 0.7083333333333334 recall: 0.5 acc: 0.7551020408163265
+Case 33: obj id: ['414']  ----  tp: 4 fp: 2 tn: 1 fn:0
+{case_id},{tp},{fp},{tn},{fn},{acc},{prec},{recall}
+----prec: 0.6666666666666666 recall: 1.0 acc: 0.7142857142857143
+Case 34: obj id: ['420']  ----  tp: 0 fp: 0 tn: 99 fn:147
+{case_id},{tp},{fp},{tn},{fn},{acc},{prec},{recall}
+----prec: 0 recall: 0 acc: 0.4024390243902439
+Case 36: obj id: ['432']  ----  tp: 6 fp: 4 tn: 4 fn:4
+{case_id},{tp},{fp},{tn},{fn},{acc},{prec},{recall}
+----prec: 0.6 recall: 0.6 acc: 0.5555555555555556
+Case 38: obj id: ['439']  ----  tp: 0 fp: 0 tn: 124 fn:133
+{case_id},{tp},{fp},{tn},{fn},{acc},{prec},{recall}
+----prec: 0 recall: 0 acc: 0.48249027237354086
+Case 37: obj id: ['450', '451']  ----  tp: 2 fp: 0 tn: 2 fn:20
+{case_id},{tp},{fp},{tn},{fn},{acc},{prec},{recall}
+----prec: 1.0 recall: 0.09090909090909091 acc: 0.16666666666666666
+Case 39: obj id: ['458']  ----  tp: 69 fp: 0 tn: 44 fn:314
+{case_id},{tp},{fp},{tn},{fn},{acc},{prec},{recall}
+----prec: 1.0 recall: 0.1801566579634465 acc: 0.2646370023419204
+Case 40: obj id: ['502']  ----  tp: 0 fp: 0 tn: 26 fn:354
+{case_id},{tp},{fp},{tn},{fn},{acc},{prec},{recall}
+----prec: 0 recall: 0 acc: 0.06842105263157895
+Case 41: obj id: ['587']  ----  tp: 226 fp: 2 tn: 1 fn:42
+{case_id},{tp},{fp},{tn},{fn},{acc},{prec},{recall}
+----prec: 0.9912280701754386 recall: 0.8432835820895522 acc: 0.8376383763837638
+Case 42: obj id: ['602']  ----  tp: 51 fp: 1 tn: 80 fn:75
+{case_id},{tp},{fp},{tn},{fn},{acc},{prec},{recall}
+----prec: 0.9807692307692307 recall: 0.40476190476190477 acc: 0.6328502415458938
+Case 25: obj id: ['611']  ----  tp: 0 fp: 0 tn: 33 fn:0
+{case_id},{tp},{fp},{tn},{fn},{acc},{prec},{recall}
+----prec: 0 recall: 0 acc: 1.0
+Case 43: obj id: ['620']  ----  tp: 6 fp: 6 tn: 26 fn:35
+{case_id},{tp},{fp},{tn},{fn},{acc},{prec},{recall}
+----prec: 0.5 recall: 0.14634146341463414 acc: 0.4383561643835616
+Case 44: obj id: ['627']  ----  tp: 9 fp: 22 tn: 143 fn:180
+{case_id},{tp},{fp},{tn},{fn},{acc},{prec},{recall}
+----prec: 0.2903225806451613 recall: 0.047619047619047616 acc: 0.4293785310734463
+Case 46: obj id: ['631']  ----  tp: 3 fp: 7 tn: 12 fn:19
+{case_id},{tp},{fp},{tn},{fn},{acc},{prec},{recall}
+----prec: 0.3 recall: 0.13636363636363635 acc: 0.36585365853658536
+Case 45: obj id: ['628']  ----  tp: 11 fp: 0 tn: 8 fn:26
+{case_id},{tp},{fp},{tn},{fn},{acc},{prec},{recall}
+----prec: 1.0 recall: 0.2972972972972973 acc: 0.4222222222222222
+Case 47: obj id: ['652']  ----  tp: 9 fp: 1 tn: 1 fn:349
+{case_id},{tp},{fp},{tn},{fn},{acc},{prec},{recall}
+----prec: 0.9 recall: 0.025139664804469275 acc: 0.027777777777777776
+Case 48: obj id: ['668']  ----  tp: 0 fp: 0 tn: 42 fn:134
+{case_id},{tp},{fp},{tn},{fn},{acc},{prec},{recall}
+----prec: 0 recall: 0 acc: 0.23863636363636365
+Case 49: obj id: ['669']  ----  tp: 0 fp: 0 tn: 102 fn:283
+{case_id},{tp},{fp},{tn},{fn},{acc},{prec},{recall}
+----prec: 0 recall: 0 acc: 0.2649350649350649
+Case 50: obj id: ['687']  ----  tp: 36 fp: 0 tn: 12 fn:12
+{case_id},{tp},{fp},{tn},{fn},{acc},{prec},{recall}
+----prec: 1.0 recall: 0.75 acc: 0.8
+Case 51: obj id: ['709']  ----  tp: 208 fp: 10 tn: 20 fn:1
+{case_id},{tp},{fp},{tn},{fn},{acc},{prec},{recall}
+----prec: 0.9541284403669725 recall: 0.9952153110047847 acc: 0.9539748953974896
+Case 52: obj id: ['729']  ----  tp: 9 fp: 0 tn: 14 fn:4
+{case_id},{tp},{fp},{tn},{fn},{acc},{prec},{recall}
+----prec: 1.0 recall: 0.6923076923076923 acc: 0.8518518518518519
+Case 53: obj id: ['753']  ----  tp: 0 fp: 0 tn: 53 fn:16
+{case_id},{tp},{fp},{tn},{fn},{acc},{prec},{recall}
+----prec: 0 recall: 0 acc: 0.7681159420289855
+Case 54: obj id: ['764']  ----  tp: 2 fp: 0 tn: 7 fn:2
+{case_id},{tp},{fp},{tn},{fn},{acc},{prec},{recall}
+----prec: 1.0 recall: 0.5 acc: 0.8181818181818182
+Case 55: obj id: ['794', '799']  ----  tp: 37 fp: 4 tn: 69 fn:43
+{case_id},{tp},{fp},{tn},{fn},{acc},{prec},{recall}
+----prec: 0.9024390243902439 recall: 0.4625 acc: 0.6928104575163399
+Case 56: obj id: ['814']  ----  tp: 114 fp: 2 tn: 0 fn:112
+{case_id},{tp},{fp},{tn},{fn},{acc},{prec},{recall}
+----prec: 0.9827586206896551 recall: 0.504424778761062 acc: 0.5
+Precision@25% = 43/54 = 0.7962962962962963
+Recall@25% = 32/54 = 0.5925925925925926
+Precision@33% = 40/54 = 0.7407407407407407
+Recall@33% = 26/54 = 0.48148148148148145
+Precision@50% = 40/54 = 0.7407407407407407
+Recall@50% = 23/54 = 0.42592592592592593
+Precision@75% = 35/54 = 0.6481481481481481
+Recall@75% = 14/54 = 0.25925925925925924
+Case 2: obj id: ['11']  ----  tp: 50 fp: 8 tn: 16 fn:166
+{case_id},{tp},{fp},{tn},{fn},{acc},{prec},{recall}
+----prec: 0.8620689655172413 recall: 0.23148148148148148 acc: 0.275
+Case 1: obj id: ['10']  ----  tp: 30 fp: 0 tn: 2 fn:189
+{case_id},{tp},{fp},{tn},{fn},{acc},{prec},{recall}
+----prec: 1.0 recall: 0.136986301369863 acc: 0.14479638009049775
+Case 3: obj id: ['37', '42']  ----  tp: 181 fp: 5 tn: 73 fn:50
+{case_id},{tp},{fp},{tn},{fn},{acc},{prec},{recall}
+----prec: 0.9731182795698925 recall: 0.7835497835497836 acc: 0.8220064724919094
+Case 5: obj id: ['48']  ----  tp: 0 fp: 0 tn: 28 fn:25
+{case_id},{tp},{fp},{tn},{fn},{acc},{prec},{recall}
+----prec: 0 recall: 0 acc: 0.5283018867924528
+Case 4: obj id: ['51']  ----  tp: 143 fp: 2 tn: 1 fn:23
+{case_id},{tp},{fp},{tn},{fn},{acc},{prec},{recall}
+----prec: 0.9862068965517241 recall: 0.8614457831325302 acc: 0.8520710059171598
+Case 6: obj id: ['63', '64']  ----  tp: 142 fp: 12 tn: 13 fn:78
+{case_id},{tp},{fp},{tn},{fn},{acc},{prec},{recall}
+----prec: 0.922077922077922 recall: 0.6454545454545455 acc: 0.6326530612244898
+Case 7: obj id: ['74', '75']  ----  tp: 35 fp: 2 tn: 2 fn:19
+{case_id},{tp},{fp},{tn},{fn},{acc},{prec},{recall}
+----prec: 0.9459459459459459 recall: 0.6481481481481481 acc: 0.6379310344827587
+Case 8: obj id: ['77']  ----  tp: 32 fp: 2 tn: 36 fn:112
+{case_id},{tp},{fp},{tn},{fn},{acc},{prec},{recall}
+----prec: 0.9411764705882353 recall: 0.2222222222222222 acc: 0.37362637362637363
+Case 9: obj id: ['83']  ----  tp: 2 fp: 0 tn: 24 fn:59
+{case_id},{tp},{fp},{tn},{fn},{acc},{prec},{recall}
+----prec: 1.0 recall: 0.03278688524590164 acc: 0.3058823529411765
+Case 10: obj id: ['87']  ----  tp: 6 fp: 26 tn: 76 fn:62
+{case_id},{tp},{fp},{tn},{fn},{acc},{prec},{recall}
+----prec: 0.1875 recall: 0.08823529411764706 acc: 0.4823529411764706
+Case 11: obj id: ['106']  ----  tp: 0 fp: 5 tn: 95 fn:8
+{case_id},{tp},{fp},{tn},{fn},{acc},{prec},{recall}
+----prec: 0 recall: 0 acc: 0.8796296296296297
+Case 12: obj id: ['120']  ----  tp: 22 fp: 2 tn: 15 fn:185
+{case_id},{tp},{fp},{tn},{fn},{acc},{prec},{recall}
+----prec: 0.9166666666666666 recall: 0.10628019323671498 acc: 0.16517857142857142
+Case 13: obj id: ['161']  ----  tp: 0 fp: 0 tn: 16 fn:4
+{case_id},{tp},{fp},{tn},{fn},{acc},{prec},{recall}
+----prec: 0 recall: 0 acc: 0.8
+Case 15: obj id: ['175']  ----  tp: 1 fp: 0 tn: 1 fn:7
+{case_id},{tp},{fp},{tn},{fn},{acc},{prec},{recall}
+----prec: 1.0 recall: 0.125 acc: 0.2222222222222222
+Case 14: obj id: ['174']  ----  tp: 1 fp: 0 tn: 1 fn:38
+{case_id},{tp},{fp},{tn},{fn},{acc},{prec},{recall}
+----prec: 1.0 recall: 0.02564102564102564 acc: 0.05
+Case 16: obj id: ['178']  ----  tp: 7 fp: 0 tn: 12 fn:7
+{case_id},{tp},{fp},{tn},{fn},{acc},{prec},{recall}
+----prec: 1.0 recall: 0.5 acc: 0.7307692307692307
+Case 17: obj id: ['194']  ----  tp: 0 fp: 0 tn: 3 fn:86
+{case_id},{tp},{fp},{tn},{fn},{acc},{prec},{recall}
+----prec: 0 recall: 0 acc: 0.033707865168539325
+Case 18: obj id: ['200']  ----  tp: 8 fp: 6 tn: 77 fn:33
+{case_id},{tp},{fp},{tn},{fn},{acc},{prec},{recall}
+----prec: 0.5714285714285714 recall: 0.1951219512195122 acc: 0.6854838709677419
+Case 19: obj id: ['241']  ----  tp: 98 fp: 0 tn: 3 fn:123
+{case_id},{tp},{fp},{tn},{fn},{acc},{prec},{recall}
+----prec: 1.0 recall: 0.4434389140271493 acc: 0.45089285714285715
+Case 20: obj id: ['248']  ----  tp: 173 fp: 2 tn: 55 fn:53
+{case_id},{tp},{fp},{tn},{fn},{acc},{prec},{recall}
+----prec: 0.9885714285714285 recall: 0.7654867256637168 acc: 0.8056537102473498
+Case 22: obj id: ['272']  ----  tp: 46 fp: 8 tn: 72 fn:11
+{case_id},{tp},{fp},{tn},{fn},{acc},{prec},{recall}
+----prec: 0.8518518518518519 recall: 0.8070175438596491 acc: 0.8613138686131386
+Case 21: obj id: ['277']  ----  tp: 5 fp: 1 tn: 5 fn:14
+{case_id},{tp},{fp},{tn},{fn},{acc},{prec},{recall}
+----prec: 0.8333333333333334 recall: 0.2631578947368421 acc: 0.4
+Case 23: obj id: ['287']  ----  tp: 25 fp: 0 tn: 8 fn:7
+{case_id},{tp},{fp},{tn},{fn},{acc},{prec},{recall}
+----prec: 1.0 recall: 0.78125 acc: 0.825
+Case 26: obj id: ['324']  ----  tp: 25 fp: 3 tn: 6 fn:11
+{case_id},{tp},{fp},{tn},{fn},{acc},{prec},{recall}
+----prec: 0.8928571428571429 recall: 0.6944444444444444 acc: 0.6888888888888889
+Case 27: obj id: ['337']  ----  tp: 117 fp: 2 tn: 1 fn:35
+{case_id},{tp},{fp},{tn},{fn},{acc},{prec},{recall}
+----prec: 0.9831932773109243 recall: 0.7697368421052632 acc: 0.7612903225806451
+Case 28: obj id: ['355']  ----  tp: 24 fp: 1 tn: 10 fn:170
+{case_id},{tp},{fp},{tn},{fn},{acc},{prec},{recall}
+----prec: 0.96 recall: 0.12371134020618557 acc: 0.16585365853658537
+Case 29: obj id: ['384']  ----  tp: 199 fp: 4 tn: 3 fn:10
+{case_id},{tp},{fp},{tn},{fn},{acc},{prec},{recall}
+----prec: 0.9802955665024631 recall: 0.9521531100478469 acc: 0.9351851851851852
+Case 30: obj id: ['388']  ----  tp: 0 fp: 0 tn: 3 fn:165
+{case_id},{tp},{fp},{tn},{fn},{acc},{prec},{recall}
+----prec: 0 recall: 0 acc: 0.017857142857142856
+Case 31: obj id: ['404']  ----  tp: 138 fp: 3 tn: 10 fn:11
+{case_id},{tp},{fp},{tn},{fn},{acc},{prec},{recall}
+----prec: 0.9787234042553191 recall: 0.9261744966442953 acc: 0.9135802469135802
+Case 32: obj id: ['413', '415']  ----  tp: 11 fp: 5 tn: 59 fn:23
+{case_id},{tp},{fp},{tn},{fn},{acc},{prec},{recall}
+----prec: 0.6875 recall: 0.3235294117647059 acc: 0.7142857142857143
+Case 33: obj id: ['414']  ----  tp: 4 fp: 2 tn: 1 fn:0
+{case_id},{tp},{fp},{tn},{fn},{acc},{prec},{recall}
+----prec: 0.6666666666666666 recall: 1.0 acc: 0.7142857142857143
+Case 34: obj id: ['420']  ----  tp: 0 fp: 0 tn: 99 fn:147
+{case_id},{tp},{fp},{tn},{fn},{acc},{prec},{recall}
+----prec: 0 recall: 0 acc: 0.4024390243902439
+Case 36: obj id: ['432']  ----  tp: 4 fp: 3 tn: 5 fn:6
+{case_id},{tp},{fp},{tn},{fn},{acc},{prec},{recall}
+----prec: 0.5714285714285714 recall: 0.4 acc: 0.5
+Case 38: obj id: ['439']  ----  tp: 0 fp: 0 tn: 124 fn:133
+{case_id},{tp},{fp},{tn},{fn},{acc},{prec},{recall}
+----prec: 0 recall: 0 acc: 0.48249027237354086
+Case 37: obj id: ['450', '451']  ----  tp: 0 fp: 0 tn: 2 fn:22
+{case_id},{tp},{fp},{tn},{fn},{acc},{prec},{recall}
+----prec: 0 recall: 0 acc: 0.08333333333333333
+Case 39: obj id: ['458']  ----  tp: 32 fp: 0 tn: 44 fn:351
+{case_id},{tp},{fp},{tn},{fn},{acc},{prec},{recall}
+----prec: 1.0 recall: 0.0835509138381201 acc: 0.17798594847775176
+Case 40: obj id: ['502']  ----  tp: 0 fp: 0 tn: 26 fn:354
+{case_id},{tp},{fp},{tn},{fn},{acc},{prec},{recall}
+----prec: 0 recall: 0 acc: 0.06842105263157895
+Case 41: obj id: ['587']  ----  tp: 172 fp: 2 tn: 1 fn:96
+{case_id},{tp},{fp},{tn},{fn},{acc},{prec},{recall}
+----prec: 0.9885057471264368 recall: 0.6417910447761194 acc: 0.6383763837638377
+Case 42: obj id: ['602']  ----  tp: 33 fp: 1 tn: 80 fn:93
+{case_id},{tp},{fp},{tn},{fn},{acc},{prec},{recall}
+----prec: 0.9705882352941176 recall: 0.2619047619047619 acc: 0.5458937198067633
+Case 25: obj id: ['611']  ----  tp: 0 fp: 0 tn: 33 fn:0
+{case_id},{tp},{fp},{tn},{fn},{acc},{prec},{recall}
+----prec: 0 recall: 0 acc: 1.0
+Case 43: obj id: ['620']  ----  tp: 4 fp: 5 tn: 27 fn:37
+{case_id},{tp},{fp},{tn},{fn},{acc},{prec},{recall}
+----prec: 0.4444444444444444 recall: 0.0975609756097561 acc: 0.4246575342465753
+Case 44: obj id: ['627']  ----  tp: 1 fp: 9 tn: 156 fn:188
+{case_id},{tp},{fp},{tn},{fn},{acc},{prec},{recall}
+----prec: 0.1 recall: 0.005291005291005291 acc: 0.4435028248587571
+Case 46: obj id: ['631']  ----  tp: 2 fp: 3 tn: 16 fn:20
+{case_id},{tp},{fp},{tn},{fn},{acc},{prec},{recall}
+----prec: 0.4 recall: 0.09090909090909091 acc: 0.43902439024390244
+Case 45: obj id: ['628']  ----  tp: 6 fp: 0 tn: 8 fn:31
+{case_id},{tp},{fp},{tn},{fn},{acc},{prec},{recall}
+----prec: 1.0 recall: 0.16216216216216217 acc: 0.3111111111111111
+Case 47: obj id: ['652']  ----  tp: 0 fp: 1 tn: 1 fn:358
+{case_id},{tp},{fp},{tn},{fn},{acc},{prec},{recall}
+----prec: 0 recall: 0 acc: 0.002777777777777778
+Case 48: obj id: ['668']  ----  tp: 0 fp: 0 tn: 42 fn:134
+{case_id},{tp},{fp},{tn},{fn},{acc},{prec},{recall}
+----prec: 0 recall: 0 acc: 0.23863636363636365
+Case 49: obj id: ['669']  ----  tp: 0 fp: 0 tn: 102 fn:283
+{case_id},{tp},{fp},{tn},{fn},{acc},{prec},{recall}
+----prec: 0 recall: 0 acc: 0.2649350649350649
+Case 50: obj id: ['687']  ----  tp: 26 fp: 0 tn: 12 fn:22
+{case_id},{tp},{fp},{tn},{fn},{acc},{prec},{recall}
+----prec: 1.0 recall: 0.5416666666666666 acc: 0.6333333333333333
+Case 51: obj id: ['709']  ----  tp: 206 fp: 8 tn: 22 fn:3
+{case_id},{tp},{fp},{tn},{fn},{acc},{prec},{recall}
+----prec: 0.9626168224299065 recall: 0.9856459330143541 acc: 0.9539748953974896
+Case 52: obj id: ['729']  ----  tp: 8 fp: 0 tn: 14 fn:5
+{case_id},{tp},{fp},{tn},{fn},{acc},{prec},{recall}
+----prec: 1.0 recall: 0.6153846153846154 acc: 0.8148148148148148
+Case 53: obj id: ['753']  ----  tp: 0 fp: 0 tn: 53 fn:16
+{case_id},{tp},{fp},{tn},{fn},{acc},{prec},{recall}
+----prec: 0 recall: 0 acc: 0.7681159420289855
+Case 54: obj id: ['764']  ----  tp: 2 fp: 0 tn: 7 fn:2
+{case_id},{tp},{fp},{tn},{fn},{acc},{prec},{recall}
+----prec: 1.0 recall: 0.5 acc: 0.8181818181818182
+Case 55: obj id: ['794', '799']  ----  tp: 25 fp: 0 tn: 73 fn:55
+{case_id},{tp},{fp},{tn},{fn},{acc},{prec},{recall}
+----prec: 1.0 recall: 0.3125 acc: 0.6405228758169934
+Case 56: obj id: ['814']  ----  tp: 63 fp: 2 tn: 0 fn:163
+{case_id},{tp},{fp},{tn},{fn},{acc},{prec},{recall}
+----prec: 0.9692307692307692 recall: 0.27876106194690264 acc: 0.27631578947368424
+Precision@25% = 38/54 = 0.7037037037037037
+Recall@25% = 25/54 = 0.46296296296296297
+Precision@33% = 38/54 = 0.7037037037037037
+Recall@33% = 20/54 = 0.37037037037037035
+Precision@50% = 36/54 = 0.6666666666666666
+Recall@50% = 18/54 = 0.3333333333333333
+Precision@75% = 32/54 = 0.5925925925925926
+Recall@75% = 10/54 = 0.18518518518518517
+Case 2: obj id: ['11']  ----  tp: 11 fp: 2 tn: 22 fn:205
+{case_id},{tp},{fp},{tn},{fn},{acc},{prec},{recall}
+----prec: 0.8461538461538461 recall: 0.05092592592592592 acc: 0.1375
+Case 1: obj id: ['10']  ----  tp: 5 fp: 0 tn: 2 fn:214
+{case_id},{tp},{fp},{tn},{fn},{acc},{prec},{recall}
+----prec: 1.0 recall: 0.0228310502283105 acc: 0.03167420814479638
+Case 3: obj id: ['37', '42']  ----  tp: 115 fp: 5 tn: 73 fn:116
+{case_id},{tp},{fp},{tn},{fn},{acc},{prec},{recall}
+----prec: 0.9583333333333334 recall: 0.49783549783549785 acc: 0.6084142394822006
+Case 5: obj id: ['48']  ----  tp: 0 fp: 0 tn: 28 fn:25
+{case_id},{tp},{fp},{tn},{fn},{acc},{prec},{recall}
+----prec: 0 recall: 0 acc: 0.5283018867924528
+Case 4: obj id: ['51']  ----  tp: 110 fp: 0 tn: 3 fn:56
+{case_id},{tp},{fp},{tn},{fn},{acc},{prec},{recall}
+----prec: 1.0 recall: 0.6626506024096386 acc: 0.6686390532544378
+Case 6: obj id: ['63', '64']  ----  tp: 96 fp: 9 tn: 16 fn:124
+{case_id},{tp},{fp},{tn},{fn},{acc},{prec},{recall}
+----prec: 0.9142857142857143 recall: 0.43636363636363634 acc: 0.45714285714285713
+Case 7: obj id: ['74', '75']  ----  tp: 19 fp: 1 tn: 3 fn:35
+{case_id},{tp},{fp},{tn},{fn},{acc},{prec},{recall}
+----prec: 0.95 recall: 0.35185185185185186 acc: 0.3793103448275862
+Case 8: obj id: ['77']  ----  tp: 7 fp: 0 tn: 38 fn:137
+{case_id},{tp},{fp},{tn},{fn},{acc},{prec},{recall}
+----prec: 1.0 recall: 0.04861111111111111 acc: 0.24725274725274726
+Case 9: obj id: ['83']  ----  tp: 0 fp: 0 tn: 24 fn:61
+{case_id},{tp},{fp},{tn},{fn},{acc},{prec},{recall}
+----prec: 0 recall: 0 acc: 0.2823529411764706
+Case 10: obj id: ['87']  ----  tp: 1 fp: 14 tn: 88 fn:67
+{case_id},{tp},{fp},{tn},{fn},{acc},{prec},{recall}
+----prec: 0.06666666666666667 recall: 0.014705882352941176 acc: 0.5235294117647059
+Case 11: obj id: ['106']  ----  tp: 0 fp: 1 tn: 99 fn:8
+{case_id},{tp},{fp},{tn},{fn},{acc},{prec},{recall}
+----prec: 0 recall: 0 acc: 0.9166666666666666
+Case 12: obj id: ['120']  ----  tp: 18 fp: 0 tn: 17 fn:189
+{case_id},{tp},{fp},{tn},{fn},{acc},{prec},{recall}
+----prec: 1.0 recall: 0.08695652173913043 acc: 0.15625
+Case 13: obj id: ['161']  ----  tp: 0 fp: 0 tn: 16 fn:4
+{case_id},{tp},{fp},{tn},{fn},{acc},{prec},{recall}
+----prec: 0 recall: 0 acc: 0.8
+Case 15: obj id: ['175']  ----  tp: 0 fp: 0 tn: 1 fn:8
+{case_id},{tp},{fp},{tn},{fn},{acc},{prec},{recall}
+----prec: 0 recall: 0 acc: 0.1111111111111111
+Case 14: obj id: ['174']  ----  tp: 1 fp: 0 tn: 1 fn:38
+{case_id},{tp},{fp},{tn},{fn},{acc},{prec},{recall}
+----prec: 1.0 recall: 0.02564102564102564 acc: 0.05
+Case 16: obj id: ['178']  ----  tp: 5 fp: 0 tn: 12 fn:9
+{case_id},{tp},{fp},{tn},{fn},{acc},{prec},{recall}
+----prec: 1.0 recall: 0.35714285714285715 acc: 0.6538461538461539
+Case 17: obj id: ['194']  ----  tp: 0 fp: 0 tn: 3 fn:86
+{case_id},{tp},{fp},{tn},{fn},{acc},{prec},{recall}
+----prec: 0 recall: 0 acc: 0.033707865168539325
+Case 18: obj id: ['200']  ----  tp: 1 fp: 2 tn: 81 fn:40
+{case_id},{tp},{fp},{tn},{fn},{acc},{prec},{recall}
+----prec: 0.3333333333333333 recall: 0.024390243902439025 acc: 0.6612903225806451
+Case 19: obj id: ['241']  ----  tp: 53 fp: 0 tn: 3 fn:168
+{case_id},{tp},{fp},{tn},{fn},{acc},{prec},{recall}
+----prec: 1.0 recall: 0.2398190045248869 acc: 0.25
+Case 20: obj id: ['248']  ----  tp: 126 fp: 1 tn: 56 fn:100
+{case_id},{tp},{fp},{tn},{fn},{acc},{prec},{recall}
+----prec: 0.9921259842519685 recall: 0.5575221238938053 acc: 0.6431095406360424
+Case 22: obj id: ['272']  ----  tp: 36 fp: 7 tn: 73 fn:21
+{case_id},{tp},{fp},{tn},{fn},{acc},{prec},{recall}
+----prec: 0.8372093023255814 recall: 0.631578947368421 acc: 0.7956204379562044
+Case 21: obj id: ['277']  ----  tp: 1 fp: 1 tn: 5 fn:18
+{case_id},{tp},{fp},{tn},{fn},{acc},{prec},{recall}
+----prec: 0.5 recall: 0.05263157894736842 acc: 0.24
+Case 23: obj id: ['287']  ----  tp: 19 fp: 0 tn: 8 fn:13
+{case_id},{tp},{fp},{tn},{fn},{acc},{prec},{recall}
+----prec: 1.0 recall: 0.59375 acc: 0.675
+Case 26: obj id: ['324']  ----  tp: 20 fp: 0 tn: 9 fn:16
+{case_id},{tp},{fp},{tn},{fn},{acc},{prec},{recall}
+----prec: 1.0 recall: 0.5555555555555556 acc: 0.6444444444444445
+Case 27: obj id: ['337']  ----  tp: 76 fp: 0 tn: 3 fn:76
+{case_id},{tp},{fp},{tn},{fn},{acc},{prec},{recall}
+----prec: 1.0 recall: 0.5 acc: 0.5096774193548387
+Case 28: obj id: ['355']  ----  tp: 4 fp: 0 tn: 11 fn:190
+{case_id},{tp},{fp},{tn},{fn},{acc},{prec},{recall}
+----prec: 1.0 recall: 0.020618556701030927 acc: 0.07317073170731707
+Case 29: obj id: ['384']  ----  tp: 151 fp: 2 tn: 5 fn:58
+{case_id},{tp},{fp},{tn},{fn},{acc},{prec},{recall}
+----prec: 0.9869281045751634 recall: 0.722488038277512 acc: 0.7222222222222222
+Case 30: obj id: ['388']  ----  tp: 0 fp: 0 tn: 3 fn:165
+{case_id},{tp},{fp},{tn},{fn},{acc},{prec},{recall}
+----prec: 0 recall: 0 acc: 0.017857142857142856
+Case 31: obj id: ['404']  ----  tp: 126 fp: 3 tn: 10 fn:23
+{case_id},{tp},{fp},{tn},{fn},{acc},{prec},{recall}
+----prec: 0.9767441860465116 recall: 0.8456375838926175 acc: 0.8395061728395061
+Case 32: obj id: ['413', '415']  ----  tp: 4 fp: 3 tn: 61 fn:30
+{case_id},{tp},{fp},{tn},{fn},{acc},{prec},{recall}
+----prec: 0.5714285714285714 recall: 0.11764705882352941 acc: 0.6632653061224489
+Case 33: obj id: ['414']  ----  tp: 2 fp: 2 tn: 1 fn:2
+{case_id},{tp},{fp},{tn},{fn},{acc},{prec},{recall}
+----prec: 0.5 recall: 0.5 acc: 0.42857142857142855
+Case 34: obj id: ['420']  ----  tp: 0 fp: 0 tn: 99 fn:147
+{case_id},{tp},{fp},{tn},{fn},{acc},{prec},{recall}
+----prec: 0 recall: 0 acc: 0.4024390243902439
+Case 36: obj id: ['432']  ----  tp: 2 fp: 0 tn: 8 fn:8
+{case_id},{tp},{fp},{tn},{fn},{acc},{prec},{recall}
+----prec: 1.0 recall: 0.2 acc: 0.5555555555555556
+Case 38: obj id: ['439']  ----  tp: 0 fp: 0 tn: 124 fn:133
+{case_id},{tp},{fp},{tn},{fn},{acc},{prec},{recall}
+----prec: 0 recall: 0 acc: 0.48249027237354086
+Case 37: obj id: ['450', '451']  ----  tp: 0 fp: 0 tn: 2 fn:22
+{case_id},{tp},{fp},{tn},{fn},{acc},{prec},{recall}
+----prec: 0 recall: 0 acc: 0.08333333333333333
+Case 39: obj id: ['458']  ----  tp: 12 fp: 0 tn: 44 fn:371
+{case_id},{tp},{fp},{tn},{fn},{acc},{prec},{recall}
+----prec: 1.0 recall: 0.031331592689295036 acc: 0.13114754098360656
+Case 40: obj id: ['502']  ----  tp: 0 fp: 0 tn: 26 fn:354
+{case_id},{tp},{fp},{tn},{fn},{acc},{prec},{recall}
+----prec: 0 recall: 0 acc: 0.06842105263157895
+Case 41: obj id: ['587']  ----  tp: 81 fp: 2 tn: 1 fn:187
+{case_id},{tp},{fp},{tn},{fn},{acc},{prec},{recall}
+----prec: 0.9759036144578314 recall: 0.30223880597014924 acc: 0.3025830258302583
+Case 42: obj id: ['602']  ----  tp: 18 fp: 0 tn: 81 fn:108
+{case_id},{tp},{fp},{tn},{fn},{acc},{prec},{recall}
+----prec: 1.0 recall: 0.14285714285714285 acc: 0.4782608695652174
+Case 25: obj id: ['611']  ----  tp: 0 fp: 0 tn: 33 fn:0
+{case_id},{tp},{fp},{tn},{fn},{acc},{prec},{recall}
+----prec: 0 recall: 0 acc: 1.0
+Case 43: obj id: ['620']  ----  tp: 4 fp: 4 tn: 28 fn:37
+{case_id},{tp},{fp},{tn},{fn},{acc},{prec},{recall}
+----prec: 0.5 recall: 0.0975609756097561 acc: 0.4383561643835616
+Case 44: obj id: ['627']  ----  tp: 0 fp: 2 tn: 163 fn:189
+{case_id},{tp},{fp},{tn},{fn},{acc},{prec},{recall}
+----prec: 0 recall: 0 acc: 0.4604519774011299
+Case 46: obj id: ['631']  ----  tp: 1 fp: 0 tn: 19 fn:21
+{case_id},{tp},{fp},{tn},{fn},{acc},{prec},{recall}
+----prec: 1.0 recall: 0.045454545454545456 acc: 0.4878048780487805
+Case 45: obj id: ['628']  ----  tp: 1 fp: 0 tn: 8 fn:36
+{case_id},{tp},{fp},{tn},{fn},{acc},{prec},{recall}
+----prec: 1.0 recall: 0.02702702702702703 acc: 0.2
+Case 47: obj id: ['652']  ----  tp: 0 fp: 0 tn: 2 fn:358
+{case_id},{tp},{fp},{tn},{fn},{acc},{prec},{recall}
+----prec: 0 recall: 0 acc: 0.005555555555555556
+Case 48: obj id: ['668']  ----  tp: 0 fp: 0 tn: 42 fn:134
+{case_id},{tp},{fp},{tn},{fn},{acc},{prec},{recall}
+----prec: 0 recall: 0 acc: 0.23863636363636365
+Case 49: obj id: ['669']  ----  tp: 0 fp: 0 tn: 102 fn:283
+{case_id},{tp},{fp},{tn},{fn},{acc},{prec},{recall}
+----prec: 0 recall: 0 acc: 0.2649350649350649
+Case 50: obj id: ['687']  ----  tp: 10 fp: 0 tn: 12 fn:38
+{case_id},{tp},{fp},{tn},{fn},{acc},{prec},{recall}
+----prec: 1.0 recall: 0.20833333333333334 acc: 0.36666666666666664
+Case 51: obj id: ['709']  ----  tp: 192 fp: 4 tn: 26 fn:17
+{case_id},{tp},{fp},{tn},{fn},{acc},{prec},{recall}
+----prec: 0.9795918367346939 recall: 0.9186602870813397 acc: 0.9121338912133892
+Case 52: obj id: ['729']  ----  tp: 4 fp: 0 tn: 14 fn:9
+{case_id},{tp},{fp},{tn},{fn},{acc},{prec},{recall}
+----prec: 1.0 recall: 0.3076923076923077 acc: 0.6666666666666666
+Case 53: obj id: ['753']  ----  tp: 0 fp: 0 tn: 53 fn:16
+{case_id},{tp},{fp},{tn},{fn},{acc},{prec},{recall}
+----prec: 0 recall: 0 acc: 0.7681159420289855
+Case 54: obj id: ['764']  ----  tp: 1 fp: 0 tn: 7 fn:3
+{case_id},{tp},{fp},{tn},{fn},{acc},{prec},{recall}
+----prec: 1.0 recall: 0.25 acc: 0.7272727272727273
+Case 55: obj id: ['794', '799']  ----  tp: 6 fp: 0 tn: 73 fn:74
+{case_id},{tp},{fp},{tn},{fn},{acc},{prec},{recall}
+----prec: 1.0 recall: 0.075 acc: 0.5163398692810458
+Case 56: obj id: ['814']  ----  tp: 16 fp: 0 tn: 2 fn:210
+{case_id},{tp},{fp},{tn},{fn},{acc},{prec},{recall}
+----prec: 1.0 recall: 0.07079646017699115 acc: 0.07894736842105263
+Precision@25% = 36/54 = 0.6666666666666666
+Recall@25% = 17/54 = 0.3148148148148148
+Precision@33% = 36/54 = 0.6666666666666666
+Recall@33% = 14/54 = 0.25925925925925924
+Precision@50% = 35/54 = 0.6481481481481481
+Recall@50% = 10/54 = 0.18518518518518517
+Precision@75% = 31/54 = 0.5740740740740741
+Recall@75% = 2/54 = 0.037037037037037035
+Results (all):  Acc:21102/27159 |prec: 3115/5875 |recall: 3115/6412
+Results (all):  Acc:21388/27159 |prec: 2671/4701 |recall: 2671/6412
+Results (all):  Acc:21529/27159 |prec: 2109/3436 |recall: 2109/6412
+Results (all):  Acc:21518/27159 |prec: 1355/1939 |recall: 1355/6412

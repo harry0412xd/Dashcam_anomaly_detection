@@ -102,7 +102,7 @@ def proc_frame(writer, frames, frames_infos, frame_no, test_writer=None):
             # draw_future_center(frames_infos, obj_id, out_frame)
     # damage detection
             if opt.dmg_det:
-                damage_detector.get_avg_score(obj_id, frame_no)
+                damage_detector.get_avg_prob(obj_id, frame_no)
                 # DAMAGE_SKIP_NUM = 2
                 obj_dmg_key = f"{obj_id}_dmg"
                 if obj_dmg_key in smooth_dict and smooth_dict[obj_dmg_key][0]>0:
@@ -737,7 +737,7 @@ def detect_damaged_car(id_to_info, frame, frame_no):
         left, top, right, bottom = bbox
         dmg_height_thres, dmg_width_thres = 64, 64
         if not DC.IGNORE_SMALL or ((bottom-top)>dmg_height_thres and (right-left)>dmg_width_thres):
-            damage_detector.detect(frame, bbox, id_to_info, frame_no)
+            damage_detector.detect(frame, bbox, id_to_info, frame_no, obj_id)
 
 
 def track_video():
@@ -884,7 +884,7 @@ def track_video():
                 save_det_result(det_result_file, id_to_info, in_frame_no)
 
         if opt.dmg_det:
-            detect_damaged_car(id_to_info, frame, frame_no) #wrapper function to iterate all obj
+            detect_damaged_car(id_to_info, frame, in_frame_no) #wrapper function to iterate all obj
 
         prev_frames.append(frame)
         frames_infos.append(id_to_info)
