@@ -13,7 +13,7 @@ from timm.utils import *
 from torchvision import models
 
 class Damage_detector():
-    def __init__(self, device. do_erasing=False, do_padding=False, side_thres=1.6, avg_amount=5):
+    def __init__(self, device, do_erasing=False, do_padding=False, side_thres=1.6, save_probs=False, avg_amount=5, output_test_image=False):
         # url = "https://github.com/harry0412xd/Dashcam_anomaly_detection/releases/download/v1.0/gluon_seresnext101_32x4d-244_checkpoint-69.pth.tar"
         # checkpoint_path = "model_data/gluon_seresnext101_32x4d-244_checkpoint-69.pth.tar"
         # if not os.path.isfile(checkpoint_path):
@@ -25,7 +25,7 @@ class Damage_detector():
         # checkpoint_path = "/content/MyDrive/cls_model/train/20200318-112718-gluon_seresnext101_32x4d-224/model_best.pth.tar"
         # new data(6)
         checkpoint_path = "/content/MyDrive/cls_model/train/20200321-165626-gluon_seresnext101_32x4d-224/averaged.pth"
-        # model = create_model('gluon_seresnext101_32x4d', num_classes=2, checkpoint_path = checkpoint_path)
+        model = create_model('gluon_seresnext101_32x4d', num_classes=2, checkpoint_path = checkpoint_path)
 
         # model = create_model('gluon_seresnext101_32x4d', num_classes=2)
         # convert_splitbn_model(model,3)
@@ -43,14 +43,16 @@ class Damage_detector():
         ])
         self.checkpoint_path = checkpoint_path
         self.test_counter = {}
+        self.output_test_image = output_test_image
         self.do_erasing = do_erasing
         self.do_padding = do_padding
         self.avg_amount = avg_amount # |<- n-th before --- current --- nth after->|
         self.side_thres = side_thres
+        self.save_probs = save_probs
         self.id2probs = {}
 
 
-    def detect(self, frame, bbox, frame_info, frame_no, obj_id=None):
+    def detect(self, frame, bbox, frame_info, frame_no, obj_id):
 
         # Extend the bounding box by a bit to include more pixels
         if self.do_padding:
@@ -76,7 +78,7 @@ class Damage_detector():
         damaged_prob = get_damaged_prob(output)
 
         # testing purpose : save the input image with prob printed
-        if obj_id:
+        if self.output_test_image:
             key = str(obj_id)
             if not (key in self.test_counter):
                 self.test_counter[key] = 0
@@ -86,12 +88,13 @@ class Damage_detector():
             cv2.imwrite(f'/content/test/obj{obj_id:04}_{counter:02}.jpg', cropped_img)
 
         # store all probs
-        if not obj_id in self.id2probs:
-            frame_no2prob = {}
-        else:
-            frame_no2prob = self.id2probs[obj_id]
-        frame_no2prob[frame_no] = damaged_prob
-        self.id2probs[obj_id] = frame_no2prob
+        if self.save_probs:
+            if not obj_id in self.id2probs:
+                frame_no2prob = {}
+            else:
+                frame_no2prob = self.id2probs[obj_id]
+            frame_no2prob[frame_no] = damaged_prob
+            self.id2probs[obj_id] = frame_no2prob
 
         return damaged_prob
 
@@ -100,17 +103,17 @@ class Damage_detector():
         return self.checkpoint_path
 
     def get_avg_prob(self, obj_id, cur_frame_no):
-        if
+        assert self.save_probs, "Need to save the probs in order to compute the average prob, pass save_probs=True when constructing the detector"
         total, count = 0.0, 0
         if obj_id in self.id2probs:
-            frame_no2prob = self.id2probs[obj_id
+            frame_no2prob = self.id2probs[obj_id]
             for frame_no in frame_no2prob:
                 if frame_no < cur_frame_no - self.avg_amount:
                     del frame_no2prob[frame_no]
                 elif frame_no <= cur_frame_no + self.avg_amount:
                     count +=1
                     total += frame_no2prob[frame_no]
-            if count=0:
+            if count==0:
                 return 0
             return total/count
         return -1

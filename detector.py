@@ -824,7 +824,7 @@ def track_video():
     if opt.dmg_det:
         global damage_detector
         damage_detector = Damage_detector(device, do_erasing=DC.DO_ERASING, do_padding=DC.DO_PADDING,
-                                          side_thres=DC.SIDE_THRES, avg_amount=5)
+                                          side_thres=DC.SIDE_THRES, save_probs = True, avg_amount=5)
   # Semantic segmentation
     if opt.ss:
         global dlv3
@@ -950,5 +950,6 @@ if __name__ == '__main__':
     # save/load detection&tracking results
     parser.add_argument('--save_result', action='store_true', default=False, help = "[Optional]Output the Object detection/tracking results to a text file")
     parser.add_argument('--result_path', type=str, default="", help = "[Optional]Path of file which save the Object detection/tracking results")
+    
     opt = parser.parse_args()
     track_video()

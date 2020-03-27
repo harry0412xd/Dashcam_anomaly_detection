@@ -52,34 +52,22 @@ def evaluate():
             # dmg_height_thres, dmg_width_thres = vid_height//12, vid_width//24
             dmg_height_thres, dmg_width_thres = 64, 64
             if not DC.IGNORE_SMALL or ((bottom-top)>dmg_height_thres and (right-left)>dmg_width_thres) :
-                if DC.DO_PADDING:
-                    if (right-left)/(bottom-top) > DC.IS_SIDE_RATIO :
-                        x_pad, y_pad = (right-left)//8, (bottom-top)//12
-                    else:
-                        x_pad, y_pad = (right-left)//12, (bottom-top)//12
-                else:
-                    x_pad, y_pad = 0,0
 
-                if DC.DO_ERASING:
-                    dmg_prob = damage_detector.detect(frame, bbox, padding_size=(x_pad, y_pad),
-                                                      frame_info = id_to_info, erase_overlap=True, obj_id=obj_id)
-                else:
-                    dmg_prob = damage_detector.detect(frame, bbox, padding_size=(x_pad, y_pad))
+                dmg_prob = damage_detector.detect(frame, bbox, id_to_info, frame_no, obj_id)
 
-
-                if dmg_prob>=opt.dmg_thres: #positive
-                    if get_damage_truth(obj_id, frame_no) is not None: # True positive
-                        mode = 1
-                    else:# False positive
-                        mode = 2
-                
-                else:# negative
-                    if get_damage_truth(obj_id, frame_no) is None: # True negative
-                        mode = 3
-                    else:# False negative
-                        mode = 4
-
-                update_metric(obj_id, mode)
+                for p_thres in p_thres_list:
+                    if dmg_prob>p_thres: #positive
+                        if get_damage_truth(obj_id, frame_no) is not None: # True positive
+                            mode = 1
+                        else:# False positive
+                            mode = 2
+                    
+                    else:# negative
+                        if get_damage_truth(obj_id, frame_no) is None: # True negative
+                            mode = 3
+                        else:# False negative
+                            mode = 4
+                    update_metric(obj_id, mode, p_thres)
 
             else:
                 dmg_prob = -1
@@ -95,7 +83,9 @@ def evaluate():
 
         out_writer.write(out_frame)
         
-    compute_case_metric([0.25,0.33,0.5,0.75])
+    
+    m_thres_list = [0.25,0.33,0.5,0.75]
+    compute_case_metric(m_thres_list, p_thres_list)
     compute_total_metric()
 
 # draw bounding box on image given label and coordinate
@@ -112,9 +102,12 @@ def draw_bbox(image, obj_id, dmg_prob, bbox, frame_no):
     case_id = None
     if obj_id in obj_id2case_id:
         case_id = obj_id2case_id[obj_id]
-        if case_id in case_metric:
-            total, tp, fp, tn, fn = case_metric[case_id]
-            label += f"a:{tp+tn}/{total} |p: {tp}/{tp+fp} |r: {tp}/{tp+fn}"
+
+        if opt.dmg_thres in case_metrics:
+            case_metric = case_metrics[opt]
+            if case_id in case_metric:
+                total, tp, fp, tn, fn = case_metric[case_id]
+                label += f"a:{tp+tn}/{total} |p: {tp}/{tp+fp} |r: {tp}/{tp+fn}"
         label = f"C{case_id}-" + label
 
 
@@ -143,53 +136,70 @@ def draw_bbox(image, obj_id, dmg_prob, bbox, frame_no):
 
     
 def compute_total_metric():
-    total, tp, fp, tn, fn = total_metric
-    lognPrint(f"Results (all):  Acc:{tp+tn}/{total} |prec: {tp}/{tp+fp} |recall: {tp}/{tp+fn}")
+    for p_thres in p_thres_list:
+        total_metric = total_metrics[p_thres]
+        total, tp, fp, tn, fn = total_metric
+        lognPrint(f"Results (all):  Acc:{tp+tn}/{total} |prec: {tp}/{tp+fp} |recall: {tp}/{tp+fn}")
 
 
-def compute_case_metric(thres_list):
-    prec_case_wise, recall_case_wise = {}, {}
-    for case_id in case_metric:
-        total, tp, fp, tn, fn = case_metric[case_id]
-        lognPrint(f"Case {case_id}: obj id: {case_id2obj_id[case_id]} ")
-        lognPrint(f"---- tp: {tp} fp: {fp} tn: {tn} fn:{fn}")
+def compute_case_metric(m_thres_list, p_thres_list):
+    for p_thres in p_thres_list:
 
-        log_csv("{case_id},{tp},{fp},{tn},{fn},{acc},{prec},{recall}")
+        prec_case_wise, recall_case_wise = {}, {}
+        case_metric = case_metrics[p_thres]
+        for case_id in case_metric:
+            total, tp, fp, tn, fn = case_metric[case_id]
+            lognPrint(f"Case {case_id}: obj id: {case_id2obj_id[case_id]} ")
+            lognPrint(f"---- tp: {tp} fp: {fp} tn: {tn} fn:{fn}")
 
-        acc = (tp + tn) / total
-        if tp >0:
-            recall = tp / (tp + fn)
-            prec = tp / (tp + fp)
-        else:
-            recall=prec=0
-        # print(f"Case {case_id}: prec: {prec} recall: {recall} acc: {acc}")
-        lognPrint(f"----prec: {prec} recall: {recall} acc: {acc}")
+            log_csv("{case_id},{tp},{fp},{tn},{fn},{acc},{prec},{recall}")
 
-        for thres in thres_list:
-            if recall>=thres:
-                recall_case_wise[thres] = recall_case_wise[thres]+1 if (thres in recall_case_wise) else 1
-            if prec>=thres:
-                prec_case_wise[thres] = prec_case_wise[thres]+1 if (thres in prec_case_wise) else 1
+            acc = (tp + tn) / total
+            if tp >0:
+                recall = tp / (tp + fn)
+                prec = tp / (tp + fp)
+            else:
+                recall=prec=0
+            # print(f"Case {case_id}: prec: {prec} recall: {recall} acc: {acc}")
+            lognPrint(f"----prec: {prec} recall: {recall} acc: {acc}")
 
-    # prec
-    for thres in thres_list:
-        lognPrint(f"Precision@{int(thres*100)}% = {prec_case_wise[thres]}/{len(case_metric)} = {prec_case_wise[thres]/len(case_metric)}") # prec
-        lognPrint(f"Recall@{int(thres*100)}% = {recall_case_wise[thres]}/{len(case_metric)} = {recall_case_wise[thres]/len(case_metric)}") # recall
+            for m_thres in m_thres_list:
+                if recall>=m_thres:
+                    recall_case_wise[m_thres] = recall_case_wise[m_thres]+1 if (m_thres in recall_case_wise) else 1
+                if prec>=m_thres:
+                    prec_case_wise[m_thres] = prec_case_wise[m_thres]+1 if (m_thres in prec_case_wise) else 1
+
+        # prec
+        for m_thres in m_thres_list:
+            lognPrint(f"Precision@{int(m_thres*100)}% = {prec_case_wise[m_thres]}/{len(case_metric)} = {prec_case_wise[m_thres]/len(case_metric)}") # prec
+            lognPrint(f"Recall@{int(m_thres*100)}% = {recall_case_wise[m_thres]}/{len(case_metric)} = {recall_case_wise[m_thres]/len(case_metric)}") # recall
 
 
 
-def update_metric(obj_id, mode):
-  global total_metric
+def update_metric(obj_id, mode, p_thres):
+  global total_metrics, case_metrics
   # mode 1: True positive, 2: False positive 3: True negative 4: False negative
+  if p_thres in total_metrics:
+      total_metric = total_metrics[p_thres]
+  else:
+      total_metric = [0,0,0,0,0]# total, tp, fp, tn, fn
   total_metric[0] += 1 
   total_metric[mode] += 1
+  total_metrics[p_thres] = total_metric
   
+
   if obj_id in obj_id2case_id:
       case_id = obj_id2case_id[obj_id]
+      if p_thres in case_metrics:
+          case_metric = case_metrics[p_thres]
+      else:
+          case_metric = {}
+
       if not case_id in case_metric:
           case_metric[case_id] = [0,0,0,0,0] # total, tp, fp, tn, fn
       case_metric[case_id][0] += 1
       case_metric[case_id][mode] += 1
+      case_metrics[p_thres] = case_metric
   # else not in case
 
 
@@ -263,11 +273,13 @@ if __name__ == '__main__':
     parser.add_argument("--log", type=str, default="eval_result.txt",  help = "Use cuda or cpu")
   
     opt = parser.parse_args()
-    obj_id_to_truth, obj_id2case_id, case_id2obj_id, case_metric = {}, {}, {}, {}
-    total_metric = [0,0,0,0,0]# total, tp, fp, tn, fn
+    obj_id_to_truth, obj_id2case_id, case_id2obj_id, case_metrics, total_metrics = {}, {}, {}, {}, {}
     load_damage_label(opt.label_path)
     vid_width, vid_height = 0, 0
-    damage_detector = Damage_detector(opt.device)
+    p_thres_list = [0.75, 0.8, 0.85, 0.9]
+    assert opt.dmg_thres in p_thres_list, "Change the list above"
+
+    damage_detector = Damage_detector(opt.device, do_erasing=DC.DO_ERASING, do_padding=DC.DO_PADDING, side_thres=DC.SIDE_THRES)
     lognPrint(f"Loaded Model weight: {damage_detector.get_checkpoint_path()}")
     lognPrint(f"Threshold: {opt.dmg_thres}")
     log_csv("case_id,tp,fp,tn,fn,acc,prec,recall")

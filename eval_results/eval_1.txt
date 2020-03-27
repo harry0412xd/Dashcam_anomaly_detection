@@ -1,0 +1,26 @@
+Loaded 62 labels from crash_damage_label.txt, 56 test cases.
+Loaded 62 labels from crash_damage_label.txt, 56 test cases.
+Loaded Model weight: /content/MyDrive/cls_model/train/20200321-165626-gluon_seresnext101_32x4d-224/averaged.pth
+Threshold: 0.8
+case_id,tp,fp,tn,fn,acc,prec,recall
+Start loading video_in/Crash_damage.mp4...
+Loaded 62 labels from crash_damage_label.txt, 56 test cases.
+Loaded Model weight: /content/MyDrive/cls_model/train/20200321-165626-gluon_seresnext101_32x4d-224/averaged.pth
+Threshold: 0.8
+case_id,tp,fp,tn,fn,acc,prec,recall
+Start loading video_in/Crash_damage.mp4...
+Loaded 62 labels from crash_damage_label.txt, 56 test cases.
+Loaded Model weight: /content/MyDrive/cls_model/train/20200321-165626-gluon_seresnext101_32x4d-224/averaged.pth
+Threshold: 0.8
+case_id,tp,fp,tn,fn,acc,prec,recall
+Start loading video_in/Crash_damage.mp4...
+Loaded 62 labels from crash_damage_label.txt, 56 test cases.
+Loaded Model weight: /content/MyDrive/cls_model/train/20200321-165626-gluon_seresnext101_32x4d-224/averaged.pth
+Threshold: 0.8
+case_id,tp,fp,tn,fn,acc,prec,recall
+Start loading video_in/Crash_damage.mp4...
+Loaded 62 labels from crash_damage_label.txt, 56 test cases.
+Loaded Model weight: /content/MyDrive/cls_model/train/20200321-165626-gluon_seresnext101_32x4d-224/averaged.pth
+Threshold: 0.8
+case_id,tp,fp,tn,fn,acc,prec,recall
+Start loading video_in/Crash_damage.mp4...
