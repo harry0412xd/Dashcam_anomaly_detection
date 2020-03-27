@@ -124,7 +124,7 @@ def proc_frame(writer, frames, frames_infos, frame_no, test_writer=None):
                 if dmg_prob>=0.85:
                     ano_dict['damaged'] = True
                 if DC.SHOW_PROB:
-                    cv2.putText(image, f"{dmg_prob:.2f}", ((right+left)//2, (top+bottom)//2), cv2.FONT_HERSHEY_SIMPLEX, font_size, (0, 255, 0), thickness)
+                    cv2.putText(out_frame, f"{dmg_prob:.2f}", ((right+left)//2, (top+bottom)//2), cv2.FONT_HERSHEY_SIMPLEX, 0.6, (0, 255, 0), 2)
     # ----damage detection end
 
     # Car collision
