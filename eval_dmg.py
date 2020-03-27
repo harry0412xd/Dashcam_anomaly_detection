@@ -45,6 +45,7 @@ def evaluate():
         for obj_id in id_to_info:
             info = id_to_info[obj_id]
             class_id, score, bbox = info
+            if not class_id ==
             left, top, right, bottom = bbox
 
             # copy from main py file 2020/3/24
@@ -271,6 +272,8 @@ if __name__ == '__main__':
     parser.add_argument('--dmg_thres', type=float, default=0.8, help = "Thershold of confidence to consider a car as damaged")
     parser.add_argument("--device", type=str, default="cuda",  help = "Use cuda or cpu")
     parser.add_argument("--log", type=str, default="eval_result.txt",  help = "Use cuda or cpu")
+    parser.add_argument("--classes", type=str, default="/content/Dashcam_anomaly_detection/model_data/YOLOv3_bdd/classes.txt",  help = "YOLO classes list")
+    
   
     opt = parser.parse_args()
     obj_id_to_truth, obj_id2case_id, case_id2obj_id, case_metrics, total_metrics = {}, {}, {}, {}, {}
@@ -278,6 +281,7 @@ if __name__ == '__main__':
     vid_width, vid_height = 0, 0
     p_thres_list = [0.75, 0.8, 0.85, 0.9]
     assert opt.dmg_thres in p_thres_list, "Change the list above"
+    class_names = load_classes(opt.class_path)
 
     damage_detector = Damage_detector(opt.device, do_erasing=DC.DO_ERASING, do_padding=DC.DO_PADDING, side_thres=DC.SIDE_THRES)
     lognPrint(f"Loaded Model weight: {damage_detector.get_checkpoint_path()}")

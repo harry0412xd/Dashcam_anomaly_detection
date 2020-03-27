@@ -13,7 +13,7 @@ from timm.utils import *
 from torchvision import models
 
 class Damage_detector():
-    def __init__(self, device, do_erasing=False, do_padding=False, side_thres=1.6, save_probs=False, avg_amount=2, output_test_image=False):
+    def __init__(self, device, do_erasing=False, do_padding=False, side_thres=1.6, save_probs=False, avg_amount=2, weighted_prob=False, output_test_image=False):
         # url = "https://github.com/harry0412xd/Dashcam_anomaly_detection/releases/download/v1.0/gluon_seresnext101_32x4d-244_checkpoint-69.pth.tar"
         # checkpoint_path = "model_data/gluon_seresnext101_32x4d-244_checkpoint-69.pth.tar"
         # if not os.path.isfile(checkpoint_path):
@@ -24,8 +24,8 @@ class Damage_detector():
         # augmix test
         # checkpoint_path = "/content/MyDrive/cls_model/train/20200318-112718-gluon_seresnext101_32x4d-224/model_best.pth.tar"
         # new data(6)
-        # checkpoint_path = "/content/MyDrive/cls_model/train/20200321-165626-gluon_seresnext101_32x4d-224/averaged.pth"
-        checkpoint_path ="/content/MyDrive/cls_model/train/20200321-183951-gluon_seresnext101_32x4d-224/checkpoint-120.pth.tar"
+        checkpoint_path = "/content/MyDrive/cls_model/train/20200321-165626-gluon_seresnext101_32x4d-224/averaged.pth"
+        # checkpoint_path ="/content/MyDrive/cls_model/train/20200321-183951-gluon_seresnext101_32x4d-224/checkpoint-120.pth.tar"
         model = create_model('gluon_seresnext101_32x4d', num_classes=2, checkpoint_path = checkpoint_path)
 
         # model = create_model('gluon_seresnext101_32x4d', num_classes=2)
@@ -50,6 +50,7 @@ class Damage_detector():
         self.avg_amount = avg_amount # |<- n-th before --- current --- nth after->|
         self.side_thres = side_thres
         self.save_probs = save_probs
+        self.weighted_prob = weighted_prob
         self.id2probs = {}
 
 
@@ -90,7 +91,7 @@ class Damage_detector():
 
         # store all probs
         if self.save_probs:
-            if damaged_prob >0.8:
+            if self.weighted_prob and damaged_prob >0.8:
                 damaged_prob *= (damaged_prob-0.8)/0.2 + 1
             if not obj_id in self.id2probs:
                 frame_no2prob = {}

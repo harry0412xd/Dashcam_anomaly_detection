@@ -27,17 +27,17 @@ PERSON_MISS_TOLERATE = 2 # No. of frame tolerated, when the detection is missing
 
 
 # Damage detection
-DO_PADDING = True
-DO_ERASING = False
-IGNORE_SMALL = True
+DO_PADDING = True #extend the bounding box before cropping
+DO_ERASING = False #erase portion of image if overlapped with another bbox
+IGNORE_SMALL = True #Do no detect small car
+SHOW_PROB = True # Display the prob in the center of the bbox
+WEIGHTED_PROB = True #multiply the score if high
 
+DMG_SKIP_DET = False #skip some checking
+DMG_SKIP_BASE = 0 #number of frame to skip
 
-
-
-
-
-
-
+DMG_THRES = [0.9, 0.95] # use in pairs, if the prob is > thres, skip the classification of that bbox by n frames
+DMG_SKIP_NO = [3, 12]
 
 
 

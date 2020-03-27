@@ -103,26 +103,25 @@ def proc_frame(writer, frames, frames_infos, frame_no, test_writer=None):
     # damage detection
             if opt.dmg_det:
                 damage_detector.get_avg_prob(obj_id, frame_no)
-                # DAMAGE_SKIP_NUM = 2
-                obj_dmg_key = f"{obj_id}_dmg"
-                if obj_dmg_key in smooth_dict and smooth_dict[obj_dmg_key][0]>0:
-                    smooth_dict[obj_dmg_key][0] -= 1
-                    dmg_prob = smooth_dict[obj_dmg_key][1]
-                else:
-                   dmg_prob = damage_detector.get_avg_prob(obj_id, frame_no)
-                #
-                #         # smooth indication and skip checking to make faster
-                #         if dmg_prob>0.95:
-                #             skip_num = 12
-                #         elif dmg_prob>0.93:
-                #             skip_num = 6
-                #         else:
-                #             skip_num = 3
-                #         smooth_dict[obj_dmg_key] = [skip_num, dmg_prob]
-                #     else:
-                #         dmg_prob = 0
+
+                if DC.DMG_SKIP_BASE>0:
+                    obj_dmg_key = f"{obj_id}_dmg"
+                    if obj_dmg_key in smooth_dict and smooth_dict[obj_dmg_key][0]>0:
+                        smooth_dict[obj_dmg_key][0] -= 1
+                        dmg_prob = smooth_dict[obj_dmg_key][1]
+                    else:
+                        dmg_prob = damage_detector.get_avg_prob(obj_id, frame_no)
+                    #
+                    #         # smooth indication and skip checking to make faster
+                    skip_num = DC.DMG_SKIP_BASE
+                    for i, dmg_thres in enumerate(DC.DMG_THRES):
+                        if dmg_prob>dmg_thres: skip_num = DC.DMG_SKIP_NO[i]
+                    smooth_dict[obj_dmg_key] = [skip_num, dmg_prob]
+
                 if dmg_prob>=0.85:
                     ano_dict['damaged'] = True
+                if DC.SHOW_PROB:
+                    cv2.putText(image, f"{dmg_prob:.2f}", ((right+left)//2, (top+bottom)//2), cv2.FONT_HERSHEY_SIMPLEX, font_size, (0, 255, 0), thickness)
     # ----damage detection end
 
     # Car collision
@@ -824,7 +823,7 @@ def track_video():
     if opt.dmg_det:
         global damage_detector
         damage_detector = Damage_detector(device, do_erasing=DC.DO_ERASING, do_padding=DC.DO_PADDING,
-                                          side_thres=DC.SIDE_THRES, save_probs = True, avg_amount=5)
+                                          side_thres=DC.SIDE_THRES, save_probs = True, avg_amount=2, weighted_prob=WEIGHTED_PROB)
   # Semantic segmentation
     if opt.ss:
         global dlv3
