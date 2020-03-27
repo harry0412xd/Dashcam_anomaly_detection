@@ -102,7 +102,10 @@ def proc_frame(writer, frames, frames_infos, frame_no, test_writer=None):
             # draw_future_center(frames_infos, obj_id, out_frame)
     # damage detection
             if opt.dmg_det:
-                damage_detector.get_avg_prob(obj_id, frame_no)
+                if DC.USE_AVG_PROB:
+                    dmg_prob = damage_detector.get_avg_prob(obj_id, frame_no)
+                else:
+                    dmg_prob = damage_detector.detect(frame, bbox, id_to_info, frame_no, obj_id)
 
                 if DC.DMG_SKIP_BASE>0:
                     obj_dmg_key = f"{obj_id}_dmg"
@@ -822,8 +825,11 @@ def track_video():
   # Car damage detection
     if opt.dmg_det:
         global damage_detector
-        damage_detector = Damage_detector(device, do_erasing=DC.DO_ERASING, do_padding=DC.DO_PADDING,
-                                          side_thres=DC.SIDE_THRES, save_probs = True, avg_amount=2, weighted_prob=WEIGHTED_PROB)
+        if DC.USE_AVG_PROB:
+            damage_detector = Damage_detector(device, do_erasing=DC.DO_ERASING, do_padding=DC.DO_PADDING,
+                                              side_thres=DC.SIDE_THRES, save_probs = True, avg_amount=2, weighted_prob=DC.WEIGHTED_PROB)
+        else:
+            damage_detector = Damage_detector(device, do_erasing=DC.DO_ERASING, do_padding=DC.DO_PADDING, side_thres=DC.SIDE_THRES)
   # Semantic segmentation
     if opt.ss:
         global dlv3
@@ -882,7 +888,7 @@ def track_video():
             if opt.save_result:
                 save_det_result(det_result_file, id_to_info, in_frame_no)
 
-        if opt.dmg_det:
+        if opt.dmg_det and DC.USE_AVG_PROB:
             detect_damaged_car(id_to_info, frame, in_frame_no) #wrapper function to iterate all obj
 
         prev_frames.append(frame)
