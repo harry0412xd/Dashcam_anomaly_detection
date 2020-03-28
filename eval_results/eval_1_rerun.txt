@@ -687,8 +687,4 @@ Results (all):  Acc:21163/27159 |prec: 3071/5726 |recall: 3071/6412
 Results (all):  Acc:21503/27159 |prec: 2641/4526 |recall: 2641/6412
 Results (all):  Acc:21643/27159 |prec: 2052/3208 |recall: 2052/6412
 Results (all):  Acc:21591/27159 |prec: 1325/1806 |recall: 1325/6412
-Loaded 62 labels from crash_damage_label.txt, 56 test cases.
-Loaded 62 labels from crash_damage_label.txt, 56 test cases.
-Loaded Model weight: /content/MyDrive/cls_model/train/20200328-044615-gluon_seresnext101_32x4d-224/averaged.pth
-Threshold: 0.8
-case_id,tp,fp,tn,fn,acc,prec,recall
+

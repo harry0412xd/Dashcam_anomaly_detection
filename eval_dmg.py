@@ -6,6 +6,7 @@ import argparse
 import torch
 import cv2
 import tqdm 
+import csv
 
 from damage_detector import Damage_detector
 import detector_config as DC
@@ -88,8 +89,8 @@ def evaluate():
         
     
     m_thres_list = [0.25,0.33,0.5,0.75]
-    compute_case_metric(m_thres_list, p_thres_list)
-    compute_total_metric()
+    compute_metrics(m_thres_list, p_thres_list)
+    # compute_total_metric()
 
 # draw bounding box on image given label and coordinate
 def draw_bbox(image, obj_id, dmg_prob, bbox, frame_no):
@@ -138,14 +139,14 @@ def draw_bbox(image, obj_id, dmg_prob, bbox, frame_no):
     # print recall related
 
     
-def compute_total_metric():
-    for p_thres in p_thres_list:
-        total_metric = total_metrics[p_thres]
-        total, tp, fp, tn, fn = total_metric
-        lognPrint(f"Results (all):  Acc:{tp+tn}/{total} |prec: {tp}/{tp+fp} |recall: {tp}/{tp+fn}")
+# def compute_total_metric():
+#     for p_thres in p_thres_list:
+#         total_metric = total_metrics[p_thres]
+#         total, tp, fp, tn, fn = total_metric
+#         lognPrint(f"Results (all):  Acc:{tp+tn}/{total} |prec: {tp}/{tp+fp} |recall: {tp}/{tp+fn}")
 
 
-def compute_case_metric(m_thres_list, p_thres_list):
+def compute_metrics(m_thres_list, p_thres_list):
     for p_thres in p_thres_list:
 
         prec_case_wise, recall_case_wise = {}, {}
@@ -155,7 +156,7 @@ def compute_case_metric(m_thres_list, p_thres_list):
             # lognPrint(f"Case {case_id}: obj id: {case_id2obj_id[case_id]} ")
             # lognPrint(f"---- tp: {tp} fp: {fp} tn: {tn} fn:{fn}")
             lognPrint(f"Case {case_id}: obj id: {case_id2obj_id[case_id]}  ----  tp: {tp} fp: {fp} tn: {tn} fn:{fn}")
-            log_csv("{case_id},{tp},{fp},{tn},{fn},{acc},{prec},{recall}")
+            # log_csv("{case_id},{tp},{fp},{tn},{fn},{acc},{prec},{recall}")
 
             acc = (tp + tn) / total
             if tp >0:
@@ -167,16 +168,33 @@ def compute_case_metric(m_thres_list, p_thres_list):
             lognPrint(f"----prec: {prec} recall: {recall} acc: {acc}")
 
             for m_thres in m_thres_list:
+                if acc >=m_thres:
+                    acc_case_wise[m_thres] = acc_case_wise[m_thres]+1 if (m_thres in acc_case_wise) else 1
                 if recall>=m_thres:
                     recall_case_wise[m_thres] = recall_case_wise[m_thres]+1 if (m_thres in recall_case_wise) else 1
                 if prec>=m_thres:
                     prec_case_wise[m_thres] = prec_case_wise[m_thres]+1 if (m_thres in prec_case_wise) else 1
 
+        result = []
         # prec
         for m_thres in m_thres_list:
-            lognPrint(f"Precision@{int(m_thres*100)}% = {prec_case_wise[m_thres]}/{len(case_metric)} = {prec_case_wise[m_thres]/len(case_metric)}") # prec
-            lognPrint(f"Recall@{int(m_thres*100)}% = {recall_case_wise[m_thres]}/{len(case_metric)} = {recall_case_wise[m_thres]/len(case_metric)}") # recall
+            acc = acc_case_wise[m_thres]/len(case_metric)
+            prec = prec_case_wise[m_thres]/len(case_metric)
+            recall = recall_case_wise[m_thres]/len(case_metric)
+            lognPrint(f"Accuracy@{int(m_thres*100)}% = {acc_case_wise[m_thres]}/{len(case_metric)} = {acc}") #acc
+            lognPrint(f"Precision@{int(m_thres*100)}% = {prec_case_wise[m_thres]}/{len(case_metric)} = {prec}") # prec
+            lognPrint(f"Recall@{int(m_thres*100)}% = {recall_case_wise[m_thres]}/{len(case_metric)} = {recall}") # recall
+            result.extend((acc, prec, recall))
 
+        total_metric = total_metrics[p_thres]
+        total, tp, fp, tn, fn = total_metric
+        acc = (tp+tn)/total
+        prec = tp/(tp+fp)
+        recall = tp/(tp+fn)
+        lognPrint(f"Results (all):  Acc:{tp+tn}/{total} |prec: {tp}/{tp+fp} |recall: {tp}/{tp+fn}")
+        result.extend((acc, prec, recall))
+
+        log_csv(result)
 
 
 def update_metric(obj_id, mode, p_thres):
@@ -258,11 +276,11 @@ def lognPrint(text):
         log_file.write(text + '\n')
 
 
-def log_csv(text):
+def log_csv(row):
     log_path = "eval_results/" + opt.log
     log_path.replace(".txt", ".csv")
-    with open(log_path, 'a') as log_file:
-        log_file.write(text + '\n')
+    with open(log_path, 'w') as csv_file:
+        csv_file.writerow(row)
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
