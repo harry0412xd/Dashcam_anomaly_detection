@@ -175,7 +175,7 @@ def compute_metrics(m_thres_list, p_thres_list):
                 if prec>=m_thres:
                     prec_case_wise[m_thres] = prec_case_wise[m_thres]+1 if (m_thres in prec_case_wise) else 1
 
-        result = []
+        result = [p_thres]
         # prec
         for m_thres in m_thres_list:
             acc = acc_case_wise[m_thres]/len(case_metric)
@@ -278,9 +278,11 @@ def lognPrint(text):
 
 def log_csv(row):
     log_path = "eval_results/" + opt.log
-    log_path.replace(".txt", ".csv")
-    with open(log_path, 'w') as csv_file:
-        csv_file.writerow(row)
+    csv_path = log_path.replace(".txt", ".csv")
+    print(csv_path)
+    with open(csv_path, 'w', newline='') as csv_file:
+        writer = csv.writer(csv_file)
+        writer.writerow(row)
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
@@ -305,8 +307,9 @@ if __name__ == '__main__':
 
     damage_detector = Damage_detector(opt.device, do_erasing=DC.DO_ERASING, do_padding=DC.DO_PADDING, side_thres=DC.SIDE_THRES)
     lognPrint(f"Loaded Model weight: {damage_detector.get_checkpoint_path()}")
+    log_csv(f"{damage_detector.get_checkpoint_path()}")
     lognPrint(f"Threshold: {opt.dmg_thres}")
-    log_csv("case_id,tp,fp,tn,fn,acc,prec,recall")
+    
 
 
     evaluate()
