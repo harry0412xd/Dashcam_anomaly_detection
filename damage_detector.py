@@ -24,8 +24,9 @@ class Damage_detector():
         # augmix test
         # checkpoint_path = "/content/MyDrive/cls_model/train/20200318-112718-gluon_seresnext101_32x4d-224/model_best.pth.tar"
         # new data(6)
-        checkpoint_path = "/content/MyDrive/cls_model/train/20200321-165626-gluon_seresnext101_32x4d-224/averaged.pth"
-        # checkpoint_path ="/content/MyDrive/cls_model/train/20200321-183951-gluon_seresnext101_32x4d-224/checkpoint-120.pth.tar"
+        # checkpoint_path = "/content/MyDrive/cls_model/train/20200321-165626-gluon_seresnext101_32x4d-224/averaged.pth"
+        checkpoint_path ="/content/MyDrive/cls_model/train/20200328-044615-gluon_seresnext101_32x4d-224/averaged.pth"
+
         model = create_model('gluon_seresnext101_32x4d', num_classes=2, checkpoint_path = checkpoint_path)
 
         # model = create_model('gluon_seresnext101_32x4d', num_classes=2)

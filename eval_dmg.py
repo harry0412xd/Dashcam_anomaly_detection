@@ -10,7 +10,8 @@ import tqdm
 from damage_detector import Damage_detector
 import detector_config as DC
 from utils import load_det_result, use_det_result
-
+from yolov3.utils.utils import load_classes
+from detector import is_car
 
 def evaluate():
     video_path = opt.input
@@ -45,7 +46,8 @@ def evaluate():
         for obj_id in id_to_info:
             info = id_to_info[obj_id]
             class_id, score, bbox = info
-            if not class_id ==
+            if not is_car(class_names[class_id]):
+                continue
             left, top, right, bottom = bbox
 
             # copy from main py file 2020/3/24
@@ -272,7 +274,7 @@ if __name__ == '__main__':
     parser.add_argument('--dmg_thres', type=float, default=0.8, help = "Thershold of confidence to consider a car as damaged")
     parser.add_argument("--device", type=str, default="cuda",  help = "Use cuda or cpu")
     parser.add_argument("--log", type=str, default="eval_result.txt",  help = "Use cuda or cpu")
-    parser.add_argument("--classes", type=str, default="/content/Dashcam_anomaly_detection/model_data/YOLOv3_bdd/classes.txt",  help = "YOLO classes list")
+    parser.add_argument("--class_path", type=str, default="/content/Dashcam_anomaly_detection/model_data/YOLOv3_bdd/classes.txt",  help = "YOLO classes list")
     
   
     opt = parser.parse_args()
