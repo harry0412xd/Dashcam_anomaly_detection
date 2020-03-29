@@ -149,7 +149,7 @@ def draw_bbox(image, obj_id, dmg_prob, bbox, frame_no):
 def compute_metrics(m_thres_list, p_thres_list):
     for p_thres in p_thres_list:
 
-        prec_case_wise, recall_case_wise = {}, {}
+        acc_case_wise, prec_case_wise, recall_case_wise = {}, {}, {}
         case_metric = case_metrics[p_thres]
         for case_id in case_metric:
             total, tp, fp, tn, fn = case_metric[case_id]
@@ -280,9 +280,8 @@ def log_csv(row):
     log_path = "eval_results/" + opt.log
     csv_path = log_path.replace(".txt", ".csv")
     print(csv_path)
-    with open(csv_path, 'w', newline='') as csv_file:
-        writer = csv.writer(csv_file)
-        writer.writerow(row)
+    with open(csv_path, 'w') as csv_file:
+        csv_file.write(row)
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
