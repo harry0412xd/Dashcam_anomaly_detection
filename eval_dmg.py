@@ -175,7 +175,7 @@ def compute_metrics(m_thres_list, p_thres_list):
                 if prec>=m_thres:
                     prec_case_wise[m_thres] = prec_case_wise[m_thres]+1 if (m_thres in prec_case_wise) else 1
 
-        result = [p_thres]
+        result = f"{p_thres}"
         # prec
         for m_thres in m_thres_list:
             acc = acc_case_wise[m_thres]/len(case_metric)
@@ -184,7 +184,7 @@ def compute_metrics(m_thres_list, p_thres_list):
             lognPrint(f"Accuracy@{int(m_thres*100)}% = {acc_case_wise[m_thres]}/{len(case_metric)} = {acc}") #acc
             lognPrint(f"Precision@{int(m_thres*100)}% = {prec_case_wise[m_thres]}/{len(case_metric)} = {prec}") # prec
             lognPrint(f"Recall@{int(m_thres*100)}% = {recall_case_wise[m_thres]}/{len(case_metric)} = {recall}") # recall
-            result.extend((acc, prec, recall))
+            result += f",{acc},{prec},{recall}"
 
         total_metric = total_metrics[p_thres]
         total, tp, fp, tn, fn = total_metric
@@ -192,7 +192,7 @@ def compute_metrics(m_thres_list, p_thres_list):
         prec = tp/(tp+fp)
         recall = tp/(tp+fn)
         lognPrint(f"Results (all):  Acc:{tp+tn}/{total} |prec: {tp}/{tp+fp} |recall: {tp}/{tp+fn}")
-        result.extend((acc, prec, recall))
+        result += f",{acc},{prec},{recall}"
 
         log_csv(result)
 
