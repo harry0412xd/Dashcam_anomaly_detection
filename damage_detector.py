@@ -25,8 +25,8 @@ class Damage_detector():
         # checkpoint_path = "/content/MyDrive/cls_model/train/20200318-112718-gluon_seresnext101_32x4d-224/model_best.pth.tar"
         # new data(6)
         # checkpoint_path = "/content/MyDrive/cls_model/train/20200321-165626-gluon_seresnext101_32x4d-224/averaged.pth"
-        # checkpoint_path ="/content/MyDrive/cls_model/train/20200328-044615-gluon_seresnext101_32x4d-224/averaged.pth"
-        checkpoint_path = "/content/MyDrive/cls_model/train/20200328-072802-gluon_seresnext101_32x4d-224/averaged.pth"
+        checkpoint_path ="/content/MyDrive/cls_model/train/20200328-044615-gluon_seresnext101_32x4d-224/averaged.pth"
+        # checkpoint_path = "/content/MyDrive/cls_model/train/20200328-072802-gluon_seresnext101_32x4d-224/averaged.pth"
 
         model = create_model('gluon_seresnext101_32x4d', num_classes=2, checkpoint_path = checkpoint_path)
 
@@ -93,13 +93,15 @@ class Damage_detector():
 
         # store all probs
         if self.save_probs:
-            if self.weighted_prob and damaged_prob >0.8:
-                damaged_prob *= (damaged_prob-0.8)/0.2 + 1
+            if self.weighted_prob :
+                weight = max(0.6, damaged_prob+0.2)
+            else:
+                weight = 1
             if not obj_id in self.id2probs:
                 frame_no2prob = {}
             else:
                 frame_no2prob = self.id2probs[obj_id]
-            frame_no2prob[frame_no] = damaged_prob
+            frame_no2prob[frame_no] = (damaged_prob, weight)
             self.id2probs[obj_id] = frame_no2prob
 
         return damaged_prob
@@ -110,7 +112,7 @@ class Damage_detector():
 
     def get_avg_prob(self, obj_id, cur_frame_no):
         assert self.save_probs, "Need to save the probs in order to compute the average prob, pass save_probs=True when constructing the detector"
-        total, count = 0.0, 0
+        total, count = 0.0, 0.0
         if obj_id in self.id2probs:
             frame_no2prob = self.id2probs[obj_id]
             remove = []
@@ -118,8 +120,9 @@ class Damage_detector():
                 if frame_no < cur_frame_no - self.avg_amount:
                     remove.append(frame_no)
                 elif frame_no <= cur_frame_no + self.avg_amount:
-                    count +=1
-                    total += frame_no2prob[frame_no]
+                    damaged_prob, weight = frame_no2prob[frame_no]
+                    count += weight
+                    total += damaged_prob*weight
             for frame_no in remove: del frame_no2prob[frame_no]
 
             if count==0:
