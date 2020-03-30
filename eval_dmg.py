@@ -280,8 +280,8 @@ def log_csv(row):
     log_path = "eval_results/" + opt.log
     csv_path = log_path.replace(".txt", ".csv")
     print(csv_path)
-    with open(csv_path, 'w') as csv_file:
-        csv_file.write(row)
+    with open(csv_path, 'a') as csv_file:
+        csv_file.write(row + '\n')
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
@@ -306,8 +306,11 @@ if __name__ == '__main__':
 
     damage_detector = Damage_detector(opt.device, do_erasing=DC.DO_ERASING, do_padding=DC.DO_PADDING, side_thres=DC.SIDE_THRES)
     lognPrint(f"Loaded Model weight: {damage_detector.get_checkpoint_path()}")
-    log_csv(f"{damage_detector.get_checkpoint_path()}")
     lognPrint(f"Threshold: {opt.dmg_thres}")
+    
+    log_csv(f"{damage_detector.get_checkpoint_path()}")
+    log_csv("dmg_thres,acc,prec,recall,acc,prec,recall,acc,prec,recall,acc,prec,recall")
+    
     
 
 
