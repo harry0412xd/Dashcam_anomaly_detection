@@ -95,6 +95,8 @@ def proc_frame(writer, frames, frames_infos, frame_no, test_writer=None):
         class_name = class_names[class_id]
         ano_dict = {}
 
+        estimate_depth_by_width(bbox, False, out_frame) #test output
+
         if DC.DET_CAR_PERSON_COL and obj_id in car_person_collision_id_list:
             ano_dict['car_person_crash'] = True
 
@@ -249,12 +251,8 @@ def detect_car_person_collison_new(car_list, person_list, out_frame=None):
                 person_bbox, person_offset = person_bboxes[i]
                 car_bbox, car_offset = car_bboxes[j]
                 if person_offset==car_offset:
-                    if person_offset==0:
-                        car_depth = estimate_depth_by_width(car_bbox, True, out_frame)
-                        person_depth = estimate_depth_by_width(person_bbox, False, out_frame)
-                    else:
-                        car_depth = estimate_depth_by_width(car_bbox, True)
-                        person_depth = estimate_depth_by_width(person_bbox, False)
+                    car_depth = estimate_depth_by_width(car_bbox, True)
+                    person_depth = estimate_depth_by_width(person_bbox, False)
 
                     if abs(car_depth-person_depth)<5:
                         car_center_x, car_center_y = (car_bbox[2]+car_bbox[0])//2, (car_bbox[3]+car_bbox[1])//2

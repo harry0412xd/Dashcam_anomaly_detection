@@ -178,9 +178,18 @@ def compute_metrics(m_thres_list, p_thres_list):
         result = f"{p_thres}"
         # prec
         for m_thres in m_thres_list:
-            acc = acc_case_wise[m_thres]/len(case_metric)
-            prec = prec_case_wise[m_thres]/len(case_metric)
-            recall = recall_case_wise[m_thres]/len(case_metric)
+            if m_thres in acc_case_wise:
+                acc = acc_case_wise[m_thres]/len(case_metric)
+            else:
+                acc = 0
+            if m_thres in prec_case_wise:
+                prec = prec_case_wise[m_thres]/len(case_metric)
+            else
+                prec = 0
+            if m_thres in recall_case_wise:
+                recall = recall_case_wise[m_thres]/len(case_metric)
+            else:
+                recall = 0
             lognPrint(f"Accuracy@{int(m_thres*100)}% = {acc_case_wise[m_thres]}/{len(case_metric)} = {acc}") #acc
             lognPrint(f"Precision@{int(m_thres*100)}% = {prec_case_wise[m_thres]}/{len(case_metric)} = {prec}") # prec
             lognPrint(f"Recall@{int(m_thres*100)}% = {recall_case_wise[m_thres]}/{len(case_metric)} = {recall}") # recall
