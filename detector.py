@@ -1,6 +1,6 @@
 import sys
 import argparse
-import math
+from math import sqrt
 from timeit import default_timer as timer
 from collections import deque
 
@@ -97,7 +97,7 @@ def proc_frame(writer, frames, frames_infos, frame_no, prev_frame, prev_frame_in
         class_name = class_names[class_id]
         ano_dict = {}
 
-        estimate_depth_by_width(bbox, False, out_frame) #test output
+        # estimate_depth_by_width(bbox, False, out_frame) #test output
 
         if DC.DET_CAR_PERSON_COL and obj_id in car_person_collision_id_list:
             ano_dict['car_person_crash'] = True
