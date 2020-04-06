@@ -11,6 +11,8 @@ DET_CAR_PERSON_COL = False
 DET_CLOSE_DIS = True
 DET_JAYWALKER = True
 
+USE_SIGN_TO_DET_MOV = True #Use traffic light/sign to detect camera movement
+
 # Labelling
 # User only one of these:
 PRINT_OBJ_ID = True
@@ -22,6 +24,7 @@ PRINT_ANOMALY_LABEL = False # E.g. "Close Distance" near the bounding box
 # Object detection
 OMIT_SMALL = True #omit small bounding boxes of car/person
 OMIT_SIGN = False  #omit traffic signs / lights
+assert not(OMIT_SIGN and USE_SIGN_TO_DET_MOV), "Change OMIT_SIGN to False if you want to use them to detect the camera movement"
 
 PERSON_MISS_TOLERATE = 2 # No. of frame tolerated, when the detection is missing, before the person object is ignored. 
 

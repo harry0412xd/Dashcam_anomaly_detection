@@ -55,22 +55,29 @@ def proc_frame(writer, frames, frames_infos, frame_no, prev_frame, prev_frame_in
             ss_mask = dlv3.predict(frame2proc)
         else:
             ss_mask = dlv3.get_last_result()
-    else:
+    elif DC.DET_JAYWALKER:
         #compute the average shift in pixel of bounding box, in left/right half of the frame
         left_mean, right_mean = get_mean_shift(frames_infos, out_frame)
  
-    is_moving_, moved_signs = detect_traffic_sign_moving(id_to_info, prev_frame_info)
+    if DC.USE_SIGN_TO_DET_MOV:
+        sign_is_moving, moved_signs = detect_traffic_sign_moving(id_to_info, prev_frame_info)
+    else:
+        sign_is_moving, moved_signs = False, {}
+    is_moving = sign_is_moving
+    if not sign_is_moving and len(moved_signs)==0:
+        # Detect whether the camera is moving
+        if len(frames)>0:
+            if test_writer is not None:
+                test_frame = out_frame.copy()
+                is_moving = detect_camera_moving(frame2proc, prev_frame, out_frame=test_frame)
+                test_writer.write(test_frame)
+            else:
+                is_moving = detect_camera_moving(frame2proc, prev_frame)
+        else: #last frame
+            is_moving = False
+    
 
-    # Detect whether the camera is moving
-    if len(frames)>0:
-        if test_writer is not None:
-            test_frame = out_frame.copy()
-            is_moving = detect_camera_moving(frame2proc, prev_frame, out_frame=test_frame)
-            test_writer.write(test_frame)
-        else:
-            is_moving = detect_camera_moving(frame2proc, prev_frame)
-    else: #last frame
-        is_moving = False
+
 
     global smooth_dict
     # Smooth moving detection
@@ -151,13 +158,14 @@ def proc_frame(writer, frames, frames_infos, frame_no, prev_frame, prev_frame_in
 
     # Jaywalker
         elif class_name=="person":
-            if opt.ss: # Use semantic segmentation to find people on traffic road
-                if is_moving:
-                    ano_dict['jaywalker'] = is_on_traffic_road(bbox, ss_mask)
+            if DC.DET_JAYWALKER:
+                if opt.ss: # Use semantic segmentation to find people on traffic road
+                    if is_moving:
+                        ano_dict['jaywalker'] = is_on_traffic_road(bbox, ss_mask)
 
-            else: # Use pre-defined baseline
-                if is_moving and detect_jaywalker(get_bboxes_by_id(frames_infos, obj_id), (left_mean, right_mean)):
-                    ano_dict['jaywalker'] = True
+                else: # Use pre-defined baseline
+                    if is_moving and detect_jaywalker(get_bboxes_by_id(frames_infos, obj_id), (left_mean, right_mean)):
+                        ano_dict['jaywalker'] = True
     # ----Jaywalker end
         # testing only
 
@@ -168,7 +176,14 @@ def proc_frame(writer, frames, frames_infos, frame_no, prev_frame, prev_frame_in
 # --- Objects iteration end
 
     if is_moving:
-        cv2.putText(out_frame, "moving", (vid_width//2, vid_height-20), cv2.FONT_HERSHEY_SIMPLEX, 0.6, (255,255,0), 2)
+        if sign_is_moving:
+            moving_label = "sign_moving"
+            moving_color = (255,200,0)
+        else:
+            moving_label = "moving"
+            moving_color = (255,255,0)
+
+        cv2.putText(out_frame, moving_label, (vid_width//2, vid_height-20), cv2.FONT_HERSHEY_SIMPLEX, 0.6, moving_color, 2)
         cv2.rectangle(out_frame, (5, 5), (vid_width-5, vid_height-5), (255,255,0), 5)
 
     writer.write(out_frame)
@@ -562,9 +577,9 @@ def draw_bbox(image, ano_dict, class_name, obj_id, score, bbox):
     if not is_drawn:
           cv2.rectangle(image, (left, top), (right, bottom), (0, 255, 0), thickness)
 
-    if "signs" in ano_dict:
-        dis, wdiff, hdiff= ano_dict["signs"]
-        cv2.putText(image, f"{dis:.2f} {wdiff:.2f} {hdiff:.2f}", ((right+left)//2, bottom+5), cv2.FONT_HERSHEY_SIMPLEX, font_size*0.8, (0, 255, 0), thickness)
+    # if "signs" in ano_dict:
+    #     dis, wdiff, hdiff= ano_dict["signs"]
+    #     cv2.putText(image, f"{dis:.2f} {wdiff:.2f} {hdiff:.2f}", ((right+left)//2, bottom+5), cv2.FONT_HERSHEY_SIMPLEX, font_size*0.8, (0, 255, 0), thickness)
     # print class name
     if DC.PRINT_OBJ_ID:
         cv2.putText(image, str(obj_id), ((right+left)//2, top-5), cv2.FONT_HERSHEY_SIMPLEX, font_size, (0, 255, 0), thickness)
@@ -643,7 +658,7 @@ def detect_traffic_sign_moving(cur_frame_info, prev_frame_info):
                 diag1, diag2 = sqrt(width1*width1+height1*height1), sqrt(width2*width2+height2*height2)
 
                 moved_signs[obj_id] =  [dis/diag2, width_diff, height_diff]
-                if dis/diag2 >0.1 or width_diff>0.1 or height_diff>0.1:
+                if dis/diag2 >0.05 or width_diff>0.03 or height_diff>0.03:
                     sign_count += 1
                     moved_count += 1
     
@@ -748,7 +763,7 @@ def omit_small_bboxes(detections):
             # print(f"{classes[i]} {width}x{height}")
             del detections[i]
             omitted_count +=1
-        elif DC.OMIT_SIGN and  (class_name=="traffic light" or class_name=="traffic sign") :
+        elif DC.OMIT_SIGN and (class_name=="traffic light" or class_name=="traffic sign") :
             del detections[i]
             omitted_count +=1           
         else:
@@ -825,8 +840,8 @@ def track_video():
     video_length = sec2length(video_total_frame//vid_fps)
     
     # init video writer
-    # video_FourCC = cv2.VideoWriter_fourcc(*'x264')
-    video_FourCC = cv2.VideoWriter_fourcc(*'mp4v')
+    video_FourCC = cv2.VideoWriter_fourcc(*'x264')
+    # video_FourCC = cv2.VideoWriter_fourcc(*'mp4v')
 
     isOutput = True if output_path != "" else False
     if isOutput:
