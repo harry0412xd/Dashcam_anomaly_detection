@@ -860,16 +860,20 @@ def track_video():
     else:
         test_writer = None
 
-    if opt.save_result:
+    if opt.save_path:
+        save_result = True
         assert opt.result_path=="", "Save result & load result are both chosen."
         _filename = opt.input.split("/")
-        result_filename = "detection_results/" + _filename[len(_filename)-1].split(".")[0] + ".txt"
+        # result_filename = "detection_results/" + _filename[len(_filename)-1].split(".")[0] + ".txt"
+        result_filename = opt.save_path
         det_result_file = open(result_filename, 'w')
-    
+    else:
+        save_result = False
+
     if opt.result_path=="":
         is_use_result = False
     else:
-        assert not opt.save_result, "Save result & load result are both chosen."
+        assert not save_result, "Save result & load result are both chosen."
         is_use_result = True
         all_results = load_det_result(opt.result_path)
 
@@ -883,7 +887,8 @@ def track_video():
         max_age = max(3,vid_fps//2)
         car_tracker = Sort(max_age=max_age, min_hits=1)
         person_tracker = Sort(max_age=max_age, min_hits=1)
-        sign_trackers = Sort(max_age=1, min_hits=1)
+        sign_trackers = Sort(max_age=2, min_hits=1)
+        empty_trackers = Sort(max_age=2, min_hits=1)
         print("SORT initialized")
       # init yolov3 model
         if opt.weights_path == "model_data/YOLOv3_bdd/bdd.weights":
@@ -947,7 +952,7 @@ def track_video():
             car_trackers, car_tracker_infos = car_tracker.update(np.array(car_bboxes), np.array(car_classes))
             person_trackers, person_tracker_infos = person_tracker.update(np.array(person_bboxes), np.array(person_classes))
             sign_trackers, sign_tracker_infos = person_tracker.update(np.array(sign_bboxes), np.array(sign_classes))
-  
+
             # join the trackers
             trackers = [*car_trackers, *person_trackers]
             tracker_infos =  [*car_tracker_infos, *person_tracker_infos]
@@ -958,15 +963,15 @@ def track_video():
                 left, top, right, bottom, obj_id = int(d[0]), int(d[1]), int(d[2]), int(d[3]), d[4]
                 class_id, score = tracker_infos[c][0], tracker_infos[c][1]
                 class_name = class_names[class_id]
-                if is_car(class_name) and score <0 : #detection is missing
+                if (is_car(class_name) or class_name=="traffic sign" or class_name=="traffic light" ) and score <0 : #detection is missing
                     continue
-                elif class_name=="person" and score <= -(DC.PERSON_MISS_TOLERATE):
+                if class_name=="person" and score <= -(DC.PERSON_MISS_TOLERATE):
                     continue
                 # add to dict
                 info = [class_id, score, [left, top, right, bottom]]
                 id_to_info[obj_id] = info
 
-            if opt.save_result:
+            if save_result:
                 save_det_result(det_result_file, id_to_info, in_frame_no)
 
         if opt.dmg_det and DC.USE_AVG_PROB:
@@ -1011,7 +1016,7 @@ def track_video():
     if opt.ss_out:
         ss_writer.release()
 
-    if opt.save_result:
+    if save_result:
         det_result_file.close()
 
 
@@ -1039,8 +1044,9 @@ if __name__ == '__main__':
     parser.add_argument('--ss_overlay', action='store_true', default=False, help = "[Optional]Overlay the result on the orignal video")
     parser.add_argument('--ss_interval', type=int, default=1, help="frame(s) between segmentations")
     # save/load detection&tracking results
-    parser.add_argument('--save_result', action='store_true', default=False, help = "[Optional]Output the Object detection/tracking results to a text file")
+    # parser.add_argument('--save_result', action='store_true', default=False, help = "[Optional]Output the Object detection/tracking results to a text file")
     parser.add_argument('--result_path', type=str, default="", help = "[Optional]Path of file which save the Object detection/tracking results")
+    parser.add_argument('--save_path', type=str, default="", help = "[Optional]Path of where the Object detection/tracking results should be saved")
     
     opt = parser.parse_args()
     track_video()
