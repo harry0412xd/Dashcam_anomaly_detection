@@ -43,7 +43,7 @@ detection_size = 0
 smooth_dict = {}
 
 
-def proc_frame(writer, frames, frames_infos, frame_no, test_writer=None):
+def proc_frame(writer, frames, frames_infos, frame_no, last_frame, last_frame_info, test_writer=None):
     # start = timer()
     frame2proc = frames.popleft()
     out_frame = frame2proc.copy()
@@ -63,10 +63,10 @@ def proc_frame(writer, frames, frames_infos, frame_no, test_writer=None):
     if len(frames)>0:
         if test_writer is not None:
             test_frame = out_frame.copy()
-            is_moving = detect_camera_moving(frame2proc, frames[0], out_frame=test_frame)
+            is_moving = detect_camera_moving(frame2proc, last_frame, out_frame=test_frame)
             test_writer.write(test_frame)
         else:
-            is_moving = detect_camera_moving(frame2proc, frames[0])
+            is_moving = detect_camera_moving(frame2proc, last_frame)
     else: #last frame
         is_moving = False
 
@@ -169,6 +169,7 @@ def proc_frame(writer, frames, frames_infos, frame_no, test_writer=None):
     frames_infos.popleft()
     # end = timer()
     # return (end-start)*1000
+    return frame2proc, id_to_info
 
 
 def get_list_from_info(all_info):
@@ -607,14 +608,44 @@ def set_move_det_area():
     detection_size = box_width*box_height
     detection_boxes = result
 
+def detect_traffic_sign_moving(cur_frame_info, prev_frame_info):
+    if prev_frame_info is None:
+        # print("Last frame")
+        return False 
+    sign_count, moved_count = 0, 0
+    for obj_id in cur_frame_info:
+        class_id, _, bbox1 = cur_frame_info[obj_id]
+        class_name = class_names[class_id]
+        if class_name=="traffic light" or class_name=="traffic sign":
+            if obj_id in prev_frame_info:
+                sign_count += 1
+                class_id, _, bbox2 = prev_frame_info[obj_id]
+                left1, top1, right1, bottom1 = bbox1
+                left2, top2, right2, bottom2 = bbox2
+
+                width1, width2 = right1-left1, right2-left2
+                height1, height2 = top1-bottom1,top2-bottom2
+                width_diff, height_diff = abs(width1-width2)/width2, abs(height1-height2)/height2
+
+                center_x1, center_y1 = (left1+right1)//2, (top1+bottom1)//2
+                center_x2, center_y2 = (left2+right2)//2, (top2+bottom2)//2
+                diag1, diag2 = sqrt(width1*width1+height1*height1), sqrt(width2*width2+height2*height2)
+                
+
+
+
+
+
+
+        
    
 # detect whether the camera is moving, return img? and boolean
 def detect_camera_moving(cur_frame, prev_frame, out_frame=None):
     if prev_frame is None:
         # print("Last frame")
         return False
-    threshold = 0.01
 
+    threshold = 0.01
     count = 0
     for box in detection_boxes:
         left, top, right, bottom = box
@@ -625,7 +656,7 @@ def detect_camera_moving(cur_frame, prev_frame, out_frame=None):
         box_prev = cv2.cvtColor(box_prev, cv2.COLOR_BGR2GRAY)
 
         diff = cv2.absdiff(box_cur, box_prev)
-        ret, result = cv2.threshold(diff, 25, 255, cv2.THRESH_BINARY)
+        ret, result = cv2.threshold(diff, 40, 255, cv2.THRESH_BINARY)
         percentage = cv2.countNonZero(result)/detection_size
         if percentage>threshold:
             count+=1
@@ -633,13 +664,13 @@ def detect_camera_moving(cur_frame, prev_frame, out_frame=None):
         # testing purpose
         if out_frame is not None:
             result_bgr = cv2.cvtColor(result, cv2.COLOR_GRAY2BGR)
-            return_img[top:bottom, left:right] = result_bgr
-            cv2.rectangle(return_img, (left, top), (right, bottom), (0,255,0), 2)
+            out_frame[top:bottom, left:right] = result_bgr
+            cv2.rectangle(out_frame, (left, top), (right, bottom), (0,255,0), 2)
             label = "%.3f" % percentage
             cv2.putText(out_frame, label, ((left+right)//2, (top+bottom)//2), cv2.FONT_HERSHEY_SIMPLEX, 1.0, (0,255,0), 2)
 
     # 8 boxes in total
-    is_moving = count>2
+    is_moving = count>3
     if is_moving:
         # testing purpose
         if out_frame is not None :
@@ -657,18 +688,22 @@ def sec2length(time_sec):
 
 # split into car & person
 def split_bboxes(detections):
-    person_bboxes, person_classes = [],[]
-    car_bboxes, car_classes = [],[]
+    person_bboxes, person_classes = [], []
+    car_bboxes, car_classes = [], []
+    sign_bboxes, sign_classes = [], []
 
     for (box, class_id) in detections:
         class_name = class_names[class_id]
         if class_name=="person":
             person_bboxes.append(box)
             person_classes.append(class_id)
-        else:
+        elif class_name=="traffic light" or class_name=="traffic sign":
+            sign_bboxes.append(box)
+            sign_classes.append(class_id)
+        elif is_car(class_name):
             car_bboxes.append(box)
             car_classes.append(class_id)
-    return car_bboxes, car_classes, person_bboxes, person_classes 
+    return car_bboxes, car_classes, person_bboxes, person_classes, sign_bboxes, sign_classes
 
 
 #omit small bboxes since they are not accurate and useful enought for detecting anomaly
@@ -766,7 +801,9 @@ def track_video():
     video_length = sec2length(video_total_frame//vid_fps)
     
     # init video writer
-    video_FourCC = cv2.VideoWriter_fourcc(*'mp4v')
+    video_FourCC = cv2.VideoWriter_fourcc(*'x264')
+    # video_FourCC = cv2.VideoWriter_fourcc(*'mp4v')
+
     isOutput = True if output_path != "" else False
     if isOutput:
         # print("!!! TYPE:", type(output_path), type(video_FourCC), type(vid_fps), type(video_size))
@@ -807,6 +844,7 @@ def track_video():
         max_age = max(3,vid_fps//2)
         car_tracker = Sort(max_age=max_age, min_hits=1)
         person_tracker = Sort(max_age=max_age, min_hits=1)
+        sign_trackers = Sort(max_age=1, min_hits=1)
         print("SORT initialized")
       # init yolov3 model
         if opt.weights_path == "model_data/YOLOv3_bdd/bdd.weights":
@@ -846,6 +884,7 @@ def track_video():
     
     # start iter frames
     in_frame_no, proc_frame_no = 0, 1
+    last_frame, last_frame_info = None, None
     print("Start processing video ...")
     start = timer() #First
     while True:
@@ -860,11 +899,16 @@ def track_video():
             # Obj Detection
             obj_det_results = yolo_detect(frame, yolo_model)
             omitted_count = omit_small_bboxes(obj_det_results)
-            car_bboxes,car_classes, person_bboxes, person_classes = split_bboxes(obj_det_results)
+
+            car_bboxes,car_classes,
+            person_bboxes, person_classes,
+            sign_bboxes, sign_classes = split_bboxes(obj_det_results)
             
             # tracker_infos is added to return link the class name & the object tracked
             car_trackers, car_tracker_infos = car_tracker.update(np.array(car_bboxes), np.array(car_classes))
             person_trackers, person_tracker_infos = person_tracker.update(np.array(person_bboxes), np.array(person_classes))
+            sign_trackers, sign_tracker_infos = person_tracker.update(np.array(sign_bboxes), np.array(sign_classes))
+  
             # join the trackers
             trackers = [*car_trackers, *person_trackers]
             tracker_infos =  [*car_tracker_infos, *person_tracker_infos]
@@ -893,7 +937,9 @@ def track_video():
         frames_infos.append(id_to_info)
         # frame buffer proc
         if len(prev_frames)>buffer_size:
-            proc_ms = proc_frame(out_writer, prev_frames, frames_infos, proc_frame_no, test_writer=test_writer)
+            last_frame, last_frame_info = proc_frame(out_writer, prev_frames, frames_infos, proc_frame_no, 
+                                                     last_frame, last_frame_info, test_writer=test_writer)
+
             proc_frame_no += 1
 
         if in_frame_no % print_interval == 0:
@@ -906,8 +952,10 @@ def track_video():
 
     # Process the remaining frames in buffer
     while len(frames_infos)>0:
-        proc_frame(out_writer, prev_frames, frames_infos, proc_frame_no, test_writer=test_writer)
+        last_frame, last_frame_info = proc_frame(out_writer, prev_frames, frames_infos, proc_frame_no, 
+                                                     last_frame, last_frame_info, test_writer=test_writer)
         proc_frame_no += 1
+
     end = timer()
     avg_s = (end-start)/(in_frame_no % print_interval)
     fps = str(round(1/avg_s, 2))

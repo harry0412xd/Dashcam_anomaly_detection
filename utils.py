@@ -43,11 +43,14 @@ def load_det_result(result_path):
 
 def use_det_result(all_results, frame_no):
     id_to_info = {}
-    frame_results = all_results[frame_no-1]
-    for (obj_id, class_id, score, left, top, right, bottom) in frame_results:
-        info = [class_id, score, [left, top, right, bottom]]
-        id_to_info[obj_id] = info
-    return id_to_info
+    try:
+        frame_results = all_results[frame_no-1]
+        for (obj_id, class_id, score, left, top, right, bottom) in frame_results:
+            info = [class_id, score, [left, top, right, bottom]]
+            id_to_info[obj_id] = info
+        return id_to_info
+    except IndexError:
+        return {}
 
 
 """
