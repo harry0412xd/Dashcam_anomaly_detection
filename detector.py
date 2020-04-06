@@ -43,7 +43,7 @@ detection_size = 0
 smooth_dict = {}
 
 
-def proc_frame(writer, frames, frames_infos, frame_no, last_frame, last_frame_info, test_writer=None):
+def proc_frame(writer, frames, frames_infos, frame_no, prev_frame, prev_frame_info, test_writer=None):
     # start = timer()
     frame2proc = frames.popleft()
     out_frame = frame2proc.copy()
@@ -59,14 +59,16 @@ def proc_frame(writer, frames, frames_infos, frame_no, last_frame, last_frame_in
         #compute the average shift in pixel of bounding box, in left/right half of the frame
         left_mean, right_mean = get_mean_shift(frames_infos, out_frame)
 
+    _, moved_signs = detect_traffic_sign_moving(cur_frame_info, prev_frame_info)
+
     # Detect whether the camera is moving
     if len(frames)>0:
         if test_writer is not None:
             test_frame = out_frame.copy()
-            is_moving = detect_camera_moving(frame2proc, last_frame, out_frame=test_frame)
+            is_moving = detect_camera_moving(frame2proc, prev_frame, out_frame=test_frame)
             test_writer.write(test_frame)
         else:
-            is_moving = detect_camera_moving(frame2proc, last_frame)
+            is_moving = detect_camera_moving(frame2proc, prev_frame)
     else: #last frame
         is_moving = False
 
@@ -157,6 +159,10 @@ def proc_frame(writer, frames, frames_infos, frame_no, last_frame, last_frame_in
                 if is_moving and detect_jaywalker(get_bboxes_by_id(frames_infos, obj_id), (left_mean, right_mean), out_frame):
                     ano_dict['jaywalker'] = True
     # ----Jaywalker end
+        # testing only
+
+        elif obj_id in moved_signs:
+            ano_dict['signs'] = moved_signs[obj_id]
 
         draw_bbox(out_frame, ano_dict, class_name, obj_id, score, bbox)
 # --- Objects iteration end
@@ -541,8 +547,8 @@ def draw_bbox(image, ano_dict, class_name, obj_id, score, bbox):
                  ("lost_control", (255,255,0) ),
                  ("damaged", (123,0,255) ),
                  ("close_distance", (70,255,255) ),
-                 ("jaywalker", (0,123,255) )
-                 ,("car_person_crash", (0,51,153)) #brown
+                 ("jaywalker", (0,123,255) ),
+                 ("car_person_crash", (0,51,153)) #brown
                 ]
     is_drawn = False
     for (name, color) in anomalies:
@@ -556,6 +562,9 @@ def draw_bbox(image, ano_dict, class_name, obj_id, score, bbox):
     if not is_drawn:
           cv2.rectangle(image, (left, top), (right, bottom), (0, 255, 0), thickness)
 
+    if "signs" in ano_dict:
+        dis, wdiff, hdiff= ano_dict["signs"]
+        cv2.putText(image, str(obj_id), ((right+left)//2, top-5), cv2.FONT_HERSHEY_SIMPLEX, font_size, (0, 255, 0), thickness)
     # print class name
     if DC.PRINT_OBJ_ID:
         cv2.putText(image, str(obj_id), ((right+left)//2, top-5), cv2.FONT_HERSHEY_SIMPLEX, font_size, (0, 255, 0), thickness)
@@ -613,6 +622,7 @@ def detect_traffic_sign_moving(cur_frame_info, prev_frame_info):
         # print("Last frame")
         return False 
     sign_count, moved_count = 0, 0
+    moved_signs = {}
     for obj_id in cur_frame_info:
         class_id, _, bbox1 = cur_frame_info[obj_id]
         class_name = class_names[class_id]
@@ -625,11 +635,25 @@ def detect_traffic_sign_moving(cur_frame_info, prev_frame_info):
 
                 width1, width2 = right1-left1, right2-left2
                 height1, height2 = top1-bottom1,top2-bottom2
-                width_diff, height_diff = abs(width1-width2)/width2, abs(height1-height2)/height2
-
                 center_x1, center_y1 = (left1+right1)//2, (top1+bottom1)//2
                 center_x2, center_y2 = (left2+right2)//2, (top2+bottom2)//2
+
+                width_diff, height_diff = abs(width1-width2)/width2, abs(height1-height2)/height2
+                dis = euclidean_distance(center_x1, center_x2, center_y1, center_y2)
                 diag1, diag2 = sqrt(width1*width1+height1*height1), sqrt(width2*width2+height2*height2)
+
+                moved_signs[obj_id] =  [dis/diag2, width_diff, height_diff]
+                if dis/diag2 >0.1 or width_diff>0.1 or height_diff>0.1:
+                    sign_count += 1
+                    moved_count += 1
+    
+
+    if sign_count>0 and moved_count==sign_count or (sign_count>3 and moved_count/sign_count >0.75 ):
+        is_moving = True
+    else:
+        is_moving = False
+
+    return is_moving, moved_signs
                 
 
 
@@ -884,7 +908,7 @@ def track_video():
     
     # start iter frames
     in_frame_no, proc_frame_no = 0, 1
-    last_frame, last_frame_info = None, None
+    prev_frame, prev_frame_info = None, None
     print("Start processing video ...")
     start = timer() #First
     while True:
@@ -937,8 +961,8 @@ def track_video():
         frames_infos.append(id_to_info)
         # frame buffer proc
         if len(prev_frames)>buffer_size:
-            last_frame, last_frame_info = proc_frame(out_writer, prev_frames, frames_infos, proc_frame_no, 
-                                                     last_frame, last_frame_info, test_writer=test_writer)
+            prev_frame, prev_frame_info = proc_frame(out_writer, prev_frames, frames_infos, proc_frame_no, 
+                                                     prev_frame, prev_frame_info, test_writer=test_writer)
 
             proc_frame_no += 1
 
@@ -952,8 +976,8 @@ def track_video():
 
     # Process the remaining frames in buffer
     while len(frames_infos)>0:
-        last_frame, last_frame_info = proc_frame(out_writer, prev_frames, frames_infos, proc_frame_no, 
-                                                     last_frame, last_frame_info, test_writer=test_writer)
+        prev_frame, prev_frame_info = proc_frame(out_writer, prev_frames, frames_infos, proc_frame_no, 
+                                                 prev_frame, prev_frame_info, test_writer=test_writer)
         proc_frame_no += 1
 
     end = timer()
