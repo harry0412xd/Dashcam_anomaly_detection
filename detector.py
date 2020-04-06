@@ -58,8 +58,8 @@ def proc_frame(writer, frames, frames_infos, frame_no, prev_frame, prev_frame_in
     else:
         #compute the average shift in pixel of bounding box, in left/right half of the frame
         left_mean, right_mean = get_mean_shift(frames_infos, out_frame)
-
-    _, moved_signs = detect_traffic_sign_moving(cur_frame_info, prev_frame_info)
+ 
+    is_moving_, moved_signs = detect_traffic_sign_moving(id_to_info, prev_frame_info)
 
     # Detect whether the camera is moving
     if len(frames)>0:
@@ -156,7 +156,7 @@ def proc_frame(writer, frames, frames_infos, frame_no, prev_frame, prev_frame_in
                     ano_dict['jaywalker'] = is_on_traffic_road(bbox, ss_mask)
 
             else: # Use pre-defined baseline
-                if is_moving and detect_jaywalker(get_bboxes_by_id(frames_infos, obj_id), (left_mean, right_mean), out_frame):
+                if is_moving and detect_jaywalker(get_bboxes_by_id(frames_infos, obj_id), (left_mean, right_mean)):
                     ano_dict['jaywalker'] = True
     # ----Jaywalker end
         # testing only
@@ -403,8 +403,8 @@ def detect_jaywalker(recent_bboxes, mean_shift, out_frame=None):
         cv2.line(out_frame,(0, y_thers_close), (vid_width, y_thers_close), (255,0,0))
         cv2.line(out_frame,(0, y_thers_medium), (vid_width, y_thers_medium), (255,0,0))
 
-        left, top, right, bottom = recent_bboxes[0][0]
-        center_x, center_y = (left+right)//2, (top+bottom)//2
+    left, top, right, bottom = recent_bboxes[0][0]
+    center_x, center_y = (left+right)//2, (top+bottom)//2
 
     # in checking range
     if bottom > y_thers_medium:
@@ -620,7 +620,7 @@ def set_move_det_area():
 def detect_traffic_sign_moving(cur_frame_info, prev_frame_info):
     if prev_frame_info is None:
         # print("Last frame")
-        return False 
+        return False, {}
     sign_count, moved_count = 0, 0
     moved_signs = {}
     for obj_id in cur_frame_info:
@@ -825,8 +825,8 @@ def track_video():
     video_length = sec2length(video_total_frame//vid_fps)
     
     # init video writer
-    video_FourCC = cv2.VideoWriter_fourcc(*'x264')
-    # video_FourCC = cv2.VideoWriter_fourcc(*'mp4v')
+    # video_FourCC = cv2.VideoWriter_fourcc(*'x264')
+    video_FourCC = cv2.VideoWriter_fourcc(*'mp4v')
 
     isOutput = True if output_path != "" else False
     if isOutput:
@@ -924,8 +924,8 @@ def track_video():
             obj_det_results = yolo_detect(frame, yolo_model)
             omitted_count = omit_small_bboxes(obj_det_results)
 
-            car_bboxes,car_classes,
-            person_bboxes, person_classes,
+            car_bboxes,car_classes, \
+            person_bboxes, person_classes, \
             sign_bboxes, sign_classes = split_bboxes(obj_det_results)
             
             # tracker_infos is added to return link the class name & the object tracked

@@ -21,7 +21,7 @@ PRINT_ANOMALY_LABEL = False # E.g. "Close Distance" near the bounding box
 
 # Object detection
 OMIT_SMALL = True #omit small bounding boxes of car/person
-OMIT_SIGN = True #omit traffic signs / lights
+OMIT_SIGN = False  #omit traffic signs / lights
 
 PERSON_MISS_TOLERATE = 2 # No. of frame tolerated, when the detection is missing, before the person object is ignored. 
 
