@@ -564,7 +564,7 @@ def draw_bbox(image, ano_dict, class_name, obj_id, score, bbox):
 
     if "signs" in ano_dict:
         dis, wdiff, hdiff= ano_dict["signs"]
-        cv2.putText(image, str(obj_id), ((right+left)//2, top-5), cv2.FONT_HERSHEY_SIMPLEX, font_size, (0, 255, 0), thickness)
+        cv2.putText(image, f"{dis:.2f} {wdiff:.2f} {hdiff:.2f}", ((right+left)//2, bottom+5), cv2.FONT_HERSHEY_SIMPLEX, font_size*0.8, (0, 255, 0), thickness)
     # print class name
     if DC.PRINT_OBJ_ID:
         cv2.putText(image, str(obj_id), ((right+left)//2, top-5), cv2.FONT_HERSHEY_SIMPLEX, font_size, (0, 255, 0), thickness)
