@@ -981,10 +981,11 @@ def track_video():
         proc_frame_no += 1
 
     end = timer()
-    avg_s = (end-start)/(in_frame_no % print_interval)
-    fps = str(round(1/avg_s, 2))
-    msg = f"[{sec2length(in_frame_no//vid_fps)}/{video_length}] avg_fps: {fps} time: {avg_s*1000}ms"
-    print(msg)
+    if in_frame_no % print_interval>0:
+        avg_s = (end-start)/(in_frame_no % print_interval)
+        fps = str(round(1/avg_s, 2))
+        msg = f"[{sec2length(in_frame_no//vid_fps)}/{video_length}] avg_fps: {fps} time: {avg_s*1000}ms"
+        print(msg)
 
 
     # release cv2 writer
