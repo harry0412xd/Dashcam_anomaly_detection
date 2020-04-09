@@ -633,17 +633,19 @@ def detect_traffic_sign_moving(cur_frame_info, prev_frame_info, out_frame=None):
                 center_x1, center_y1 = (left1+right1)//2, (top1+bottom1)//2
                 center_x2, center_y2 = (left2+right2)//2, (top2+bottom2)//2
 
-                width_diff, height_diff = abs(width1-width2)/width2, abs(height1-height2)/height2
+                width_diff, height_diff = abs((width1-width2)/width2), abs((height1-height2)/height2)
                 dis = euclidean_distance(center_x1, center_x2, center_y1, center_y2)
                 diag2 = sqrt(width2*width2+height2*height2)
 
                 moved_signs[obj_id] =  [dis/diag2, width_diff, height_diff] # for testing output
+                # print(moved_signs[obj_id])
                 if dis/diag2 >0.05 or width_diff>0.03 or height_diff>0.03:
                     sign_count += 1
                     moved_count += 1
     
 
-    if (3>sign_count>0 and moved_count>0) or (sign_count>3 and moved_count/sign_count >0.5 ):
+    # if (3>sign_count>0 and moved_count>0) or (sign_count>3 and moved_count/sign_count >0.5 ):
+    if moved_count>0:
         is_moving = True
     else:
         is_moving = False
