@@ -376,8 +376,8 @@ def get_traffic_color(frame, bbox, out_frame=None):
     # convert to hsv
     hsv = cv2.cvtColor(light_img, cv2.COLOR_BGR2HSV) 
     # green
-    lower_green = np.array([36,40,40]) 
-    upper_green = np.array([120,255,255]) 
+    lower_green = np.array([40,40,40]) 
+    upper_green = np.array([95,255,255]) 
     green_mask = cv2.inRange(hsv, lower_green, upper_green) 
     # red
     lower_red1 = np.array([0,40,40]) 
@@ -397,9 +397,9 @@ def get_traffic_color(frame, bbox, out_frame=None):
     green_perc = cv2.countNonZero(green_mask)/img_size
     yellow_perc = cv2.countNonZero(yellow_mask)/img_size
 
-    red_perc = red_perc if 0.3>red_perc>0.15 else 0
-    green_perc = green_perc if 0.3>green_perc>0.15 else 0
-    yellow_perc = yellow_perc if 0.3>yellow_perc>0.15 else 0
+    red_perc = red_perc if 0.6>red_perc>0.15 else 0
+    green_perc = green_perc if 0.6>green_perc>0.15 else 0
+    yellow_perc = yellow_perc if 0.6>yellow_perc>0.15 else 0
 
     if out_frame is not None:
         cv2.putText(out_frame, f"{red_perc:.2f}|{green_perc:.2f}|{yellow_perc:.2f}", ((right+left)//2, bottom+5), cv2.FONT_HERSHEY_SIMPLEX, font_size*0.8, (0, 255, 0), thickness)
