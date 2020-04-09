@@ -52,11 +52,6 @@ Other (constant used)
 # Width/height > IS_SIDE_RATIO : the side of the car is facing the camera 
 SIDE_THRES = 1.6
 
-# ---------------------------------------
-# ------Collision
-# ignore car with its height less than vid_height/this num
-COLL_IGNORE_DENOMINATOR = 18
-
 # 
 COLL_HEIGHT_THRES = 0.1
 COLL_HEIGHT_THRES_STRICT = 0.05

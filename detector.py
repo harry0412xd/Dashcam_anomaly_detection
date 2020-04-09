@@ -60,7 +60,7 @@ def proc_frame(writer, frames, frames_infos, frame_no, prev_frame, prev_frame_in
         left_mean, right_mean = get_mean_shift(frames_infos, out_frame)
  
     if DC.USE_SIGN_TO_DET_MOV:
-        sign_is_moving, moved_signs = detect_traffic_sign_moving(id_to_info, prev_frame_info)
+        sign_is_moving, moved_signs = detect_traffic_sign_moving(id_to_info, prev_frame_info, out_frame)
     else:
         sign_is_moving, moved_signs = False, {}
     is_moving = sign_is_moving
@@ -213,90 +213,6 @@ def draw_future_center(frames_infos, obj_id, out_frame):
       center_x, center_y = (bbox[2]+bbox[0])//2, (bbox[3]+bbox[1])//2
       cv2.circle(out_frame,(center_x, center_y), 1, (0, 255, 255), -1)
 
-# car driving toward camera
-def get_cdtc_list(frame_infos, car_list):
-    cdtc_list = []
-    for car in car_list:
-        obj_id, _ = car
-        future_bboxes = get_bboxes_by_id(frame_infos, obj_id)
-
-        prev_width = None
-        count, total = 0, 0
-        for (bbox, _) in future_bboxes:
-            width = bbox[2]-bbox[0]
-            center = (bbox[2]+bbox[0])//2
-            if prev_width is not None:
-                total += 2
-                if prev_width>width:
-                    count += 1
-                if center>prev_center:
-                    count += 1
-            else:
-                bbox0 = bbox
-            prev_width = width
-            prev_center = center
-
-        if total>0 and count/total > 0.5:
-            cdtc_list.append((obj_id, bbox0))
-    return cdtc_list
-
-
-# if the person is in front of a car
-# the car is driving toward camera
-def detect_car_person_collison(id_to_info, cdtc_list):
-    results =[]
-    for person_id in id_to_info:
-        cls_id, _, person_bbox = id_to_info[person_id]
-        if class_names[cls_id] == 'person':
-            person_height = person_bbox[3]-person_bbox[1]
-            for (car_id, car_bbox) in cdtc_list:
-                car_height = car_bbox[3]-car_bbox[1]
-                if person_height>car_height:
-                   diff_percent = (person_height-car_height)/car_height
-                   if diff_percent<0.2:
-                      #  check overlapped% of the person by the car
-                        prop = compute_overlapped(person_bbox, car_bbox)
-                        if prop>0.6:
-                            results.append(person_id)
-                            results.append(car_id)
-    return results
-
-def detect_car_person_collison_new(car_list, person_list, out_frame=None):
-    results = []
-    for person_id in person_list:
-        person_bboxes = get_bboxes_by_id(person_id)
-        for car_id in car_list:
-            car_bboxes = get_bboxes_by_id(car_id)
-
-            i ,j = 0, 0
-            while i<len(person_bboxes) and j<len(car_bboxes):
-                person_bbox, person_offset = person_bboxes[i]
-                car_bbox, car_offset = car_bboxes[j]
-                if person_offset==car_offset:
-                    car_depth = estimate_depth_by_width(car_bbox, True)
-                    person_depth = estimate_depth_by_width(person_bbox, False)
-
-                    if abs(car_depth-person_depth)<5:
-                        car_center_x, car_center_y = (car_bbox[2]+car_bbox[0])//2, (car_bbox[3]+car_bbox[1])//2
-                        person_center_x, person_center_y = (person_bbox[2]+person_bbox[0])//2, (person_bbox[3]+person_bbox[1])//2
-                        dist = euclidean_distance(car_center_x, person_center_x, car_center_y, person_center_y)
-                        person_width = person_bbox[2]-person_bbox[0]
-                        if dist< 2.5*person_width:
-                            results.append(car_id)
-                            results.append(person_id)
-                    i += 1
-                    j += 1 
-                elif person_offset<car_offset:
-                    i += 1
-                elif person_offset>car_offset:
-                    j += 1  
-    return results
-
-# def get_frameNum_by_collision_list(collision_list, obj_id):
-#       for (ccar_id, person_id, frame_offset) in collision_list:
-#           if obj_id==car_id or  obj_id==person_id:
-#               return frame_offset
-
 
 # car list [(obj_id, bbox),]
 # return list of obj_id (car that is colliding)
@@ -308,7 +224,7 @@ def detect_car_collision(car_list, out_frame):
         width1, height1 = right1-left1, bottom1-top1
 
         # ignore small box
-        if height1<vid_height // DC.COLL_IGNORE_DENOMINATOR:
+        if height1<vid_height // 24:
             del car_list[0]
             continue
 
@@ -577,9 +493,9 @@ def draw_bbox(image, ano_dict, class_name, obj_id, score, bbox):
     if not is_drawn:
           cv2.rectangle(image, (left, top), (right, bottom), (0, 255, 0), thickness)
 
-    # if "signs" in ano_dict:
-    #     dis, wdiff, hdiff= ano_dict["signs"]
-    #     cv2.putText(image, f"{dis:.2f} {wdiff:.2f} {hdiff:.2f}", ((right+left)//2, bottom+5), cv2.FONT_HERSHEY_SIMPLEX, font_size*0.8, (0, 255, 0), thickness)
+    if "signs" in ano_dict:
+        dis, wdiff, hdiff= ano_dict["signs"]
+        cv2.putText(image, f"{dis:.2f} {wdiff:.2f} {hdiff:.2f}", ((right+left)//2, bottom+5), cv2.FONT_HERSHEY_SIMPLEX, font_size*0.8, (0, 255, 0), thickness)
     # print class name
     if DC.PRINT_OBJ_ID:
         cv2.putText(image, str(obj_id), ((right+left)//2, top-5), cv2.FONT_HERSHEY_SIMPLEX, font_size, (0, 255, 0), thickness)
@@ -632,7 +548,7 @@ def set_move_det_area():
     detection_size = box_width*box_height
     detection_boxes = result
 
-def detect_traffic_sign_moving(cur_frame_info, prev_frame_info):
+def detect_traffic_sign_moving(cur_frame_info, prev_frame_info, out_frame=None):
     if prev_frame_info is None:
         # print("Last frame")
         return False, {}
@@ -655,19 +571,21 @@ def detect_traffic_sign_moving(cur_frame_info, prev_frame_info):
 
                 width_diff, height_diff = abs(width1-width2)/width2, abs(height1-height2)/height2
                 dis = euclidean_distance(center_x1, center_x2, center_y1, center_y2)
-                diag1, diag2 = sqrt(width1*width1+height1*height1), sqrt(width2*width2+height2*height2)
+                diag2 = sqrt(width2*width2+height2*height2)
 
-                moved_signs[obj_id] =  [dis/diag2, width_diff, height_diff]
+                moved_signs[obj_id] =  [dis/diag2, width_diff, height_diff] # for testing output
                 if dis/diag2 >0.05 or width_diff>0.03 or height_diff>0.03:
                     sign_count += 1
                     moved_count += 1
     
 
-    if sign_count>0 and moved_count==sign_count or (sign_count>3 and moved_count/sign_count >0.75 ):
+    if (3>sign_count>0 and moved_count>0) or (sign_count>3 and moved_count/sign_count >0.5 ):
         is_moving = True
     else:
         is_moving = False
 
+    if out_frame is not None:
+        cv2.putText(out_frame, f"{moved_count}/{sign_count}", (vid_width-70, vid_height-50), cv2.FONT_HERSHEY_SIMPLEX, 0.6, (0,0,255), 2)
     return is_moving, moved_signs
                 
 
@@ -887,8 +805,8 @@ def track_video():
         max_age = max(3,vid_fps//2)
         car_tracker = Sort(max_age=max_age, min_hits=1)
         person_tracker = Sort(max_age=max_age, min_hits=1)
-        sign_trackers = Sort(max_age=2, min_hits=1)
-        empty_trackers = Sort(max_age=2, min_hits=1)
+        sign_trackers = Sort(max_age=max_age//2, min_hits=1)
+
         print("SORT initialized")
       # init yolov3 model
         if opt.weights_path == "model_data/YOLOv3_bdd/bdd.weights":
