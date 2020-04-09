@@ -72,7 +72,6 @@ def proc_frame(writer, frames, frames_infos, frame_no, prev_frame, prev_frame_in
             sign_is_moving, is_moving = True, True
         elif moved_count==0 and sign_count>=3:
             sign_is_moving, is_moving = False, False
-
         else:
             sign_is_moving = False
             do_frame_diff_check = True
@@ -279,11 +278,14 @@ def detect_car_collision(car_list, out_frame):
             #         iou_thres = 0.25
 
             if is_possible: 
-                width_diff_perc = abs(width2-width1)/width1 
-                if width_diff_perc < 0.1 : #consider width to estimate depth
+                d1, d2 = estimate_depth_by_width(bbox1, True), estimate_depth_by_width(bbox2, True)
+                d_diff = abs( (d1-d2) / ( (d1+d2)/2 ) )
+                if d_diff < 0.15: #consider width to estimate depth
                     iou = compute_iou(bbox1, bbox2)
                     # cv2.putText(out_frame, f'{iou:.2f}', ((right1+left1+right2+left2)//4, (top1+bottom1+top2+bottom2)//4), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0,255,0), 2)
-                    if iou > iou_thres and iou < DC.IOU_FALSE_THERS: # to exclude some false positive due to detection fault
+
+                    overlapped_perc = max(compute_overlapped(bbox1, bbox2), compute_overlapped(bbox2, bbox1))# to exclude some false positive due to detection fault
+                    if iou > iou_thres and overlapped_perc < 0.6: 
                         collision_list.append(id2)
                         del car_list[i]
                         has_match = True
