@@ -60,11 +60,6 @@ def proc_frame(writer, frames, frames_infos, frame_no, prev_frame, prev_frame_in
         left_mean, right_mean = get_mean_shift(frames_infos, out_frame)
  
 
-    if test_writer is not None:
-        test_frame = out_frame.copy()
-    else:
-        test_frame = None
-
     if DC.USE_SIGN_TO_DET_MOV:
         moved_count, sign_count, moved_signs = get_moving_sign_count(id_to_info, prev_frame_info, out_frame)
         do_frame_diff_check = False
@@ -78,10 +73,16 @@ def proc_frame(writer, frames, frames_infos, frame_no, prev_frame, prev_frame_in
     else:
         do_frame_diff_check = True
 
+    if test_writer is not None:
+        test_frame = out_frame.copy()
+    else:
+        test_frame = None
+        
     if do_frame_diff_check:
         is_moving = detect_camera_moving(frame2proc, prev_frame, out_frame=test_frame)
-        if test_writer is not None:
-            test_writer.write(test_frame)
+
+    if test_writer is not None:
+        test_writer.write(test_frame)
 
     global smooth_dict
     # Smooth moving detection
