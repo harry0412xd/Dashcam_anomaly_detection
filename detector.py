@@ -168,9 +168,13 @@ def proc_frame(writer, frames, frames_infos, frame_no, prev_frame, prev_frame_in
                         ano_dict['jaywalker'] = True
     # ----Jaywalker end
         # testing only
-
+        elif class_name=="traffic light":
+            traffic_color = get_traffic_color(frame2proc, bbox)
+            ano_dict['traffic_color'] = traffic_color
+            
         elif obj_id in moved_signs:
             ano_dict['signs'] = moved_signs[obj_id]
+        
 
         draw_bbox(out_frame, ano_dict, class_name, obj_id, score, bbox)
 # --- Objects iteration end
@@ -364,6 +368,52 @@ def detect_jaywalker(recent_bboxes, mean_shift, out_frame=None):
     return False
 
 
+def get_traffic_color(frame, bbox, out_frame=None):
+    left, top, right, bottom = bbox
+    left, top, right, bottom = max(left,0), max(top,0), min(right, vid_width), min(bottom, vid_height)
+    img_size = (bottom-top)*(right-left)
+    light_img = frame[top:bottom, left:right]
+    # convert to hsv
+    hsv = cv2.cvtColor(light_img, cv2.COLOR_BGR2HSV) 
+    # green
+    lower_green = np.array([36,40,40]) 
+    upper_green = np.array([120,255,255]) 
+    green_mask = cv2.inRange(hsv, lower_green, upper_green) 
+    # red
+    lower_red1 = np.array([0,40,40]) 
+    upper_red1 = np.array([20,255,255])
+    lower_red2 = np.array([165,40,40]) 
+    upper_red2 = np.array([180,255,255]) 
+    red_mask1 = cv2.inRange(hsv, lower_red1, upper_red1)
+    red_mask2 = cv2.inRange(hsv, lower_red2, upper_red2)
+    red_mask = red_mask1+red_mask2
+    # yellow
+    lower_yellow = np.array([25,40,40]) 
+    upper_yellow = np.array([35,255,255]) 
+    yellow_mask = cv2.inRange(hsv, lower_yellow, upper_yellow) 
+
+
+    red_perc = cv2.countNonZero(red_mask)/img_size
+    green_perc = cv2.countNonZero(green_mask)/img_size
+    yellow_perc = cv2.countNonZero(yellow_mask)/img_size
+
+    red_perc = red_perc if 0.3>red_perc>0.15 else 0
+    green_perc = green_perc if 0.3>green_perc>0.15 else 0
+    yellow_perc = yellow_perc if 0.3>yellow_perc>0.15 else 0
+
+    if out_frame is not None:
+        cv2.putText(out_frame, f"{red_perc:.2f}|{green_perc:.2f}|{yellow_perc:.2f}", ((right+left)//2, bottom+5), cv2.FONT_HERSHEY_SIMPLEX, font_size*0.8, (0, 255, 0), thickness)
+    max_ = max(red_perc, green_perc, yellow_perc)
+    if max_==0:
+        return
+    elif max_ == green_perc:
+        return "green"
+    elif max_ == red_perc:
+        return "red"
+    else:
+        return "yellow"
+
+
 def estimate_depth_by_width(bbox, is_car, out_frame=None):
     multiplier = 100 #make the score eaiser to read
 
@@ -489,13 +539,27 @@ def draw_bbox(image, ano_dict, class_name, obj_id, score, bbox):
             is_drawn = True
             ano_label += f'{name} '
 
+    # traffic light or sign
+    if "signs" in ano_dict:
+        dis, wdiff, hdiff= ano_dict["signs"]
+        cv2.putText(image, f"{dis:.2f} {wdiff:.2f} {hdiff:.2f}", ((right+left)//2, bottom+5), cv2.FONT_HERSHEY_SIMPLEX, font_size*0.8, (0, 255, 0), thickness)
+
+    # only traffic light
+    if "traffic_color" in ano_dict:
+        color = ano_dict["traffic_color"]
+        if color=="red":
+            color = (80,80,255)#red
+        elif color=="green":
+            color = (80,255,80)#green
+        else:
+            color = (80,255,255)#yellow
+        cv2.rectangle(image, (left, top), (right, bottom), color, thickness)
+        is_drawn = True
+
     # if not anomaly, use green
     if not is_drawn:
           cv2.rectangle(image, (left, top), (right, bottom), (0, 255, 0), thickness)
 
-    if "signs" in ano_dict:
-        dis, wdiff, hdiff= ano_dict["signs"]
-        cv2.putText(image, f"{dis:.2f} {wdiff:.2f} {hdiff:.2f}", ((right+left)//2, bottom+5), cv2.FONT_HERSHEY_SIMPLEX, font_size*0.8, (0, 255, 0), thickness)
     # print class name
     if DC.PRINT_OBJ_ID:
         cv2.putText(image, str(obj_id), ((right+left)//2, top-5), cv2.FONT_HERSHEY_SIMPLEX, font_size, (0, 255, 0), thickness)
@@ -589,13 +653,6 @@ def detect_traffic_sign_moving(cur_frame_info, prev_frame_info, out_frame=None):
     return is_moving, moved_signs
                 
 
-
-
-
-
-
-        
-   
 # detect whether the camera is moving, return img? and boolean
 def detect_camera_moving(cur_frame, prev_frame, out_frame=None):
     if prev_frame is None:
