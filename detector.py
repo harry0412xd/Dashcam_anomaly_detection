@@ -685,7 +685,7 @@ def detect_camera_moving(cur_frame, prev_frame, out_frame=None):
             cv2.putText(out_frame, label, ((left+right)//2, (top+bottom)//2), cv2.FONT_HERSHEY_SIMPLEX, 1.0, (0,255,0), 2)
 
     # 8 boxes in total
-    is_moving = count>3
+    is_moving = count>2
     if is_moving:
         # testing purpose
         if out_frame is not None :
@@ -939,9 +939,11 @@ def track_video():
                 left, top, right, bottom, obj_id = int(d[0]), int(d[1]), int(d[2]), int(d[3]), d[4]
                 class_id, score = tracker_infos[c][0], tracker_infos[c][1]
                 class_name = class_names[class_id]
-                if (is_car(class_name) or class_name=="traffic sign" or class_name=="traffic light" ) and score <0 : #detection is missing
+                if (is_car(class_name) and score <0 : #detection is missing
                     continue
-                if class_name=="person" and score <= -(DC.PERSON_MISS_TOLERATE):
+                elif class_name=="traffic sign" or class_name=="traffic light" and score < -1:
+                    continue
+                elif class_name=="person" and score <= -(DC.PERSON_MISS_TOLERATE):
                     continue
                 # add to dict
                 info = [class_id, score, [left, top, right, bottom]]
