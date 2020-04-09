@@ -59,25 +59,30 @@ def proc_frame(writer, frames, frames_infos, frame_no, prev_frame, prev_frame_in
         #compute the average shift in pixel of bounding box, in left/right half of the frame
         left_mean, right_mean = get_mean_shift(frames_infos, out_frame)
  
-    if DC.USE_SIGN_TO_DET_MOV:
-        sign_is_moving, moved_signs = detect_traffic_sign_moving(id_to_info, prev_frame_info, out_frame)
+
+    if test_writer is not None:
+        test_frame = out_frame.copy()
     else:
-        sign_is_moving, moved_signs = False, {}
-    is_moving = sign_is_moving
-    if not sign_is_moving and len(moved_signs)==0:
-        # Detect whether the camera is moving
-        if len(frames)>0:
-            if test_writer is not None:
-                test_frame = out_frame.copy()
-                is_moving = detect_camera_moving(frame2proc, prev_frame, out_frame=test_frame)
-                test_writer.write(test_frame)
-            else:
-                is_moving = detect_camera_moving(frame2proc, prev_frame)
-        else: #last frame
-            is_moving = False
-    
+        test_frame = None
 
+    if DC.USE_SIGN_TO_DET_MOV:
+        moved_count, sign_count, moved_signs = get_moving_sign_count(id_to_info, prev_frame_info, out_frame)
+        do_frame_diff_check = False
+        if moved_count/max(sign_count,1)>0.3:
+            sign_is_moving, is_moving = True, True
+        elif moved_count==0 and sign_count>=3:
+            sign_is_moving, is_moving = False, False
 
+        else:
+            sign_is_moving = False
+            do_frame_diff_check = True
+    else:
+        do_frame_diff_check = True
+
+    if do_frame_diff_check:
+        is_moving = detect_camera_moving(frame2proc, prev_frame, out_frame=test_frame)
+        if test_writer is not None:
+            test_writer.write(test_frame)
 
     global smooth_dict
     # Smooth moving detection
@@ -402,7 +407,7 @@ def get_traffic_color(frame, bbox, out_frame=None):
     yellow_perc = yellow_perc if 0.6>yellow_perc>0.15 else 0
 
     if out_frame is not None:
-        cv2.putText(out_frame, f"{red_perc:.2f}|{green_perc:.2f}|{yellow_perc:.2f}", ((right+left)//2, bottom+5), cv2.FONT_HERSHEY_SIMPLEX, font_size*0.8, (0, 255, 0), thickness)
+        cv2.putText(out_frame, f"{red_perc:.2f}|{green_perc:.2f}|{yellow_perc:.2f}", ((right+left)//2, bottom+5), cv2.FONT_HERSHEY_SIMPLEX, 0.8, (0, 255, 0), thickness)
     max_ = max(red_perc, green_perc, yellow_perc)
     if max_==0:
         return
@@ -612,10 +617,9 @@ def set_move_det_area():
     detection_size = box_width*box_height
     detection_boxes = result
 
-def detect_traffic_sign_moving(cur_frame_info, prev_frame_info, out_frame=None):
+def get_moving_sign_count(cur_frame_info, prev_frame_info, out_frame=None):
     if prev_frame_info is None:
-        # print("Last frame")
-        return False, {}
+        return 0, 0, {} #first frame
     sign_count, moved_count = 0, 0
     moved_signs = {}
     for obj_id in cur_frame_info:
@@ -639,29 +643,22 @@ def detect_traffic_sign_moving(cur_frame_info, prev_frame_info, out_frame=None):
 
                 moved_signs[obj_id] =  [dis/diag2, width_diff, height_diff] # for testing output
                 # print(moved_signs[obj_id])
-                if dis/diag2 >0.05 or width_diff>0.03 or height_diff>0.03:
+                # if dis/diag2 >0.05 or width_diff>0.03 or height_diff>0.03:
+                if dis/diag2 >0.05 and not(width_diff>0.08 or height_diff>0.08):
                     sign_count += 1
                     moved_count += 1
-    
-
-    # if (3>sign_count>0 and moved_count>0) or (sign_count>3 and moved_count/sign_count >0.5 ):
-    if moved_count>0:
-        is_moving = True
-    else:
-        is_moving = False
 
     if out_frame is not None:
         cv2.putText(out_frame, f"{moved_count}/{sign_count}", (vid_width-70, vid_height-50), cv2.FONT_HERSHEY_SIMPLEX, 0.6, (0,0,255), 2)
-    return is_moving, moved_signs
+    return moved_count, sign_count, moved_signs
                 
 
 # detect whether the camera is moving, return img? and boolean
 def detect_camera_moving(cur_frame, prev_frame, out_frame=None):
     if prev_frame is None:
-        # print("Last frame")
         return False
 
-    threshold = 0.01
+    score_thres = 0.01
     count = 0
     for box in detection_boxes:
         left, top, right, bottom = box
@@ -672,9 +669,9 @@ def detect_camera_moving(cur_frame, prev_frame, out_frame=None):
         box_prev = cv2.cvtColor(box_prev, cv2.COLOR_BGR2GRAY)
 
         diff = cv2.absdiff(box_cur, box_prev)
-        ret, result = cv2.threshold(diff, 40, 255, cv2.THRESH_BINARY)
-        percentage = cv2.countNonZero(result)/detection_size
-        if percentage>threshold:
+        ret, result = cv2.threshold(diff, 25, 255, cv2.THRESH_BINARY)
+        score = cv2.countNonZero(result)/detection_size
+        if score>score_thres:
             count+=1
 
         # testing purpose
@@ -682,7 +679,7 @@ def detect_camera_moving(cur_frame, prev_frame, out_frame=None):
             result_bgr = cv2.cvtColor(result, cv2.COLOR_GRAY2BGR)
             out_frame[top:bottom, left:right] = result_bgr
             cv2.rectangle(out_frame, (left, top), (right, bottom), (0,255,0), 2)
-            label = "%.3f" % percentage
+            label = "%.3f" % score
             cv2.putText(out_frame, label, ((left+right)//2, (top+bottom)//2), cv2.FONT_HERSHEY_SIMPLEX, 1.0, (0,255,0), 2)
 
     # 8 boxes in total
@@ -722,8 +719,8 @@ def split_bboxes(detections):
     return car_bboxes, car_classes, person_bboxes, person_classes, sign_bboxes, sign_classes
 
 
-#omit small bboxes since they are not accurate and useful enought for detecting anomaly
-def omit_small_bboxes(detections):
+#omit unwanted bounding boxes
+def omit_bboxes(detections):
     # area_threshold = (vid_height//36)**2
     width_threshold, height_threshold = vid_width//30, vid_height//24
     omitted_count = 0
@@ -919,7 +916,7 @@ def track_video():
         else:
             # Obj Detection
             obj_det_results = yolo_detect(frame, yolo_model)
-            omitted_count = omit_small_bboxes(obj_det_results)
+            omitted_count = omit_bboxes(obj_det_results)
 
             car_bboxes,car_classes, \
             person_bboxes, person_classes, \
