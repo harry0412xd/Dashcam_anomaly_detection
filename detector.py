@@ -107,12 +107,12 @@ def proc_frame(writer, frames, frames_infos, frame_no, prev_frame, prev_frame_in
         class_id, score, bbox = info
         left, top, right, bottom = bbox
         class_name = class_names[class_id]
-        ano_dict = {}
+        properties = {}
 
         # estimate_depth_by_width(bbox, False, out_frame) #test output
 
-        if DC.DET_CAR_PERSON_COL and obj_id in car_person_collision_id_list:
-            ano_dict['car_person_crash'] = True
+        # if DC.DET_CAR_PERSON_COL and obj_id in car_person_collision_id_list:
+        #     properties["car_person_crash"] = True
 
         if is_car(class_name):
             # draw_future_center(frames_infos, obj_id, out_frame)
@@ -130,15 +130,15 @@ def proc_frame(writer, frames, frames_infos, frame_no, prev_frame, prev_frame_in
                         dmg_prob = smooth_dict[obj_dmg_key][1]
                     else:
                         dmg_prob = damage_detector.get_avg_prob(obj_id, frame_no)
-                    #
-                    #         # smooth indication and skip checking to make faster
+
+                    # smooth indication and skip checking to make faster
                     skip_num = DC.DMG_SKIP_BASE
                     for i, dmg_thres in enumerate(DC.DMG_THRES):
                         if dmg_prob>dmg_thres: skip_num = DC.DMG_SKIP_NO[i]
                     smooth_dict[obj_dmg_key] = [skip_num, dmg_prob]
 
                 if dmg_prob>=0.85:
-                    ano_dict['damaged'] = True
+                    properties["damaged"] = True
                 if DC.SHOW_PROB:
                     cv2.putText(out_frame, f"{dmg_prob:.2f}", ((right+left)//2, (top+bottom)//2), cv2.FONT_HERSHEY_SIMPLEX, 0.6, (0, 255, 0), 2)
     # ----damage detection end
@@ -147,10 +147,10 @@ def proc_frame(writer, frames, frames_infos, frame_no, prev_frame, prev_frame_in
             if DC.DET_CAR_COL:
                 obj_col_key = f"{obj_id}_col"
                 if obj_id in car_collision_id_list:
-                    ano_dict['collision'] = True
+                    properties["collision"] = True
                     smooth_dict[obj_col_key] = vid_fps//6
                 elif obj_col_key in smooth_dict and smooth_dict[obj_col_key] > 0:
-                    ano_dict['collision'] = True
+                    properties["collision"] = True
                     smooth_dict[obj_col_key] -= 1
     # ----Car collision end
 
@@ -158,7 +158,7 @@ def proc_frame(writer, frames, frames_infos, frame_no, prev_frame, prev_frame_in
             if DC.DET_CLOSE_DIS and is_moving:
                 # Detect lack of car distance
                 is_close = detect_close_distance(bbox)
-                ano_dict['close_distance'] = is_close
+                properties['close_distance'] = is_close
     # ----Car distance end
 
     # Jaywalker
@@ -166,22 +166,22 @@ def proc_frame(writer, frames, frames_infos, frame_no, prev_frame, prev_frame_in
             if DC.DET_JAYWALKER:
                 if opt.ss: # Use semantic segmentation to find people on traffic road
                     if is_moving:
-                        ano_dict['jaywalker'] = is_on_traffic_road(bbox, ss_mask)
+                        properties["jaywalker"] = is_on_traffic_road(bbox, ss_mask)
 
                 else: # Use pre-defined baseline
                     if is_moving and detect_jaywalker(get_bboxes_by_id(frames_infos, obj_id), (left_mean, right_mean)):
-                        ano_dict['jaywalker'] = True
+                        properties["jaywalker"] = True
     # ----Jaywalker end
         # testing only
         elif class_name=="traffic light":
-            traffic_color = get_traffic_color(frame2proc, bbox)
-            ano_dict['traffic_color'] = traffic_color
+            traffic_color = get_traffic_color(frame2proc, bbox, out_frame=out_frame)
+            properties["traffic_color"] = traffic_color
             
         elif obj_id in moved_signs:
-            ano_dict['signs'] = moved_signs[obj_id]
+            properties["signs"] = moved_signs[obj_id]
         
 
-        draw_bbox(out_frame, ano_dict, class_name, obj_id, score, bbox)
+        draw_bbox(out_frame, properties, class_name, obj_id, score, bbox)
 # --- Objects iteration end
 
     if is_moving:
@@ -411,7 +411,7 @@ def get_traffic_color(frame, bbox, out_frame=None):
     yellow_perc = yellow_perc if 0.6>yellow_perc>0.02 else 0
 
     if out_frame is not None:
-        cv2.putText(out_frame, f"{red_perc:.2f}|{green_perc:.2f}|{yellow_perc:.2f}", ((right+left)//2, bottom+5), cv2.FONT_HERSHEY_SIMPLEX, 0.8, (0, 255, 0), thickness)
+        cv2.putText(out_frame, f"{red_perc:.2f}|{green_perc:.2f}|{yellow_perc:.2f}", ((right+left)//2, bottom+5), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 255, 0), 1)
     max_ = max(red_perc, green_perc, yellow_perc)
     if max_==0:
         return
@@ -527,12 +527,11 @@ def cal_weighted_mean(shift_list, left_count, right_count):
     return shift_total/weight_total
     
 # draw bounding box on image given label and coordinate
-def draw_bbox(image, ano_dict, class_name, obj_id, score, bbox):
+def draw_bbox(image, properties, class_name, obj_id, score, bbox):
     left, top, right, bottom = bbox
     ano_label = ""
     thickness = vid_height//720+1
     font_size = vid_height/1080
-
     anomalies = [("collision", (0,0,255) ),
                  ("lost_control", (255,255,0) ),
                  ("damaged", (123,0,255) ),
@@ -540,34 +539,40 @@ def draw_bbox(image, ano_dict, class_name, obj_id, score, bbox):
                  ("jaywalker", (0,123,255) ),
                  ("car_person_crash", (0,51,153)) #brown
                 ]
+
     is_drawn = False
+    color = (0,255,0) # if not anomaly, use green
+
+    # Anomalies
     for (name, color) in anomalies:
-        if (name in ano_dict) and ano_dict[name]:
+        if (name in properties) and properties[name]:
             cv2.rectangle(image, (left, top), (right, bottom), color, thickness)
             left, top, right, bottom = left+thickness, top+thickness, right-thickness, bottom-thickness
             is_drawn = True
             ano_label += f'{name} '
 
     # traffic light or sign
-    if "signs" in ano_dict:
-        dis, wdiff, hdiff= ano_dict["signs"]
-        cv2.putText(image, f"{dis:.2f} {wdiff:.2f} {hdiff:.2f}", ((right+left)//2, bottom+5), cv2.FONT_HERSHEY_SIMPLEX, font_size*0.8, (0, 255, 0), thickness)
+    if "signs" in properties:
+        color = (211,211,211) #gray
+        if DC.SHOW_SIGN_MOVEMENT:
+            dis, wdiff, hdiff= properties["signs"]
+            cv2.putText(image, f"{dis:.2f} {wdiff:.2f} {hdiff:.2f}", ((right+left)//2, bottom+5), cv2.FONT_HERSHEY_SIMPLEX, font_size*0.8, color, thickness)
+        
 
     # only traffic light
-    if "traffic_color" in ano_dict:
-        color = ano_dict["traffic_color"]
+    if "traffic_color" in properties:
+        color = properties["traffic_color"]
         if color=="red":
             color = (80,80,255)#red
         elif color=="green":
             color = (80,255,80)#green
-        else:
+        elif color=="yellow":
             color = (80,255,255)#yellow
         cv2.rectangle(image, (left, top), (right, bottom), color, thickness)
         is_drawn = True
 
-    # if not anomaly, use green
     if not is_drawn:
-          cv2.rectangle(image, (left, top), (right, bottom), (0, 255, 0), thickness)
+          cv2.rectangle(image, (left, top), (right, bottom), color, thickness)
 
     # print class name
     if DC.PRINT_OBJ_ID:
