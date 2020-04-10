@@ -18,7 +18,6 @@ class DeepLabv3plus():
         checkpoint_path = "model_data/best_deeplabv3plus_mobilenet_cityscapes_os16.pth"
         if not os.path.isfile(checkpoint_path):
             torch.utils.model_zoo.load_url(url, model_dir="model_data/")
-            
         # checkpoint_path = '/content/MyDrive/pretrain_weights/deeplabv3+/best_deeplabv3plus_mobilenet_cityscapes_os16.pth'      
         model = network.deeplabv3plus_mobilenet(num_classes=19, output_stride = 16, pretrained_backbone=False)
         self.decoder = Cityscapes_decoder()

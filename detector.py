@@ -383,20 +383,21 @@ def get_traffic_color(frame, bbox, out_frame=None):
     light_img = frame[top:bottom, left:right]
     # convert to hsv
     hsv = cv2.cvtColor(light_img, cv2.COLOR_BGR2HSV) 
+    s,v = 60, 123
     # green
-    lower_green = np.array([40,40,40]) 
+    lower_green = np.array([40,s,v]) 
     upper_green = np.array([95,255,255]) 
     green_mask = cv2.inRange(hsv, lower_green, upper_green) 
     # red
-    lower_red1 = np.array([0,40,40]) 
+    lower_red1 = np.array([0,s,v]) 
     upper_red1 = np.array([20,255,255])
-    lower_red2 = np.array([165,40,40]) 
+    lower_red2 = np.array([165,s,v]) 
     upper_red2 = np.array([180,255,255]) 
     red_mask1 = cv2.inRange(hsv, lower_red1, upper_red1)
     red_mask2 = cv2.inRange(hsv, lower_red2, upper_red2)
     red_mask = red_mask1+red_mask2
     # yellow
-    lower_yellow = np.array([25,40,40]) 
+    lower_yellow = np.array([25,s,v]) 
     upper_yellow = np.array([35,255,255]) 
     yellow_mask = cv2.inRange(hsv, lower_yellow, upper_yellow) 
 
@@ -405,9 +406,9 @@ def get_traffic_color(frame, bbox, out_frame=None):
     green_perc = cv2.countNonZero(green_mask)/img_size
     yellow_perc = cv2.countNonZero(yellow_mask)/img_size
 
-    red_perc = red_perc if 0.6>red_perc>0.15 else 0
-    green_perc = green_perc if 0.6>green_perc>0.15 else 0
-    yellow_perc = yellow_perc if 0.6>yellow_perc>0.15 else 0
+    red_perc = red_perc if 0.6>red_perc>0.02 else 0
+    green_perc = green_perc if 0.6>green_perc>0.02 else 0
+    yellow_perc = yellow_perc if 0.6>yellow_perc>0.02 else 0
 
     if out_frame is not None:
         cv2.putText(out_frame, f"{red_perc:.2f}|{green_perc:.2f}|{yellow_perc:.2f}", ((right+left)//2, bottom+5), cv2.FONT_HERSHEY_SIMPLEX, 0.8, (0, 255, 0), thickness)
@@ -681,7 +682,8 @@ def detect_camera_moving(cur_frame, prev_frame, out_frame=None):
         if out_frame is not None:
             result_bgr = cv2.cvtColor(result, cv2.COLOR_GRAY2BGR)
             out_frame[top:bottom, left:right] = result_bgr
-            cv2.rectangle(out_frame, (left, top), (right, bottom), (0,255,0), 2)
+            c = (0,0,255) if score>score_thres else (0,255,0)
+            cv2.rectangle(out_frame, (left, top), (right, bottom), c, 2)
             label = "%.3f" % score
             cv2.putText(out_frame, label, ((left+right)//2, (top+bottom)//2), cv2.FONT_HERSHEY_SIMPLEX, 1.0, (0,255,0), 2)
 
@@ -940,7 +942,7 @@ def track_video():
                 left, top, right, bottom, obj_id = int(d[0]), int(d[1]), int(d[2]), int(d[3]), d[4]
                 class_id, score = tracker_infos[c][0], tracker_infos[c][1]
                 class_name = class_names[class_id]
-                if (is_car(class_name) and score <0 : #detection is missing
+                if is_car(class_name) and score <0 : #detection is missing
                     continue
                 elif class_name=="traffic sign" or class_name=="traffic light" and score < -1:
                     continue
