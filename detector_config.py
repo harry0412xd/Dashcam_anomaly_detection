@@ -12,7 +12,7 @@ DET_CLOSE_DIS = True
 DET_JAYWALKER = True
 
 # Traffic signs/lights
-USE_SIGN_TO_DET_MOV = True #Use traffic light/sign to detect camera movement
+USE_SIGN_TO_DET_MOV = False #Use traffic light/sign to detect camera movement
 SHOW_SIGN_MOVEMENT = False #display the value used when determine "center displacement| width difference| height difference "
 
 

@@ -170,7 +170,7 @@ def proc_frame(writer, frames, frames_infos, frame_no, prev_frame, prev_frame_in
     # ----Jaywalker end
         # testing only
         elif class_name=="traffic light":
-            traffic_color = get_traffic_color(frame2proc, bbox, out_frame=out_frame)
+            traffic_color = get_traffic_color(frame2proc, bbox, out_frame=None)
             properties["traffic_color"] = traffic_color
             
         elif DC.SHOW_SIGN_MOVEMENT and obj_id in moved_signs:
@@ -181,7 +181,7 @@ def proc_frame(writer, frames, frames_infos, frame_no, prev_frame, prev_frame_in
 # --- Objects iteration end
 
     if is_moving:
-        if sign_is_moving:
+        if DC.USE_SIGN_TO_DET_MOV and sign_is_moving:
             moving_label = "sign_moving"
             moving_color = (255,200,0)
         else:
