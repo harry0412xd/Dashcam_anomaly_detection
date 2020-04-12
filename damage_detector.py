@@ -90,7 +90,12 @@ class Damage_detector():
         # store all probs
         if self.save_probs:
             if self.weighted_prob :
-                weight = max(0.6, damaged_prob+0.2)
+                if damaged_prob >= weight_thres:
+                    weight = 1+ (damaged_prob-self.weight_thres)/(1-self.weight_thres)*0.5
+                else:
+                    weight = 1- ((self.weight_thres-damaged_prob)**2) / ((1-self.weight_thres)**2) *0.5
+                # weight = max(0.6, damaged_prob+0.2)
+
             else:
                 weight = 1
             if not obj_id in self.id2probs:
