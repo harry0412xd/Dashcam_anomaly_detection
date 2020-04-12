@@ -46,6 +46,7 @@ DMG_SKIP_NO = [3, 12]
 
 USE_AVG_PROB = True
 WEIGHTED_PROB = True #multiply the score if high
+WEIGHT_THRES = 0.8
 
 
 """

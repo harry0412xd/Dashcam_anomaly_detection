@@ -13,7 +13,7 @@ from timm.utils import *
 from torchvision import models
 
 class Damage_detector():
-    def __init__(self, device, do_erasing=False, do_padding=False, side_thres=1.6, save_probs=False, avg_amount=2, weighted_prob=False, output_test_image=False):
+    def __init__(self, device, do_erasing=False, do_padding=False, side_thres=1.6, save_probs=False, avg_amount=2, weighted_prob=False, weight_thres=0.8, output_test_image=False):
         # url = "https://github.com/harry0412xd/Dashcam_anomaly_detection/releases/download/v1.0/gluon_seresnext101_32x4d-244_checkpoint-69.pth.tar"
         # checkpoint_path = "model_data/gluon_seresnext101_32x4d-244_checkpoint-69.pth.tar"
         # if not os.path.isfile(checkpoint_path):
@@ -50,6 +50,7 @@ class Damage_detector():
         self.save_probs = save_probs
         self.weighted_prob = weighted_prob
         self.id2probs = {}
+        self.weight_thres = weight_thres
 
 
     def detect(self, frame, bbox, frame_info, frame_no, obj_id):
@@ -90,7 +91,7 @@ class Damage_detector():
         # store all probs
         if self.save_probs:
             if self.weighted_prob :
-                if damaged_prob >= weight_thres:
+                if damaged_prob >= self.weight_thres:
                     weight = 1+ (damaged_prob-self.weight_thres)/(1-self.weight_thres)*0.5
                 else:
                     weight = 1- ((self.weight_thres-damaged_prob)**2) / ((1-self.weight_thres)**2) *0.5

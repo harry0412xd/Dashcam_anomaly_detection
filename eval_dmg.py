@@ -16,6 +16,9 @@ from detector import is_car
 
 
 def detect(id_to_info, frame, frame_no):
+    gray_frame = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
+    if cv2.countNonZero(gray_frame) == 0: # omit the black frame inserted to seperate scene
+        return
     for obj_id in id_to_info:
         info = id_to_info[obj_id]
         class_id, score, bbox = info
@@ -25,6 +28,7 @@ def detect(id_to_info, frame, frame_no):
         dmg_height_thres, dmg_width_thres = 64, 64
         if not DC.IGNORE_SMALL or ((bottom-top)>dmg_height_thres and (right-left)>dmg_width_thres) :
             damage_detector.detect(frame, bbox, id_to_info, frame_no, obj_id) #store the score for first few frame 
+
 
 # mod from evaluate()  2020/4/13
 def evaluate_avg():
@@ -63,6 +67,12 @@ def evaluate_avg():
             success, frame = vid.read()
         if not success: #end of video
             break
+
+        gray_frame = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
+        if cv2.countNonZero(gray_frame) == 0: # omit the black frame inserted to seperate scene
+            out_writer.write(frame)
+            continue
+
         out_frame = frame.copy()
         id_to_info = use_det_result(all_results, frame_no)
 
@@ -135,6 +145,12 @@ def evaluate():
         success, frame = vid.read()
         if not success: #end of video
             break
+
+        gray_frame = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
+        if cv2.countNonZero(gray_frame) == 0: # omit the black frame inserted to seperate scene
+            out_writer.write(frame)
+            continue
+            
         out_frame = frame.copy()
         id_to_info = use_det_result(all_results, frame_no)
 
