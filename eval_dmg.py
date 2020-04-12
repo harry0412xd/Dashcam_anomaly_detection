@@ -14,6 +14,101 @@ from utils import load_det_result, use_det_result
 from yolov3.utils.utils import load_classes
 from detector import is_car
 
+
+def detect(id_to_info, frame, frame_no):
+    for obj_id in id_to_info:
+        info = id_to_info[obj_id]
+        class_id, score, bbox = info
+        if not is_car(class_names[class_id]):
+            continue
+        left, top, right, bottom = bbox
+        dmg_height_thres, dmg_width_thres = 64, 64
+        if not DC.IGNORE_SMALL or ((bottom-top)>dmg_height_thres and (right-left)>dmg_width_thres) :
+            damage_detector.detect(frame, bbox, id_to_info, frame_no, obj_id) #store the score for first few frame 
+
+# mod from evaluate()  2020/4/13
+def evaluate_avg():
+    video_path = opt.input
+    output_path = opt.output
+    vid = cv2.VideoCapture(video_path)
+    if not vid.isOpened():
+        raise IOError("Couldn't open webcam or video")
+
+    global vid_width, vid_height
+    vid_width = int(vid.get(cv2.CAP_PROP_FRAME_WIDTH))
+    vid_height = int(vid.get(cv2.CAP_PROP_FRAME_HEIGHT))
+    video_FourCC = cv2.VideoWriter_fourcc(*'mp4v')
+    vid_fps = vid.get(cv2.CAP_PROP_FPS)
+    video_total_frame = int(vid.get(cv2.CAP_PROP_FRAME_COUNT))
+    out_writer = cv2.VideoWriter(output_path, video_FourCC, vid_fps, (vid_width, vid_height))
+
+    all_results = load_det_result(opt.result_path)
+    lognPrint(f"Start loading {video_path}...")
+    pbar = tqdm.tqdm(total=video_total_frame)
+
+    frames = []
+    for frame_no in range(1,opt.avg_amount+1):
+        success, frame = vid.read()
+        frames.append(frame)
+        id_to_info = use_det_result(all_results, frame_no)
+        detect(id_to_info,frame,frame_no)
+        
+
+    while True:
+        frame_no += 1
+        pbar.update(1)
+        if frame_no<=opt.avg_amount:
+            frame = frames[frame_no-1]
+        else:
+            success, frame = vid.read()
+        if not success: #end of video
+            break
+        out_frame = frame.copy()
+        id_to_info = use_det_result(all_results, frame_no)
+
+        id_to_info_future = use_det_result(all_results, frame_no+opt.avg_amount)
+        detect(id_to_info_future,frame,frame_no)
+
+        for obj_id in id_to_info:
+            info = id_to_info[obj_id]
+            class_id, score, bbox = info
+            if not is_car(class_names[class_id]):
+                continue
+            left, top, right, bottom = bbox
+
+            # dmg_height_thres, dmg_width_thres = vid_height//12, vid_width//24
+            dmg_height_thres, dmg_width_thres = 64, 64
+            if not DC.IGNORE_SMALL or ((bottom-top)>dmg_height_thres and (right-left)>dmg_width_thres) :
+
+                dmg_prob = damage_detector.get_avg_prob(obj_id, frame_no)
+
+                for p_thres in p_thres_list:
+                    if dmg_prob>p_thres: #positive
+                        if get_damage_truth(obj_id, frame_no) is not None: # True positive
+                            mode = 1
+                        else:# False positive
+                            mode = 2
+                    
+                    else:# negative
+                        if get_damage_truth(obj_id, frame_no) is None: # True negative
+                            mode = 3
+                        else:# False negative
+                            mode = 4
+                    update_metric(obj_id, mode, p_thres)
+
+            else:
+                dmg_prob = -1
+              
+            draw_bbox(out_frame, obj_id, dmg_prob, bbox, frame_no)
+
+        out_writer.write(out_frame)
+        
+    
+    m_thres_list = [0.25,0.33,0.5,0.75]
+    compute_metrics(m_thres_list, p_thres_list)
+    # compute_total_metric()
+
+
 def evaluate():
     video_path = opt.input
     output_path = opt.output
@@ -41,9 +136,8 @@ def evaluate():
         if not success: #end of video
             break
         out_frame = frame.copy()
-
-
         id_to_info = use_det_result(all_results, frame_no)
+
         for obj_id in id_to_info:
             info = id_to_info[obj_id]
             class_id, score, bbox = info
@@ -51,7 +145,6 @@ def evaluate():
                 continue
             left, top, right, bottom = bbox
 
-            # copy from main py file 2020/3/24
 
             # dmg_height_thres, dmg_width_thres = vid_height//12, vid_width//24
             dmg_height_thres, dmg_width_thres = 64, 64
@@ -77,13 +170,6 @@ def evaluate():
                 dmg_prob = -1
               
             draw_bbox(out_frame, obj_id, dmg_prob, bbox, frame_no)
-            # # to construct a metric_dict case_id -> true positive, true negative, false positive, false negative total
-            # # accuracy = hit / total
-            # if obj_id not in metric_dict:
-            #     metric_dict[obj_id] = 0, end_frame_no-start_frame_no+1
-            # else:
-            #     hit, total = metric_dict[obj_id]
-            #     metric_dict[obj_id] = hit, total + end_frame_no-start_frame_no+1
 
         out_writer.write(out_frame)
         
@@ -306,7 +392,8 @@ if __name__ == '__main__':
     parser.add_argument("--device", type=str, default="cuda",  help = "Use cuda or cpu")
     parser.add_argument("--log", type=str, default="eval_result.txt",  help = "Use cuda or cpu")
     parser.add_argument("--class_path", type=str, default="/content/Dashcam_anomaly_detection/model_data/YOLOv3_bdd/classes.txt",  help = "YOLO classes list")
-    
+
+    parser.add_argument('--avg_amount', type=int, default=0, help = "")
   
     opt = parser.parse_args()
     obj_id_to_truth, obj_id2case_id, case_id2obj_id, case_metrics, total_metrics = {}, {}, {}, {}, {}
@@ -316,16 +403,20 @@ if __name__ == '__main__':
     assert opt.dmg_thres in p_thres_list, "Change the list above"
     class_names = load_classes(opt.class_path)
 
-    damage_detector = Damage_detector(opt.device, do_erasing=DC.DO_ERASING, do_padding=DC.DO_PADDING, side_thres=DC.SIDE_THRES)
+    if opt.avg_amount>0:
+        damage_detector = Damage_detector(opt.device, do_erasing=DC.DO_ERASING, do_padding=DC.DO_PADDING,
+                                          side_thres=DC.SIDE_THRES, save_probs = True, avg_amount=opt.avg_amount, weighted_prob=DC.WEIGHTED_PROB)
+    else:
+        damage_detector = Damage_detector(opt.device, do_erasing=DC.DO_ERASING, do_padding=DC.DO_PADDING, side_thres=DC.SIDE_THRES)
     lognPrint(f"Loaded Model weight: {damage_detector.get_checkpoint_path()}")
     lognPrint(f"Threshold: {opt.dmg_thres}")
     
     log_csv(f"{damage_detector.get_checkpoint_path()}")
     log_csv("dmg_thres,acc,prec,recall,acc,prec,recall,acc,prec,recall,acc,prec,recall")
     
-    
-
-
-    evaluate()
+    if opt.avg_amount>0:
+        evaluate_avg()
+    else:
+        evaluate()
 
     
