@@ -73,11 +73,7 @@ def proc_frame(writer, frames, frames_infos, frame_no, prev_frame, prev_frame_in
     else:
         do_frame_diff_check = True
 
-    if test_writer is not None:
-        test_frame = out_frame.copy()
-    else:
-        test_frame = None
-        
+    test_frame = out_frame.copy() if test_writer is not None else None
     if do_frame_diff_check:
         is_moving = detect_camera_moving(frame2proc, prev_frame, out_frame=test_frame)
 
@@ -177,7 +173,7 @@ def proc_frame(writer, frames, frames_infos, frame_no, prev_frame, prev_frame_in
             traffic_color = get_traffic_color(frame2proc, bbox, out_frame=out_frame)
             properties["traffic_color"] = traffic_color
             
-        elif obj_id in moved_signs:
+        elif DC.SHOW_SIGN_MOVEMENT and obj_id in moved_signs:
             properties["signs"] = moved_signs[obj_id]
         
 
@@ -541,7 +537,6 @@ def draw_bbox(image, properties, class_name, obj_id, score, bbox):
                 ]
 
     is_drawn = False
-    color = (0,255,0) # if not anomaly, use green
 
     # Anomalies
     for (name, color) in anomalies:
@@ -552,11 +547,10 @@ def draw_bbox(image, properties, class_name, obj_id, score, bbox):
             ano_label += f'{name} '
 
     # traffic light or sign
-    if "signs" in properties:
+    if DC.SHOW_SIGN_MOVEMENT and "signs" in properties:
         color = (211,211,211) #gray
-        if DC.SHOW_SIGN_MOVEMENT:
-            dis, wdiff, hdiff= properties["signs"]
-            cv2.putText(image, f"{dis:.2f} {wdiff:.2f} {hdiff:.2f}", ((right+left)//2, bottom+5), cv2.FONT_HERSHEY_SIMPLEX, font_size*0.8, color, thickness)
+        dis, wdiff, hdiff= properties["signs"]
+        cv2.putText(image, f"{dis:.2f} {wdiff:.2f} {hdiff:.2f}", ((right+left)//2, bottom+5), cv2.FONT_HERSHEY_SIMPLEX, font_size*0.8, color, thickness)
         
 
     # only traffic light
@@ -572,6 +566,7 @@ def draw_bbox(image, properties, class_name, obj_id, score, bbox):
         is_drawn = True
 
     if not is_drawn:
+          color = (0,255,0) # if not anomaly, use green
           cv2.rectangle(image, (left, top), (right, bottom), color, thickness)
 
     # print class name
@@ -606,25 +601,46 @@ def detect_close_distance(bbox, out_frame=None):
 
 
 # Set camera movement detection area
+# def set_move_det_area():
+#     result = []
+#     boxes_x = [0, vid_width*0.025,vid_width*0.225, vid_width*0.425, vid_width*0.625, vid_width*0.825]
+#     boxes_y = [vid_height*0.05, vid_height*0.3]
+#     box_width = int(vid_width*0.15)
+#     box_height = int(vid_height*0.2)
+#     for x in range(len(boxes_x)):
+#         left, top = int(boxes_x[x]), int(boxes_y[0])
+#         right, bottom = left+box_width, top+box_height
+#         result.append([left, top, right, bottom])
+#         if x==0 or x==4:
+#             left, top = int(boxes_x[x]), int(boxes_y[1])
+#             right, bottom = left+box_width, top+box_height
+#             result.append([left, top, right, bottom])        
+    
+#     global detection_boxes, detection_size
+#     detection_size = box_width*box_height
+#     detection_boxes = result
+
+# Set camera movement detection area
 def set_move_det_area():
     result = []
-
-    boxes_x = [vid_width*0.025,vid_width*0.225, vid_width*0.425, vid_width*0.625, vid_width*0.825]
-    boxes_y = [vid_height*0.05, vid_height*0.3]
-    box_width = int(vid_width*0.15)
-    box_height = int(vid_height*0.2)
-    for x in range(len(boxes_x)):
-        left, top = int(boxes_x[x]), int(boxes_y[0])
-        right, bottom = left+box_width, top+box_height
+    column = 6
+    p = vid_width//column//10
+    boxes_y = [0, vid_height//5]
+    box_height = vid_height//6
+    for x in range(0,column):
+        left = x* vid_width//column + p
+        right = (x+1)* vid_width//column - p
+        top, bottom = int(boxes_y[0]), int(boxes_y[0])+box_height
         result.append([left, top, right, bottom])
-        if x==0 or x==4:
-            left, top = int(boxes_x[x]), int(boxes_y[1])
-            right, bottom = left+box_width, top+box_height
+        if x==0 or (x+1)==column:
+            top, bottom = int(boxes_y[1]), int(boxes_y[1])+box_height
             result.append([left, top, right, bottom])        
     
     global detection_boxes, detection_size
+    box_width = vid_width//column - 2*p
     detection_size = box_width*box_height
     detection_boxes = result
+
 
 def get_moving_sign_count(cur_frame_info, prev_frame_info, out_frame=None):
     if prev_frame_info is None:
@@ -650,7 +666,9 @@ def get_moving_sign_count(cur_frame_info, prev_frame_info, out_frame=None):
                 dis = euclidean_distance(center_x1, center_x2, center_y1, center_y2)
                 diag2 = sqrt(width2*width2+height2*height2)
 
-                moved_signs[obj_id] =  [dis/diag2, width_diff, height_diff] # for testing output
+                if DC.SHOW_SIGN_MOVEMENT:
+                    moved_signs[obj_id] =  [dis/diag2, width_diff, height_diff] # for testing output
+
                 # print(moved_signs[obj_id])
                 # if dis/diag2 >0.05 or width_diff>0.03 or height_diff>0.03:
                 if dis/diag2 >0.05 and not(width_diff>0.08 or height_diff>0.08):
