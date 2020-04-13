@@ -22,9 +22,11 @@ class Damage_detector():
         # new data(5) 2020/3/17
         checkpoint_path = "/content/MyDrive/cls_model/20200317-083104-gluon_seresnext101_32x4d-224/model_best.pth.tar"
         # new data(6)
-        checkpoint_path = "/content/MyDrive/cls_model/train/20200331-153346-gluon_seresnext101_32x4d-224/model_best.pth.tar"
-        model = create_model('gluon_seresnext101_32x4d', num_classes=2, checkpoint_path = checkpoint_path)
+        # checkpoint_path = "/content/MyDrive/cls_model/train/20200331-153346-gluon_seresnext101_32x4d-224/model_best.pth.tar"
+        # model = create_model('gluon_seresnext101_32x4d', num_classes=2, checkpoint_path = checkpoint_path)
 
+        checkpoint_path = "/content/MyDrive/cls_model/train/20200405-123754-gluon_seresnext101_64x4d-224/model_best.pth.tar"
+        model = create_model('gluon_seresnext101_64x4d', num_classes=2, checkpoint_path = checkpoint_path)
 
         # model = create_model('gluon_seresnext101_32x4d', num_classes=2)
         # convert_splitbn_model(model,3)
@@ -132,37 +134,37 @@ class Damage_detector():
             return total/count
         return -1
 
-    # def get_adjusted_prob(self, obj_id, cur_frame_no):
-    #     assert self.save_probs, "Need to save the probs in order to compute the adjusted prob, pass save_probs=True when constructing the detector"
-    #     total, count = 0.0, 0
-    #     if obj_id in self.id2probs:
-    #         frame_no2prob = self.id2probs[obj_id]
-    #         remove = []
-    #         cur_prob = 0
-    #         for frame_no in frame_no2prob:
-    #             if frame_no < cur_frame_no - self.prob_period:
-    #                 remove.append(frame_no)
+    def get_adjusted_prob(self, obj_id, cur_frame_no):
+        assert self.save_probs, "Need to save the probs in order to compute the adjusted prob, pass save_probs=True when constructing the detector"
+        total, count = 0.0, 0
+        if obj_id in self.id2probs:
+            frame_no2prob = self.id2probs[obj_id]
+            remove = []
+            cur_prob = 0
+            for frame_no in frame_no2prob:
+                if frame_no < cur_frame_no - self.prob_period:
+                    remove.append(frame_no)
 
-    #             elif frame_no <= cur_frame_no + self.prob_period:
-    #                 damaged_prob= frame_no2prob[frame_no]
-    #                 count += 1
-    #                 total += damaged_prob
-    #                 if damaged_prob>self.conf_thres:
-    #                     conf_count += 1 #number of very confident crash prediction
-    #                 if frame_no==cur_frame_no:
-    #                     cur_prob = damaged_prob
+                elif frame_no <= cur_frame_no + self.prob_period:
+                    damaged_prob= frame_no2prob[frame_no]
+                    count += 1
+                    total += damaged_prob
+                    if damaged_prob>self.conf_thres:
+                        conf_count += 1 #number of very confident crash prediction
+                    if frame_no==cur_frame_no:
+                        cur_prob = damaged_prob
                         
-    #         for frame_no in remove: del frame_no2prob[frame_no]
+            for frame_no in remove: del frame_no2prob[frame_no]
 
-    #         if cur_prob>conf_thres:
-    #             if cur_prob>0.9 or conf_count/count >=0.5:
-    #                 return cur_prob
-    #             else:
-    #                 return total/count
-    #         else:
-    #             return
+            if cur_prob>conf_thres:
+                if cur_prob>0.9 or conf_count/count >=0.5:
+                    return cur_prob
+                else:
+                    return total/count
+            else:
+                return
 
-    #     return -1
+        return -1
 
 
 def get_damaged_prob(output):

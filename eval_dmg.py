@@ -107,7 +107,6 @@ def evaluate_avg():
 
 def evaluate():
     all_results = load_det_result(opt.result_path)
-    lognPrint(f"Start loading {video_path}...")
     pbar = tqdm.tqdm(total=video_total_frame)
 
     frame_no = 0
