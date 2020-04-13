@@ -13,7 +13,7 @@ from timm.utils import *
 from torchvision import models
 
 class Damage_detector():
-    def __init__(self, device, do_erasing=False, do_padding=False, side_thres=1.6, save_probs=False, period_half=2, weighted_prob=False, conf_thres=0.8, output_test_image=False):
+    def __init__(self, device, do_erasing=False, do_padding=False, side_thres=1.6, save_probs=False, prob_period=2, weighted_prob=False, conf_thres=0.8, output_test_image=False):
         # url = "https://github.com/harry0412xd/Dashcam_anomaly_detection/releases/download/v1.0/gluon_seresnext101_32x4d-244_checkpoint-69.pth.tar"
         # checkpoint_path = "model_data/gluon_seresnext101_32x4d-244_checkpoint-69.pth.tar"
         # if not os.path.isfile(checkpoint_path):
@@ -45,7 +45,7 @@ class Damage_detector():
         self.output_test_image = output_test_image
         self.do_erasing = do_erasing
         self.do_padding = do_padding
-        self.period_half = period_half # |<- n-th before --- current --- nth after->|
+        self.prob_period = prob_period # |<- n-th before --- current --- nth after->|
         self.side_thres = side_thres
         self.save_probs = save_probs
         self.weighted_prob = weighted_prob
@@ -110,9 +110,9 @@ class Damage_detector():
             frame_no2prob = self.id2probs[obj_id]
             remove = []
             for frame_no in frame_no2prob:
-                if frame_no < cur_frame_no - self.period_half:
+                if frame_no < cur_frame_no - self.prob_period:
                     remove.append(frame_no)
-                elif frame_no <= cur_frame_no + self.period_half:
+                elif frame_no <= cur_frame_no + self.prob_period:
                     damaged_prob = frame_no2prob[frame_no]
                     if self.weighted_prob :
                         if damaged_prob >= self.conf_thres:
@@ -140,10 +140,10 @@ class Damage_detector():
     #         remove = []
     #         cur_prob = 0
     #         for frame_no in frame_no2prob:
-    #             if frame_no < cur_frame_no - self.period_half:
+    #             if frame_no < cur_frame_no - self.prob_period:
     #                 remove.append(frame_no)
 
-    #             elif frame_no <= cur_frame_no + self.period_half:
+    #             elif frame_no <= cur_frame_no + self.prob_period:
     #                 damaged_prob= frame_no2prob[frame_no]
     #                 count += 1
     #                 total += damaged_prob

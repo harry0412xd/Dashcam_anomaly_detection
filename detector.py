@@ -909,7 +909,7 @@ def track_video():
         global damage_detector
         if DC.USE_AVG_PROB:
             damage_detector = Damage_detector(device, do_erasing=DC.DO_ERASING, do_padding=DC.DO_PADDING,
-                                              side_thres=DC.SIDE_THRES, save_probs = True, avg_amount=2, weighted_prob=DC.WEIGHTED_PROB)
+                                              side_thres=DC.SIDE_THRES, save_probs = True, prob_period=2, weighted_prob=DC.WEIGHTED_PROB)
         else:
             damage_detector = Damage_detector(device, do_erasing=DC.DO_ERASING, do_padding=DC.DO_PADDING, side_thres=DC.SIDE_THRES)
   # Semantic segmentation

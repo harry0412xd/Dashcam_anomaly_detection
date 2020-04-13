@@ -36,7 +36,7 @@ def evaluate_avg():
     pbar = tqdm.tqdm(total=video_total_frame)
 
     frames = []
-    for frame_no in range(1,opt.avg_amount+1):
+    for frame_no in range(1,opt.prob_period+1):
         success, frame = vid.read()
         frames.append(frame)
         id_to_info = use_det_result(all_results, frame_no)
@@ -46,7 +46,7 @@ def evaluate_avg():
     while True:
         frame_no += 1
         pbar.update(1)
-        if frame_no<=opt.avg_amount:
+        if frame_no<=opt.prob_period:
             frame = frames[frame_no-1]
         else:
             success, frame = vid.read()
@@ -62,7 +62,7 @@ def evaluate_avg():
         out_frame = frame.copy()
         id_to_info = use_det_result(all_results, frame_no)
 
-        id_to_info_future = use_det_result(all_results, frame_no+opt.avg_amount)
+        id_to_info_future = use_det_result(all_results, frame_no+opt.prob_period)
         detect(id_to_info_future,frame,frame_no)
 
         for obj_id in id_to_info:
@@ -386,7 +386,7 @@ if __name__ == '__main__':
     parser.add_argument("--log", type=str, default="eval_result.txt",  help = "Use cuda or cpu")
     parser.add_argument("--class_path", type=str, default="/content/Dashcam_anomaly_detection/model_data/YOLOv3_bdd/classes.txt",  help = "YOLO classes list")
 
-    parser.add_argument('--avg_amount', type=int, default=0, help = "")
+    parser.add_argument('--prob_period', type=int, default=0, help = "")
   
     opt = parser.parse_args()
     obj_id_to_truth, obj_id2case_id, case_id2obj_id, case_metrics, total_metrics = {}, {}, {}, {}, {}
@@ -396,9 +396,9 @@ if __name__ == '__main__':
     assert opt.dmg_thres in p_thres_list, "Change the list above"
     class_names = load_classes(opt.class_path)
 
-    if opt.avg_amount>0:
+    if opt.prob_period>0:
         damage_detector = Damage_detector(opt.device, do_erasing=DC.DO_ERASING, do_padding=DC.DO_PADDING,
-                                          side_thres=DC.SIDE_THRES, save_probs = True, avg_amount=opt.avg_amount, weighted_prob=DC.WEIGHTED_PROB)
+                                          side_thres=DC.SIDE_THRES, save_probs = True, prob_period=opt.prob_period, weighted_prob=DC.WEIGHTED_PROB)
     else:
         damage_detector = Damage_detector(opt.device, do_erasing=DC.DO_ERASING, do_padding=DC.DO_PADDING, side_thres=DC.SIDE_THRES)
     lognPrint(f"Loaded Model weight: {damage_detector.get_checkpoint_path()}")
@@ -422,7 +422,7 @@ if __name__ == '__main__':
     else:
         out_writer = None
 
-    if opt.avg_amount>0:
+    if opt.prob_period>0:
         evaluate_avg()
     else:
         evaluate()
