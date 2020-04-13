@@ -32,20 +32,6 @@ def detect(id_to_info, frame, frame_no):
 
 # mod from evaluate()  2020/4/13
 def evaluate_avg():
-    video_path = opt.input
-    output_path = opt.output
-    vid = cv2.VideoCapture(video_path)
-    if not vid.isOpened():
-        raise IOError("Couldn't open webcam or video")
-
-    global vid_width, vid_height
-    vid_width = int(vid.get(cv2.CAP_PROP_FRAME_WIDTH))
-    vid_height = int(vid.get(cv2.CAP_PROP_FRAME_HEIGHT))
-    video_FourCC = cv2.VideoWriter_fourcc(*'mp4v')
-    vid_fps = vid.get(cv2.CAP_PROP_FPS)
-    video_total_frame = int(vid.get(cv2.CAP_PROP_FRAME_COUNT))
-    out_writer = cv2.VideoWriter(output_path, video_FourCC, vid_fps, (vid_width, vid_height))
-
     all_results = load_det_result(opt.result_path)
     lognPrint(f"Start loading {video_path}...")
     pbar = tqdm.tqdm(total=video_total_frame)
@@ -70,7 +56,8 @@ def evaluate_avg():
 
         gray_frame = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
         if cv2.countNonZero(gray_frame) == 0: # omit the black frame inserted to seperate scene
-            out_writer.write(frame)
+            if out_writer is not None:
+                out_writer.write(frame)
             continue
 
         out_frame = frame.copy()
@@ -87,7 +74,7 @@ def evaluate_avg():
             left, top, right, bottom = bbox
 
             # dmg_height_thres, dmg_width_thres = vid_height//12, vid_width//24
-            dmg_height_thres, dmg_width_thres = 64, 64
+            dmg_height_thres, dmg_width_thres = 96, 96
             if not DC.IGNORE_SMALL or ((bottom-top)>dmg_height_thres and (right-left)>dmg_width_thres) :
 
                 dmg_prob = damage_detector.get_avg_prob(obj_id, frame_no)
@@ -110,30 +97,16 @@ def evaluate_avg():
                 dmg_prob = -1
               
             draw_bbox(out_frame, obj_id, dmg_prob, bbox, frame_no)
-
-        out_writer.write(out_frame)
+        if out_writer is not None:
+            out_writer.write(out_frame)
         
     
-    m_thres_list = [0.25,0.33,0.5,0.75]
+    m_thres_list = [0.1, 0.25,0.33,0.5,0.75]
     compute_metrics(m_thres_list, p_thres_list)
     # compute_total_metric()
 
 
 def evaluate():
-    video_path = opt.input
-    output_path = opt.output
-    vid = cv2.VideoCapture(video_path)
-    if not vid.isOpened():
-        raise IOError("Couldn't open webcam or video")
-
-    global vid_width, vid_height
-    vid_width = int(vid.get(cv2.CAP_PROP_FRAME_WIDTH))
-    vid_height = int(vid.get(cv2.CAP_PROP_FRAME_HEIGHT))
-    video_FourCC = cv2.VideoWriter_fourcc(*'mp4v')
-    vid_fps = vid.get(cv2.CAP_PROP_FPS)
-    video_total_frame = int(vid.get(cv2.CAP_PROP_FRAME_COUNT))
-    out_writer = cv2.VideoWriter(output_path, video_FourCC, vid_fps, (vid_width, vid_height))
-
     all_results = load_det_result(opt.result_path)
     lognPrint(f"Start loading {video_path}...")
     pbar = tqdm.tqdm(total=video_total_frame)
@@ -147,8 +120,11 @@ def evaluate():
             break
 
         gray_frame = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
+
         if cv2.countNonZero(gray_frame) == 0: # omit the black frame inserted to seperate scene
-            out_writer.write(frame)
+            # print(f"black frame:{frame_no}")
+            if out_writer is not None:
+                out_writer.write(frame)
             continue
             
         out_frame = frame.copy()
@@ -186,8 +162,8 @@ def evaluate():
                 dmg_prob = -1
               
             draw_bbox(out_frame, obj_id, dmg_prob, bbox, frame_no)
-
-        out_writer.write(out_frame)
+        if out_writer is not None:
+            out_writer.write(out_frame)
         
     
     m_thres_list = [0.25,0.33,0.5,0.75]
@@ -298,7 +274,8 @@ def compute_metrics(m_thres_list, p_thres_list):
             
             
             
-            result += f",{acc},{prec},{recall}"
+            # result += f",{acc},{prec},{recall}"
+            result += f",={acc_case_wise[m_thres]}/{len(case_metric)},={prec_case_wise[m_thres]}/{len(case_metric)},={recall_case_wise[m_thres]}/{len(case_metric)}"
 
         total_metric = total_metrics[p_thres]
         total, tp, fp, tn, fn = total_metric
@@ -306,8 +283,8 @@ def compute_metrics(m_thres_list, p_thres_list):
         prec = tp/(tp+fp)
         recall = tp/(tp+fn)
         lognPrint(f"Results (all):  Acc:{tp+tn}/{total} |prec: {tp}/{tp+fp} |recall: {tp}/{tp+fn}")
-        result += f",{acc},{prec},{recall}"
-
+        # result += f",{acc},{prec},{recall}"
+        result += f",=({tp}{tn})/{total},={tp}/({tp}{fp}),={tp}/({tp}{fn})"
         log_csv(result)
 
 
@@ -401,7 +378,8 @@ if __name__ == '__main__':
     parser = argparse.ArgumentParser()
     # I/O
     parser.add_argument("--input", nargs='?', type=str, default="video_in/Crash_damage.mp4",help = "Video input path")
-    parser.add_argument("--output", nargs='?', type=str, default="video_out/Crash_damage_eval.mp4",  help = "[Optional] Video output path")
+    # parser.add_argument("--output", nargs='?', type=str, default="video_out/Crash_damage_eval.mp4",  help = "[Optional] Video output path")
+    parser.add_argument("--output", nargs='?', type=str, default="",  help = "[Optional] Video output path")
     parser.add_argument('--result_path', type=str, default="detection_results/Crash_damage.txt", help = "Path of file which save the Object detection/tracking results")
     parser.add_argument('--label_path', type=str, default="crash_damage_label.txt", help = "Path of label file indicating the damaged car(s)")
     parser.add_argument('--dmg_thres', type=float, default=0.8, help = "Thershold of confidence to consider a car as damaged")
@@ -415,7 +393,7 @@ if __name__ == '__main__':
     obj_id_to_truth, obj_id2case_id, case_id2obj_id, case_metrics, total_metrics = {}, {}, {}, {}, {}
     load_damage_label(opt.label_path)
     vid_width, vid_height = 0, 0
-    p_thres_list = [0.75, 0.8, 0.85, 0.9]
+    p_thres_list = [0.5, 0.6, 0.7, 0.75, 0.8, 0.85, 0.9]
     assert opt.dmg_thres in p_thres_list, "Change the list above"
     class_names = load_classes(opt.class_path)
 
@@ -430,6 +408,21 @@ if __name__ == '__main__':
     log_csv(f"{damage_detector.get_checkpoint_path()}")
     log_csv("dmg_thres,acc,prec,recall,acc,prec,recall,acc,prec,recall,acc,prec,recall")
     
+    vid = cv2.VideoCapture(opt.input)
+    if not vid.isOpened():
+        raise IOError("Couldn't open webcam or video")
+
+    vid_width = int(vid.get(cv2.CAP_PROP_FRAME_WIDTH))
+    vid_height = int(vid.get(cv2.CAP_PROP_FRAME_HEIGHT))
+    video_FourCC = cv2.VideoWriter_fourcc(*'x264')
+    vid_fps = vid.get(cv2.CAP_PROP_FPS)
+    print(vid_fps)
+    video_total_frame = int(vid.get(cv2.CAP_PROP_FRAME_COUNT))
+    if not opt.output=="":
+        out_writer = cv2.VideoWriter(opt.output, video_FourCC, round(vid_fps), (vid_width, vid_height))
+    else:
+        out_writer = None
+
     if opt.avg_amount>0:
         evaluate_avg()
     else:

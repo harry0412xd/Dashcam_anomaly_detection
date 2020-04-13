@@ -944,6 +944,7 @@ def track_video():
         else:
             # Obj Detection
             obj_det_results = yolo_detect(frame, yolo_model)
+            # print(f"results:{len(obj_det_results)}")
             omitted_count = omit_bboxes(obj_det_results)
 
             car_bboxes,car_classes, \
@@ -976,6 +977,7 @@ def track_video():
                 id_to_info[obj_id] = info
 
             if save_result:
+                # print(f"saving: {in_frame_no}")
                 save_det_result(det_result_file, id_to_info, in_frame_no)
 
         if opt.dmg_det and DC.USE_AVG_PROB:

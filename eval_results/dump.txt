@@ -1,0 +1,7 @@
+Loaded 62 labels from crash_damage_label.txt, 56 test cases.
+Loaded Model weight: /content/MyDrive/cls_model/train/20200331-153346-gluon_seresnext101_32x4d-224/model_best.pth.tar
+Threshold: 0.75
+Start loading video_in/Crash_damage.mp4...
+Loaded 62 labels from crash_damage_label.txt, 56 test cases.
+Loaded Model weight: /content/MyDrive/cls_model/train/20200331-153346-gluon_seresnext101_32x4d-224/model_best.pth.tar
+Threshold: 0.75
