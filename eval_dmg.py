@@ -33,7 +33,6 @@ def detect(id_to_info, frame, frame_no):
 # mod from evaluate()  2020/4/13
 def evaluate_avg():
     all_results = load_det_result(opt.result_path)
-    lognPrint(f"Start loading {video_path}...")
     pbar = tqdm.tqdm(total=video_total_frame)
 
     frames = []
@@ -74,7 +73,7 @@ def evaluate_avg():
             left, top, right, bottom = bbox
 
             # dmg_height_thres, dmg_width_thres = vid_height//12, vid_width//24
-            dmg_height_thres, dmg_width_thres = 96, 96
+            dmg_height_thres, dmg_width_thres = 64, 64
             if not DC.IGNORE_SMALL or ((bottom-top)>dmg_height_thres and (right-left)>dmg_width_thres) :
 
                 dmg_prob = damage_detector.get_avg_prob(obj_id, frame_no)
@@ -284,7 +283,7 @@ def compute_metrics(m_thres_list, p_thres_list):
         recall = tp/(tp+fn)
         lognPrint(f"Results (all):  Acc:{tp+tn}/{total} |prec: {tp}/{tp+fp} |recall: {tp}/{tp+fn}")
         # result += f",{acc},{prec},{recall}"
-        result += f",=({tp}{tn})/{total},={tp}/({tp}{fp}),={tp}/({tp}{fn})"
+        result += f",=({tp}+{tn})/{total},={tp}/({tp}+{fp}),={tp}/({tp}+{fn})"
         log_csv(result)
 
 
@@ -407,7 +406,8 @@ if __name__ == '__main__':
     
     log_csv(f"{damage_detector.get_checkpoint_path()}")
     log_csv("dmg_thres,acc,prec,recall,acc,prec,recall,acc,prec,recall,acc,prec,recall")
-    
+
+    lognPrint(f"Start loading {opt.input}...")
     vid = cv2.VideoCapture(opt.input)
     if not vid.isOpened():
         raise IOError("Couldn't open webcam or video")
@@ -416,7 +416,6 @@ if __name__ == '__main__':
     vid_height = int(vid.get(cv2.CAP_PROP_FRAME_HEIGHT))
     video_FourCC = cv2.VideoWriter_fourcc(*'x264')
     vid_fps = vid.get(cv2.CAP_PROP_FPS)
-    print(vid_fps)
     video_total_frame = int(vid.get(cv2.CAP_PROP_FRAME_COUNT))
     if not opt.output=="":
         out_writer = cv2.VideoWriter(opt.output, video_FourCC, round(vid_fps), (vid_width, vid_height))

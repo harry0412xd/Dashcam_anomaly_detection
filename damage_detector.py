@@ -13,7 +13,7 @@ from timm.utils import *
 from torchvision import models
 
 class Damage_detector():
-    def __init__(self, device, do_erasing=False, do_padding=False, side_thres=1.6, save_probs=False, avg_amount=2, weighted_prob=False, weight_thres=0.8, output_test_image=False):
+    def __init__(self, device, do_erasing=False, do_padding=False, side_thres=1.6, save_probs=False, period_half=2, weighted_prob=False, conf_thres=0.8, output_test_image=False):
         # url = "https://github.com/harry0412xd/Dashcam_anomaly_detection/releases/download/v1.0/gluon_seresnext101_32x4d-244_checkpoint-69.pth.tar"
         # checkpoint_path = "model_data/gluon_seresnext101_32x4d-244_checkpoint-69.pth.tar"
         # if not os.path.isfile(checkpoint_path):
@@ -45,12 +45,12 @@ class Damage_detector():
         self.output_test_image = output_test_image
         self.do_erasing = do_erasing
         self.do_padding = do_padding
-        self.avg_amount = avg_amount # |<- n-th before --- current --- nth after->|
+        self.period_half = period_half # |<- n-th before --- current --- nth after->|
         self.side_thres = side_thres
         self.save_probs = save_probs
         self.weighted_prob = weighted_prob
         self.id2probs = {}
-        self.weight_thres = weight_thres
+        self.conf_thres = conf_thres
 
 
     def detect(self, frame, bbox, frame_info, frame_no, obj_id):
@@ -90,20 +90,11 @@ class Damage_detector():
 
         # store all probs
         if self.save_probs:
-            if self.weighted_prob :
-                if damaged_prob >= self.weight_thres:
-                    weight = 1+ (damaged_prob-self.weight_thres)/(1-self.weight_thres)*0.5
-                else:
-                    weight = 1- ((self.weight_thres-damaged_prob)**2) / ((1-self.weight_thres)**2) *0.5
-                # weight = max(0.6, damaged_prob+0.2)
-
-            else:
-                weight = 1
             if not obj_id in self.id2probs:
                 frame_no2prob = {}
             else:
                 frame_no2prob = self.id2probs[obj_id]
-            frame_no2prob[frame_no] = (damaged_prob, weight)
+            frame_no2prob[frame_no] = damaged_prob
             self.id2probs[obj_id] = frame_no2prob
 
         return damaged_prob
@@ -119,19 +110,59 @@ class Damage_detector():
             frame_no2prob = self.id2probs[obj_id]
             remove = []
             for frame_no in frame_no2prob:
-                if frame_no < cur_frame_no - self.avg_amount:
+                if frame_no < cur_frame_no - self.period_half:
                     remove.append(frame_no)
-                elif frame_no <= cur_frame_no + self.avg_amount:
-                    damaged_prob, weight = frame_no2prob[frame_no]
+                elif frame_no <= cur_frame_no + self.period_half:
+                    damaged_prob = frame_no2prob[frame_no]
+                    if self.weighted_prob :
+                        if damaged_prob >= self.conf_thres:
+                            weight = 1+ (damaged_prob-self.conf_thres)/(1-self.conf_thres)*0.5
+                        else:
+                            weight = 1- ((self.conf_thres-damaged_prob)**2) / ((1-self.conf_thres)**2) *0.5
+                        # weight = max(0.6, damaged_prob+0.2)
+                    else:
+                        weight = 1
+
                     count += weight
                     total += damaged_prob*weight
-            for frame_no in remove: del frame_no2prob[frame_no]
 
+            for frame_no in remove: del frame_no2prob[frame_no]
             if count==0:
                 return 0
             return total/count
         return -1
 
+    # def get_adjusted_prob(self, obj_id, cur_frame_no):
+    #     assert self.save_probs, "Need to save the probs in order to compute the adjusted prob, pass save_probs=True when constructing the detector"
+    #     total, count = 0.0, 0
+    #     if obj_id in self.id2probs:
+    #         frame_no2prob = self.id2probs[obj_id]
+    #         remove = []
+    #         cur_prob = 0
+    #         for frame_no in frame_no2prob:
+    #             if frame_no < cur_frame_no - self.period_half:
+    #                 remove.append(frame_no)
+
+    #             elif frame_no <= cur_frame_no + self.period_half:
+    #                 damaged_prob= frame_no2prob[frame_no]
+    #                 count += 1
+    #                 total += damaged_prob
+    #                 if damaged_prob>self.conf_thres:
+    #                     conf_count += 1 #number of very confident crash prediction
+    #                 if frame_no==cur_frame_no:
+    #                     cur_prob = damaged_prob
+                        
+    #         for frame_no in remove: del frame_no2prob[frame_no]
+
+    #         if cur_prob>conf_thres:
+    #             if cur_prob>0.9 or conf_count/count >=0.5:
+    #                 return cur_prob
+    #             else:
+    #                 return total/count
+    #         else:
+    #             return
+
+    #     return -1
 
 
 def get_damaged_prob(output):
