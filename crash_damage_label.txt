@@ -37,7 +37,7 @@
 32,415,5917,5937,m,id switch: 413 -> 415. frame duplicated due to low frame rate
 33,414,5904,5912,m,short appear time. frame duplicated due to low frame rate
 34,420,6029,6175,l-m,low resolution
-35,421,6029,6300,h,low resolution
+35,422,6029,6300,h,low resolution
 36,432,6390,9698,m,dark. detection is missing
 37,450,6687,6693,m,id switch: 450->451->452 due to missing detection(?). 452 is ignored due to small size
 37,451,6695,6711,m,id switch: 450->451->452 due to missing detection(?). 453 is ignored due to small size
