@@ -26,7 +26,7 @@
 22,272,4028,4084,m,
 23,287,4167,4277,h,
 24,300,4214,4277,l,id switch 298->300. 298 is ignored
-25,611,4314,4462,m,
+25,311,4314,4462,m,
 26,324,4547,4582,m,
 27,337,4691,4844,m,the car is split into 2 detection: 337&344
 28,355,4911,5104,l,no broken part. just slightly deform
