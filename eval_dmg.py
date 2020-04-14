@@ -164,7 +164,7 @@ def evaluate():
             out_writer.write(out_frame)
         
     
-    m_thres_list = [0.25,0.33,0.5,0.75]
+    m_thres_list = [0.1, 0.25,0.33,0.5,0.75]
     compute_metrics(m_thres_list, p_thres_list)
     # compute_total_metric()
 
@@ -252,28 +252,31 @@ def compute_metrics(m_thres_list, p_thres_list):
                     prec_case_wise[m_thres] = prec_case_wise[m_thres]+1 if (m_thres in prec_case_wise) else 1
 
         result = f"{p_thres}"
+
+        total_case = len(case_metric)
         # prec
         for m_thres in m_thres_list:
             if m_thres in acc_case_wise:
-                acc = acc_case_wise[m_thres]/len(case_metric)
-                lognPrint(f"Accuracy@{int(m_thres*100)}% = {acc_case_wise[m_thres]}/{len(case_metric)} = {acc}") #acc
+                acc_case = acc_case_wise[m_thres]
+                acc = acc_case/total_case
+                lognPrint(f"Accuracy@{int(m_thres*100)}% = {acc_case}/{total_case} = {acc}") #acc
             else:
-                acc = 0
+                acc_case,acc = 0,0
             if m_thres in prec_case_wise:
-                prec = prec_case_wise[m_thres]/len(case_metric)
-                lognPrint(f"Precision@{int(m_thres*100)}% = {prec_case_wise[m_thres]}/{len(case_metric)} = {prec}") # prec
+                prec_case = prec_case_wise[m_thres]
+                prec = prec_case/total_case
+                lognPrint(f"Precision@{int(m_thres*100)}% = {prec_case}/{total_case} = {prec}") # prec
             else:
-                prec = 0
+                prec_case,prec = 0,0
             if m_thres in recall_case_wise:
-                recall = recall_case_wise[m_thres]/len(case_metric)
-                lognPrint(f"Recall@{int(m_thres*100)}% = {recall_case_wise[m_thres]}/{len(case_metric)} = {recall}") # recall
+                recall_case = recall_case_wise[m_thres]
+                recall = recall_case/total_case
+                lognPrint(f"Recall@{int(m_thres*100)}% = {recall_case}/{total_case} = {recall}") # recall
             else:
-                recall = 0
-            
-            
+                recall_case,recall = 0,0
             
             # result += f",{acc},{prec},{recall}"
-            result += f",={acc_case_wise[m_thres]}/{len(case_metric)},={prec_case_wise[m_thres]}/{len(case_metric)},={recall_case_wise[m_thres]}/{len(case_metric)}"
+            result += f",={acc_case}/{total_case},={prec_case}/{total_case},={recall_case}/{total_case}"
 
         total_metric = total_metrics[p_thres]
         total, tp, fp, tn, fn = total_metric

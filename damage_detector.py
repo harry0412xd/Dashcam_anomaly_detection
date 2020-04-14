@@ -22,11 +22,11 @@ class Damage_detector():
         # new data(5) 2020/3/17
         checkpoint_path = "/content/MyDrive/cls_model/20200317-083104-gluon_seresnext101_32x4d-224/model_best.pth.tar"
         # new data(6)
-        # checkpoint_path = "/content/MyDrive/cls_model/train/20200331-153346-gluon_seresnext101_32x4d-224/model_best.pth.tar"
-        # model = create_model('gluon_seresnext101_32x4d', num_classes=2, checkpoint_path = checkpoint_path)
+        checkpoint_path = "/content/MyDrive/cls_model/train/20200331-153346-gluon_seresnext101_32x4d-224/model_best.pth.tar"
+        model = create_model('gluon_seresnext101_32x4d', num_classes=2, checkpoint_path = checkpoint_path)
 
-        checkpoint_path = "/content/MyDrive/cls_model/train/20200405-123754-gluon_seresnext101_64x4d-224/model_best.pth.tar"
-        model = create_model('gluon_seresnext101_64x4d', num_classes=2, checkpoint_path = checkpoint_path)
+        # checkpoint_path = "/content/MyDrive/cls_model/checkpoint-107.pth.tar"
+        # model = create_model('gluon_seresnext101_64x4d', num_classes=2, checkpoint_path = checkpoint_path)
 
         # model = create_model('gluon_seresnext101_32x4d', num_classes=2)
         # convert_splitbn_model(model,3)
