@@ -141,29 +141,46 @@ class Damage_detector():
         if obj_id in self.id2probs:
             frame_no2prob = self.id2probs[obj_id]
             remove = []
-            cur_prob = 0
+            cur_prob, conf_count = 0, 0
+            future_count, future_conf_count = 0, 0
+            past_count, past_conconf_count = 0, 0
+
             for frame_no in frame_no2prob:
+                # expired frame
                 if frame_no < cur_frame_no - self.prob_period:
                     remove.append(frame_no)
-
+                # within range
                 elif frame_no <= cur_frame_no + self.prob_period:
                     damaged_prob= frame_no2prob[frame_no]
                     count += 1
                     total += damaged_prob
-                    if damaged_prob>self.conf_thres:
-                        conf_count += 1 #number of very confident crash prediction
-                    if frame_no==cur_frame_no:
+                    # future frames
+                    if cur_frame_no<frame_no:
+                        future_count += 1
+                        if damaged_prob>self.conf_thres:
+                            future_conf_count += 1
+                            conf_count += 1
+                    #current
+                    elif frame_no==cur_frame_no: 
                         cur_prob = damaged_prob
+                        if damaged_prob>self.conf_thres:
+                            conf_count += 1
+                    #past
+                    else: 
+                        if damaged_prob>self.conf_thres:
+                            conf_count += 1
                         
             for frame_no in remove: del frame_no2prob[frame_no]
 
-            if cur_prob>conf_thres:
-                if cur_prob>0.9 or conf_count/count >=0.5:
+            if cur_prob>self.conf_thres:
+                if cur_prob>0.85:
+                    return cur_prob
+                elif past_conconf_count/past_count>0.3 or past_conconf_count/future_count>0.3:
                     return cur_prob
                 else:
                     return total/count
             else:
-                return
+                return cur_prob
 
         return -1
 
