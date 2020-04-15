@@ -23,7 +23,7 @@ class Damage_detector():
         checkpoint_path = "/content/MyDrive/cls_model/20200317-083104-gluon_seresnext101_32x4d-224/model_best.pth.tar"
         # new data(6)
         # checkpoint_path = "/content/MyDrive/cls_model/train/20200331-153346-gluon_seresnext101_32x4d-224/model_best.pth.tar"
-        checkpoint_path = "/content/MyDrive/cls_model/train/20200415-152435-gluon_seresnext101_32x4d-224/checkpoint-228.pth.tar"
+        checkpoint_path = "/content/MyDrive/cls_model/train/20200414-193010-gluon_seresnext101_32x4d-224/checkpoint-228.pth.tar"
         model = create_model('gluon_seresnext101_32x4d', num_classes=2, checkpoint_path = checkpoint_path)
 
         # checkpoint_path = "/content/MyDrive/cls_model/checkpoint-107.pth.tar"
@@ -167,6 +167,8 @@ class Damage_detector():
 
         return -1
 
+    def set_conf_thres(self, new_thes):
+        self.conf_thres = new_thes
 
 def get_damaged_prob(output):
     # is damaged car prob
@@ -219,6 +221,7 @@ def erase_overlapped(cropped_img, target_bbox, frame_info, padding_size):
                 erase_bot = bottom - top + 2*y_pad
 
             cv2.rectangle(cropped_img, (erase_left, erase_top), (erase_right, erase_bot), (0,0,0), -1)
+
 
 
 

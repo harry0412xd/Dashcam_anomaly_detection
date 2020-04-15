@@ -76,9 +76,12 @@ def evaluate_avg():
             dmg_height_thres, dmg_width_thres = 64, 64
             if not DC.IGNORE_SMALL or ((bottom-top)>dmg_height_thres and (right-left)>dmg_width_thres) :
 
-                dmg_prob = damage_detector.get_avg_prob(obj_id, frame_no)
+                
 
                 for p_thres in p_thres_list:
+                    damage_detector.set_conf_thres(p_thres)
+                    dmg_prob = damage_detector.get_adjusted_prob(obj_id, frame_no)
+
                     if dmg_prob>p_thres: #positive
                         if get_damage_truth(obj_id, frame_no) is not None: # True positive
                             mode = 1
@@ -285,7 +288,7 @@ def compute_metrics(m_thres_list, p_thres_list):
         recall = tp/(tp+fn)
         lognPrint(f"Results (all):  Acc:{tp+tn}/{total} |prec: {tp}/{tp+fp} |recall: {tp}/{tp+fn}")
         # result += f",{acc},{prec},{recall}"
-        result += "{tp},{tn},{fp},{fn}"
+        result += f",{tp},{tn},{fp},{fn}"
         result += f",=({tp}+{tn})/{total},={tp}/({tp}+{fp}),={tp}/({tp}+{fn})"
         result += f",=(2*{tp})/(2*{tp}+{fp}+{fn})" #f1
         result += f",=({tp}*{tn}-{fp}*{fn})/SQRT(({tp}+{fp})*({tp}+{fn})*({tn}+{fp})*({tn}+{fn}))" #mcc
@@ -416,7 +419,7 @@ if __name__ == '__main__':
     header = "dmg_thres"
     for i in range(0, len(m_thres_list)):
         header += ",acc,prec,recall"
-    header += "tp,tn,fp,fn,acc,prec,recall,f1,mcc"
+    header += ",tp,tn,fp,fn,acc,prec,recall,f1,mcc"
     log_csv(header)
 
     lognPrint(f"Start loading {opt.input}...")
