@@ -2668,3 +2668,7 @@ Accuracy@75% = 6/55 = 0.10909090909090909
 Precision@75% = 37/55 = 0.6727272727272727
 Recall@75% = 3/55 = 0.05454545454545454
 Results (all):  Acc:21168/26775 |prec: 1709/2215 |recall: 1709/6810
+Loaded 62 labels from crash_damage_label.txt, 56 test cases.
+Loaded Model weight: /content/MyDrive/cls_model/train/20200414-193010-gluon_seresnext101_32x4d-224/checkpoint-228.pth.tar
+Threshold: 0.75
+Start loading video_in/Crash_damage.mp4...

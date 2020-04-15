@@ -143,7 +143,7 @@ class Damage_detector():
             remove = []
             cur_prob, conf_count = 0, 0
             future_count, future_conf_count = 0, 0
-            past_count, past_conconf_count = 0, 0
+            past_count, past_conf_count = 0, 0
 
             for frame_no in frame_no2prob:
                 # expired frame
@@ -167,7 +167,9 @@ class Damage_detector():
                             conf_count += 1
                     #past
                     else: 
+                        past_count += 1
                         if damaged_prob>self.conf_thres:
+                            past_conf_count += 1
                             conf_count += 1
                         
             for frame_no in remove: del frame_no2prob[frame_no]
@@ -175,7 +177,8 @@ class Damage_detector():
             if cur_prob>self.conf_thres:
                 if cur_prob>0.85:
                     return cur_prob
-                elif past_conconf_count/past_count>0.3 or past_conconf_count/future_count>0.3:
+                elif past_conf_count/max(1,past_count)>0.3 or \
+                     future_conf_count/max(1,future_count)>0.3:
                     return cur_prob
                 else:
                     return total/count
