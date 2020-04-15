@@ -100,7 +100,7 @@ def evaluate_avg():
             out_writer.write(out_frame)
         
     
-    m_thres_list = [0.1, 0.25,0.33,0.5,0.75]
+    
     compute_metrics(m_thres_list, p_thres_list)
     # compute_total_metric()
 
@@ -285,7 +285,10 @@ def compute_metrics(m_thres_list, p_thres_list):
         recall = tp/(tp+fn)
         lognPrint(f"Results (all):  Acc:{tp+tn}/{total} |prec: {tp}/{tp+fp} |recall: {tp}/{tp+fn}")
         # result += f",{acc},{prec},{recall}"
+        result += "{tp},{tn},{fp},{fn}"
         result += f",=({tp}+{tn})/{total},={tp}/({tp}+{fp}),={tp}/({tp}+{fn})"
+        result += f",=(2*{tp})/(2*{tp}+{fp}+{fn})" #f1
+        result += f",=({tp}*{tn}-{fp}*{fn})/SQRT(({tp}+{fp})*({tp}+{fn})*({tn}+{fp})*({tn}+{fn}))" #mcc
         log_csv(result)
 
 
@@ -395,6 +398,8 @@ if __name__ == '__main__':
     load_damage_label(opt.label_path)
     vid_width, vid_height = 0, 0
     p_thres_list = [0.5, 0.6, 0.7, 0.75, 0.8, 0.85, 0.9]
+    m_thres_list = [0.1, 0.25,0.33,0.5,0.75]
+
     assert opt.dmg_thres in p_thres_list, "Change the list above"
     class_names = load_classes(opt.class_path)
 
@@ -407,7 +412,12 @@ if __name__ == '__main__':
     lognPrint(f"Threshold: {opt.dmg_thres}")
     
     log_csv(f"{damage_detector.get_checkpoint_path()}")
-    log_csv("dmg_thres,acc,prec,recall,acc,prec,recall,acc,prec,recall,acc,prec,recall")
+
+    header = "dmg_thres"
+    for i in range(0, len(m_thres_list)):
+        header += ",acc,prec,recall"
+    header += "tp,tn,fp,fn,acc,prec,recall,f1,mcc"
+    log_csv(header)
 
     lognPrint(f"Start loading {opt.input}...")
     vid = cv2.VideoCapture(opt.input)
