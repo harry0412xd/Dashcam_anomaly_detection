@@ -23,6 +23,7 @@ class Damage_detector():
         checkpoint_path = "/content/MyDrive/cls_model/20200317-083104-gluon_seresnext101_32x4d-224/model_best.pth.tar"
         # new data(6)
         # checkpoint_path = "/content/MyDrive/cls_model/train/20200331-153346-gluon_seresnext101_32x4d-224/model_best.pth.tar"
+        
         checkpoint_path = "/content/MyDrive/cls_model/train/20200414-193010-gluon_seresnext101_32x4d-224/checkpoint-228.pth.tar"
         model = create_model('gluon_seresnext101_32x4d', num_classes=2, checkpoint_path = checkpoint_path)
 
@@ -152,7 +153,17 @@ class Damage_detector():
                 # within range
                 elif frame_no <= cur_frame_no + self.prob_period:
                     damaged_prob= frame_no2prob[frame_no]
-                    count += 1
+
+                    if self.weighted_prob :
+                        if damaged_prob >= self.conf_thres:
+                            weight = 1 + (damaged_prob-self.conf_thres)/(1-self.conf_thres) *0.5
+                        else:
+                            weight = 1 + ((self.conf_thres-damaged_prob)**2)/(self.conf_thres**2) *0.5
+                        # weight = max(0.6, damaged_prob+0.2)
+                    else:
+                        weight = 1
+
+                    count += weight
                     total += damaged_prob
                     # future frames
                     if cur_frame_no<frame_no:
@@ -175,7 +186,7 @@ class Damage_detector():
             for frame_no in remove: del frame_no2prob[frame_no]
 
             if cur_prob>self.conf_thres:
-                if cur_prob>0.85:
+                if cur_prob>0.85: # insert a very confident value
                     return cur_prob
                 elif past_conf_count/max(1,past_count)>0.3 or \
                      future_conf_count/max(1,future_count)>0.3:
@@ -189,6 +200,8 @@ class Damage_detector():
 
     def set_conf_thres(self, new_thes):
         self.conf_thres = new_thes
+
+
 
 def get_damaged_prob(output):
     # is damaged car prob
