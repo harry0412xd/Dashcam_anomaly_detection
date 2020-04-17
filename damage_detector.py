@@ -13,7 +13,8 @@ from timm.utils import *
 from torchvision import models
 
 class Damage_detector():
-    def __init__(self, device, do_erasing=False, do_padding=False, side_thres=1.6, save_probs=False, prob_period=2, weighted_prob=False, conf_thres=0.8, output_test_image=False):
+    def __init__(self, device, do_erasing=False, do_padding=False, side_thres=1.6, save_probs=False, 
+                 prob_period=2, weighted_prob=False, conf_thres=0.8, very_conf_thres=0.9, output_test_image=False):
         # url = "https://github.com/harry0412xd/Dashcam_anomaly_detection/releases/download/v1.0/gluon_seresnext101_32x4d-244_checkpoint-69.pth.tar"
         # checkpoint_path = "model_data/gluon_seresnext101_32x4d-244_checkpoint-69.pth.tar"
         # if not os.path.isfile(checkpoint_path):
@@ -55,6 +56,7 @@ class Damage_detector():
         self.weighted_prob = weighted_prob
         self.id2probs = {}
         self.conf_thres = conf_thres
+        self.very_conf_thres = very_conf_thres
 
 
     def detect(self, frame, bbox, frame_info, frame_no, obj_id):
@@ -138,14 +140,15 @@ class Damage_detector():
 
     def get_adjusted_prob(self, obj_id, cur_frame_no):
         assert self.save_probs, "Need to save the probs in order to compute the adjusted prob, pass save_probs=True when constructing the detector"
-        total, count = 0.0, 0
+        
         if obj_id in self.id2probs:
             frame_no2prob = self.id2probs[obj_id]
             remove = []
+            total, count = 0.0, 0
             cur_prob, conf_count = 0, 0
             future_count, future_conf_count = 0, 0
             past_count, past_conf_count = 0, 0
-
+            total_weight = 0
             for frame_no in frame_no2prob:
                 # expired frame
                 if frame_no < cur_frame_no - self.prob_period:
@@ -163,7 +166,8 @@ class Damage_detector():
                     else:
                         weight = 1
 
-                    count += weight
+                    count += 1
+                    total_weight += weight
                     total += damaged_prob
                     # future frames
                     if cur_frame_no<frame_no:
@@ -172,7 +176,7 @@ class Damage_detector():
                             future_conf_count += 1
                             conf_count += 1
                     #current
-                    elif frame_no==cur_frame_no: 
+                    elif cur_frame_no==frame_no: 
                         cur_prob = damaged_prob
                         if damaged_prob>self.conf_thres:
                             conf_count += 1
@@ -185,14 +189,14 @@ class Damage_detector():
                         
             for frame_no in remove: del frame_no2prob[frame_no]
 
-            if cur_prob>self.conf_thres:
-                if cur_prob>0.85: # insert a very confident value
+            if cur_prob>=self.conf_thres:
+                if cur_prob>=self.very_conf_thres:
                     return cur_prob
                 elif past_conf_count/max(1,past_count)>0.3 or \
                      future_conf_count/max(1,future_count)>0.3:
                     return cur_prob
                 else:
-                    return total/count
+                    return total/total_weight #total_weigh=count if not using weighted prob
             else:
                 return cur_prob
 

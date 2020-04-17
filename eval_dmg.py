@@ -80,7 +80,10 @@ def evaluate_avg():
 
                 for p_thres in p_thres_list:
                     damage_detector.set_conf_thres(p_thres)
-                    dmg_prob = damage_detector.get_adjusted_prob(obj_id, frame_no)
+                    dmg_prob = damage_detector.get_avg_prob(obj_id, frame_no)
+                    # dmg_prob = damage_detector.get_adjusted_prob(obj_id, frame_no)
+                    if dmg_prob==-1:
+                        break
 
                     if dmg_prob>p_thres: #positive
                         if get_damage_truth(obj_id, frame_no) is not None: # True positive
@@ -140,7 +143,7 @@ def evaluate():
 
 
             # dmg_height_thres, dmg_width_thres = vid_height//12, vid_width//24
-            dmg_height_thres, dmg_width_thres = 64, 64
+            dmg_height_thres, dmg_width_thres = 96, 96
             if not DC.IGNORE_SMALL or ((bottom-top)>dmg_height_thres and (right-left)>dmg_width_thres) :
 
                 dmg_prob = damage_detector.detect(frame, bbox, id_to_info, frame_no, obj_id)
