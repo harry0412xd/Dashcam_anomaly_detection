@@ -54,7 +54,7 @@ def proc_frame(writer, frames, frames_infos, frame_no, prev_frame, prev_frame_in
         if (frame_no-1)%opt.ss_interval == 0:
             ss_mask = dlv3.predict(frame2proc)
         else:
-            ss_mask = dlv3.get_last_result()
+            ss_mask = dlv3.get_last_result(frame2proc)
     elif DC.DET_JAYWALKER:
         #compute the average shift in pixel of bounding box, in left/right half of the frame
         left_mean, right_mean = get_mean_shift(frames_infos, out_frame)
@@ -93,10 +93,12 @@ def proc_frame(writer, frames, frames_infos, frame_no, prev_frame, prev_frame_in
         car_list, person_list = get_list_from_info(id_to_info)
     if DC.DET_CAR_COL:
         car_collision_id_list = detect_car_collision(car_list, out_frame)
-    # car-person collision detect
-    if DC.DET_CAR_PERSON_COL and not is_moving:
-        cdtc_list = get_cdtc_list(frames_infos, car_list)
-        car_person_collision_id_list = detect_car_person_collison_new(car_list, person_list, out_frame)
+
+    # # car-person collision detect
+    # if DC.DET_CAR_PERSON_COL and not is_moving:
+    #     cdtc_list = get_cdtc_list(frames_infos, car_list)
+    #     car_person_collision_id_list = detect_car_person_collison_new(car_list, person_list, out_frame)
+
     # object-wise
     for obj_id in id_to_info:
         info = id_to_info[obj_id]
@@ -116,6 +118,8 @@ def proc_frame(writer, frames, frames_infos, frame_no, prev_frame, prev_frame_in
             if opt.dmg_det:
                 if DC.USE_AVG_PROB:
                     dmg_prob = damage_detector.get_avg_prob(obj_id, frame_no)
+                elif DC.USE_ADJUSTED_PROB:
+                    dmg_prob = damage_detector.get_adjusted_prob(obj_id, frame_no)
                 else:
                     dmg_prob = damage_detector.detect(frame, bbox, id_to_info, frame_no, obj_id)
 
@@ -824,7 +828,6 @@ def track_video():
     
     # load video
     video_path = opt.input
-    output_path = opt.output
     vid = cv2.VideoCapture(video_path)
     if not vid.isOpened():
         raise IOError("Couldn't open webcam or video")
@@ -841,17 +844,27 @@ def track_video():
         print(f"Rounded {old_fps:2f} fps to {vid_fps}")
     video_length = sec2length(video_total_frame//vid_fps)
     
-    # init video writer
-    video_FourCC = cv2.VideoWriter_fourcc(*'x264')
-    # video_FourCC = cv2.VideoWriter_fourcc(*'mp4v')
+    # auto rename if no path is provided
+    if opt.output == "":
+        if not os.path.exists("video_out"):
+            os.makedirs("video_out")  
+        _filename = video_path.split("/")
+        filename = _filename[len(_filename)-1]
+        output_path = "video_out/" + filename.replace(".", "_output.")
+    isOutput = True
 
-    isOutput = True if output_path != "" else False
-    if isOutput:
-        # print("!!! TYPE:", type(output_path), type(video_FourCC), type(vid_fps), type(video_size))
-        print(f"Loaded video: {output_path}, Size = {vid_width}x{vid_height},"
+    # init video writer
+    if opt.x264:
+        video_FourCC = cv2.VideoWriter_fourcc(*'x264')
+        output_path = output_path.replace(".mp4", ".mkv")
+        print(output_path)
+    else:
+        video_FourCC = cv2.VideoWriter_fourcc(*'mp4v')
+    if output_path:
+        print(f"Saving to: {output_path}, Size = {vid_width}x{vid_height},"
               f" fps = {vid_fps}, total frame = {video_total_frame}")
         out_writer = cv2.VideoWriter(output_path, video_FourCC, vid_fps, (vid_width, vid_height))
-    
+
     print_interval = DC.PRINT_INTERVAL_SEC*vid_fps
 
     # testing
@@ -865,7 +878,7 @@ def track_video():
     if opt.save_path:
         save_result = True
         assert opt.result_path=="", "Save result & load result are both chosen."
-        _filename = opt.input.split("/")
+        # _filename = opt.input.split("/")
         # result_filename = "detection_results/" + _filename[len(_filename)-1].split(".")[0] + ".txt"
         result_filename = opt.save_path
         det_result_file = open(result_filename, 'w')
@@ -907,9 +920,9 @@ def track_video():
   # Car damage detection
     if opt.dmg_det:
         global damage_detector
-        if DC.USE_AVG_PROB:
+        if DC.USE_AVG_PROB or DC.USE_ADJUSTED_PROB:
             damage_detector = Damage_detector(device, do_erasing=DC.DO_ERASING, do_padding=DC.DO_PADDING,
-                                              side_thres=DC.SIDE_THRES, save_probs = True, prob_period=2, weighted_prob=DC.WEIGHTED_PROB)
+                                              side_thres=DC.SIDE_THRES, save_probs = True, prob_period=DC.PROB_PERIOD, weighted_prob=DC.WEIGHTED_PROB)
         else:
             damage_detector = Damage_detector(device, do_erasing=DC.DO_ERASING, do_padding=DC.DO_PADDING, side_thres=DC.SIDE_THRES)
   # Semantic segmentation
@@ -980,7 +993,7 @@ def track_video():
                 # print(f"saving: {in_frame_no}")
                 save_det_result(det_result_file, id_to_info, in_frame_no)
 
-        if opt.dmg_det and DC.USE_AVG_PROB:
+        if opt.dmg_det and (DC.USE_AVG_PROB or DC.USE_ADJUSTED_PROB):
             detect_damaged_car(id_to_info, frame, in_frame_no) #wrapper function to iterate all obj
 
         prev_frames.append(frame)
@@ -1040,6 +1053,8 @@ if __name__ == '__main__':
     # I/O
     parser.add_argument("--input", nargs='?', type=str, default="",help = "Video input path")
     parser.add_argument("--output", nargs='?', type=str, default="",  help = "[Optional] Video output path")
+    parser.add_argument('--x264', action='store_true', default=False, help = "[Optional]Use x264")
+    # Car damage detect
     # test
     parser.add_argument('--test', action='store_true', default=False, help = "[Optional]Output testing video")
     # Car damage detect

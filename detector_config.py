@@ -45,6 +45,8 @@ DMG_THRES = [0.9, 0.95] # use in pairs, if the prob is > thres, skip the classif
 DMG_SKIP_NO = [3, 12]
 
 USE_AVG_PROB = False
+USE_ADJUSTED_PROB = True
+PROB_PERIOD = 5
 WEIGHTED_PROB = False 
 WEIGHT_THRES = 0.8
 

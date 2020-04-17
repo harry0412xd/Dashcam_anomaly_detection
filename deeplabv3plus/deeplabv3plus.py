@@ -49,9 +49,6 @@ class DeepLabv3plus():
         self.overlay = overlay
 
           
-
-    
-
     def predict(self, frame):
         # resize and crop out the bottom
         height, width, _ = frame.shape
@@ -95,6 +92,15 @@ class DeepLabv3plus():
         self.last_result = out_img
         return out_img
             
-    def get_last_result(self):
+
+    
+    def get_last_result(self, frame):
+        if self.writer is not None:
+            if self.overlay:
+                overlay_img = cv2.addWeighted(frame, 0.3, self.last_result, 0.7, 0)
+                self.writer.write(overlay_img)
+            else:
+                self.writer.write(frame)
+
         return self.last_result
 
