@@ -55,9 +55,9 @@ def proc_frame(writer, frames, frames_infos, frame_no, prev_frame, prev_frame_in
             ss_mask = dlv3.predict(frame2proc)
         else:
             ss_mask = dlv3.get_last_result(frame2proc)
-    elif DC.DET_JAYWALKER:
+    # elif DC.DET_JAYWALKER:
         #compute the average shift in pixel of bounding box, in left/right half of the frame
-        left_mean, right_mean = get_mean_shift(frames_infos, out_frame)
+        # left_mean, right_mean = get_mean_shift(frames_infos, out_frame)
  
 
     if DC.USE_SIGN_TO_DET_MOV:
@@ -172,14 +172,15 @@ def proc_frame(writer, frames, frames_infos, frame_no, prev_frame, prev_frame_in
                     if is_moving and detect_jaywalker(get_bboxes_by_id(frames_infos, obj_id), (left_mean, right_mean)):
                         properties["jaywalker"] = True
     # ----Jaywalker end
-        # testing only
+
+    # traffic light/signs
         elif class_name=="traffic light":
             traffic_color = get_traffic_color(frame2proc, bbox, out_frame=None)
             properties["traffic_color"] = traffic_color
             
         elif DC.SHOW_SIGN_MOVEMENT and obj_id in moved_signs:
             properties["signs"] = moved_signs[obj_id]
-        
+    # ----traffic light/signs
 
         draw_bbox(out_frame, properties, class_name, obj_id, score, bbox)
 # --- Objects iteration end
@@ -214,13 +215,6 @@ def get_list_from_info(all_info):
             person_list.append((obj_id, bbox))
 
     return car_list, person_list
-
-# testing function
-def draw_future_center(frames_infos, obj_id, out_frame):
-    bboxes = get_bboxes_by_id(frames_infos, obj_id)
-    for (bbox, _) in bboxes:
-      center_x, center_y = (bbox[2]+bbox[0])//2, (bbox[3]+bbox[1])//2
-      cv2.circle(out_frame,(center_x, center_y), 1, (0, 255, 255), -1)
 
 
 # car list [(obj_id, bbox),]
@@ -298,6 +292,8 @@ def detect_car_collision(car_list, out_frame):
         del car_list[0] #remove box1 anyway
     return collision_list
             
+    
+
 
 # Input bounding box of a person & mask from semantic segmentation
 def is_on_traffic_road(bbox, ss_mask, out_frame=None):
@@ -331,48 +327,6 @@ def is_on_traffic_road(bbox, ss_mask, out_frame=None):
             cv2.putText(out_frame, f"{(road_count/total):.2f}", ((left+right)//2, (top+bottom)//2 + 15), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0,255,255), 2)
         if road_count/total>0.5:
             return True
-    return False
-
-
-def detect_jaywalker(recent_bboxes, mean_shift, out_frame=None):
-    # ROI = [(vid_width//10,vid_height), (vid_width//2,vid_height*3//7), (vid_width*9//10, vid_height) ]
-    ROI = [(0,vid_height), (vid_width//2,vid_height*5//14), (vid_width, vid_height) ]
-    y_thers_close = int(vid_height*0.65)
-    y_thers_medium = int(vid_height*0.45)
-
-    # draw demo line
-    if out_frame is not None:
-        cv2.polylines(out_frame, [np.array(ROI, dtype=np.int32)], False, (255,0,0))
-        cv2.line(out_frame,(0, y_thers_close), (vid_width, y_thers_close), (255,0,0))
-        cv2.line(out_frame,(0, y_thers_medium), (vid_width, y_thers_medium), (255,0,0))
-
-    left, top, right, bottom = recent_bboxes[0][0]
-    center_x, center_y = (left+right)//2, (top+bottom)//2
-
-    # in checking range
-    if bottom > y_thers_medium:
-        if inside_roi(center_x, bottom, ROI):
-            if bottom > y_thers_close :
-                return True
-            else:
-                dist, max_dist = 0, 0
-                for i in range(len(recent_bboxes)-1):
-                    left, top, right, bottom = recent_bboxes[i+1][0]
-                    cx, cy = (left+right)//2, (top+bottom)//2
-                    
-                    mean = mean_shift[0] if cx<vid_width//2 else mean_shift[1]
-                    mean = 0
-                    dist0 = cx - center_x
-                    if dist0 < 0 : #box is moving left
-                        dist += min(dist0 - mean, 0)
-                    elif dist0 > 0 : #box is moving right
-                        dist += max(dist0 - mean, 0)
-                    if abs(dist)>max_dist:
-                        max_dist = abs(dist)
-                # if out_frame is not None:
-                #     cv2.putText(out_frame, f"{(max_dist/vid_width):.2f} ", (center_x-10, center_y), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0,255,0), 2)
-                if max_dist > vid_width*0.4:
-                  return True
     return False
 
 
@@ -463,68 +417,6 @@ def get_bboxes_by_id(frames_infos, obj_id, length=None):
           bboxes_n_frameNum.append([bbox, i])
     return bboxes_n_frameNum
 
-
-# get mean bbox shift
-def get_mean_shift(frames_infos, out_frame):
-    # seperate frame by left/right portion
-    lp_shift_list, rp_shift_list = [], []
-    lp_left_count, lp_right_count= 0, 0
-    rp_left_count, rp_right_count= 0, 0
-
-    id_list = [*frames_infos[0]] #what id to look for
-    for obj_id in id_list:
-        i = 1
-        while i< len(frames_infos) and not obj_id in frames_infos[i]: #find the next frame containing obj 
-            i += 1
-        if i == len(frames_infos): #not found
-            continue
-        _, _, box_cur = frames_infos[0][obj_id]
-        _, _, box_next = frames_infos[i][obj_id]
-        left, top, right, bottom = box_cur
-        left_next, top_next, right_next, bottom_next = box_next
-        x_diff = (right_next+left_next)//2 - (right+left)//2 
-        x_diff = x_diff/i  #diff per frame
-        # print(f"Obj {obj_id}: {x_diff}")
-        # cv2.putText(out_frame, f"{x_diff:.2f} ", ((right+left)//2, (top+bottom)//2), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0,255,0), 2)
-
-        if (right+left)>vid_width: #Object in right portion
-            if x_diff>0 :
-                rp_right_count += 1
-            elif x_diff<0 :
-                rp_left_count += 1
-            if not x_diff==0:
-                rp_shift_list.append(x_diff)
-        else:
-            if x_diff>0 :
-                lp_right_count += 1
-            elif x_diff<0 :
-                lp_left_count += 1
-            if not x_diff==0:
-                lp_shift_list.append(x_diff)
-
-    left_mean = cal_weighted_mean(lp_shift_list, lp_left_count, lp_right_count)
-    # cv2.putText(out_frame, f"{left_mean:.2f} ", (20, 20), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0,255,0), 2)
-    right_mean = cal_weighted_mean(rp_shift_list, rp_left_count, rp_right_count)
-    # cv2.putText(out_frame, f"{right_mean:.2f} ", (vid_width-50, 20), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0,255,0), 2)
-    return left_mean, right_mean
-
-
-def cal_weighted_mean(shift_list, left_count, right_count):
-    if (left_count+right_count)==0:
-        return 0
-    shift_total = 0
-    weight_left = left_count/(left_count+right_count)
-    weight_right = right_count/(left_count+right_count)
-    weight_total = 0
-    for n in shift_list:
-      if n>0:
-          weight_total += weight_right
-          shift_total += n * weight_right
-      else:
-          weight_total += weight_left  
-          shift_total += n * weight_left
-
-    return shift_total/weight_total
     
 # draw bounding box on image given label and coordinate
 def draw_bbox(image, properties, class_name, obj_id, score, bbox):
@@ -584,13 +476,7 @@ def draw_bbox(image, properties, class_name, obj_id, score, bbox):
         cv2.putText(image, ano_label, ((right+left)//2, top-5), cv2.FONT_HERSHEY_SIMPLEX, font_size, (0,0,255), thickness)
 
 
-def detect_close_distance(bbox, out_frame=None):
-    global vid_width, vid_height
-    # pts = [(vid_width//2, vid_height//2), 
-    #        (vid_width//8, vid_height*8//9),
-    #        (vid_width*7//8, vid_height*8//9)]
-
-    
+def detect_close_distance(bbox, out_frame=None):   
     pts = [(vid_width//2, vid_height//2), 
            (vid_width//6, vid_height),
            (vid_width*5//6, vid_height)]
@@ -611,6 +497,18 @@ def detect_close_distance(bbox, out_frame=None):
         # elif dist_score < 0.5:
     return False
 
+
+def detect_jaywalker(bbox, out_frame=None):
+    pts = [(vid_width//2, vid_height//2), 
+           (vid_width//6, vid_height),
+           (vid_width*5//6, vid_height)]
+
+    left, top, right, bottom = bbox
+    center_x = (left+right)//2
+
+    if inside_roi(center_x, bottom, pts):
+        return True
+    return False
 
 # Set camera movement detection area
 # def set_move_det_area():

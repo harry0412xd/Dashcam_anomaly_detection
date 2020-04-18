@@ -1,3 +1,6 @@
+"""
+Wrapper function created to use the deeplabv3+ code
+"""
 import torch
 import cv2
 import numpy as np

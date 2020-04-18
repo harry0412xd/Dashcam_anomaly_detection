@@ -115,3 +115,11 @@ def area(x1, y1, x2, y2, x3, y3):
 
 def euclidean_distance(x1,x2,y1,y2):
     return sqrt( (x2-x1)**2 + (y2-y1)**2)    
+
+
+# testing function
+def draw_future_center(frames_infos, obj_id, out_frame):
+    bboxes = get_bboxes_by_id(frames_infos, obj_id)
+    for (bbox, _) in bboxes:
+      center_x, center_y = (bbox[2]+bbox[0])//2, (bbox[3]+bbox[1])//2
+      cv2.circle(out_frame,(center_x, center_y), 1, (0, 255, 255), -1)
