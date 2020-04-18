@@ -566,7 +566,7 @@ def draw_bbox(image, properties, class_name, obj_id, score, bbox):
             color = (80,255,80)#green
         elif color=="yellow":
             color = (80,255,255)#yellow
-        cv2.rectangle(image, (left, top), (right, bottom), color, thickness)
+        cv2.rectangle(image, (left, top), (right, bottom), color, max(1,thickness-1))
         is_drawn = True
 
     if not is_drawn:
@@ -586,18 +586,26 @@ def draw_bbox(image, properties, class_name, obj_id, score, bbox):
 
 def detect_close_distance(bbox, out_frame=None):
     global vid_width, vid_height
+    # pts = [(vid_width//2, vid_height//2), 
+    #        (vid_width//8, vid_height*8//9),
+    #        (vid_width*7//8, vid_height*8//9)]
+
+    
     pts = [(vid_width//2, vid_height//2), 
-           (vid_width//8, vid_height*8//9),
-           (vid_width*7//8, vid_height*8//9)]
+           (vid_width//6, vid_height),
+           (vid_width*5//6, vid_height)]
 
     left, top, right, bottom = bbox
     center_x, center_y = (left+right)//2, (top+bottom)//2
 
-    if (bottom> vid_height*8//9) or inside_roi(center_x, center_y, pts):
+    # if (bottom> vid_height*8//9) or inside_roi(center_x, center_y, pts):
+    if inside_roi(center_x, center_y, pts):
         width = right - left
         dist_score = ( 1-(width/vid_width) )**2
         if out_frame is not None:
-            cv2.putText(out_frame, f"{score:.2f}", (center_x, center_y), cv2.FONT_HERSHEY_SIMPLEX, font_size, (70,255,255), 2)
+            cv2.line(out_frame, pts[0], pts[1], (255,0,0))
+            cv2.line(out_frame, pts[0], pts[2], (255,0,0))
+            cv2.putText(out_frame, f"{dist_score:.2f}", (center_x, center_y), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (70,255,255), 2)
         if dist_score < 0.5:
             return True
         # elif dist_score < 0.5:

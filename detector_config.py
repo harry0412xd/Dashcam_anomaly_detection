@@ -18,7 +18,7 @@ SHOW_SIGN_MOVEMENT = False #display the value used when determine "center displa
 
 # Labelling
 # User only one of these:
-PRINT_OBJ_ID = True
+PRINT_OBJ_ID = False
 PRINT_CLASS_LABEL = False # E.g. "Car:1 0.78" near the bounding box
 
 
