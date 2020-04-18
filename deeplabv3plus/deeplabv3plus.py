@@ -92,7 +92,7 @@ class DeepLabv3plus():
             else:
                 self.writer.write(frame)
 
-        self.last_result = out_img
+        self.last_result = out_img #save last result
         return out_img
             
 
@@ -106,4 +106,11 @@ class DeepLabv3plus():
                 self.writer.write(frame)
 
         return self.last_result
+
+
+    def create_overlay(self, frame):
+        if frame is None: return None
+        overlay_img = cv2.addWeighted(frame, 0.3, self.last_result, 0.7, 0)
+        return overlay_img
+
 

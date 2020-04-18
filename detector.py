@@ -42,6 +42,7 @@ detection_size = 0
 #   key = {obj_id}_dmg, value = [no. of frames, dmg prob]
 smooth_dict = {}
 
+rider_list = []
 
 def proc_frame(writer, frames, frames_infos, frame_no, prev_frame, prev_frame_info, test_writer=None):
     # start = timer()
@@ -73,12 +74,10 @@ def proc_frame(writer, frames, frames_infos, frame_no, prev_frame, prev_frame_in
     else:
         do_frame_diff_check = True
 
-    test_frame = out_frame.copy() if test_writer is not None else None
-    if do_frame_diff_check:
-        is_moving = detect_camera_moving(frame2proc, prev_frame, out_frame=test_frame)
 
-    if test_writer is not None:
-        test_writer.write(test_frame)
+    test_frame = out_frame.copy() if opt.test=="moving" else None
+    if do_frame_diff_check:
+            is_moving = detect_camera_moving(frame2proc, prev_frame, out_frame=test_frame)
 
     global smooth_dict
     # Smooth moving detection
@@ -111,6 +110,20 @@ def proc_frame(writer, frames, frames_infos, frame_no, prev_frame, prev_frame_in
 
         # if DC.DET_CAR_PERSON_COL and obj_id in car_person_collision_id_list:
         #     properties["car_person_crash"] = True
+
+    # Jaywalker
+        if class_name=="person":
+            if obj_id in rider_list:
+                class_name="rider"
+            elif DC.DET_JAYWALKER:
+                if opt.ss: # Use semantic segmentation to find people on traffic road
+                    if is_moving:
+                        properties["jaywalker"] = is_on_traffic_road(bbox, ss_mask, out_frame=out_frame)
+
+                else: # Use pre-defined baseline
+                    if is_moving and detect_jaywalker(get_bboxes_by_id(frames_infos, obj_id), (left_mean, right_mean)):
+                        properties["jaywalker"] = True
+    # ----Jaywalker end
 
         if is_car(class_name):
             # draw_future_center(frames_infos, obj_id, out_frame)
@@ -161,18 +174,6 @@ def proc_frame(writer, frames, frames_infos, frame_no, prev_frame, prev_frame_in
                 properties['close_distance'] = is_close
     # ----Car distance end
 
-    # Jaywalker
-        elif class_name=="person":
-            if DC.DET_JAYWALKER:
-                if opt.ss: # Use semantic segmentation to find people on traffic road
-                    if is_moving:
-                        properties["jaywalker"] = is_on_traffic_road(bbox, ss_mask)
-
-                else: # Use pre-defined baseline
-                    if is_moving and detect_jaywalker(get_bboxes_by_id(frames_infos, obj_id), (left_mean, right_mean)):
-                        properties["jaywalker"] = True
-    # ----Jaywalker end
-
     # traffic light/signs
         elif class_name=="traffic light":
             traffic_color = get_traffic_color(frame2proc, bbox, out_frame=None)
@@ -197,6 +198,11 @@ def proc_frame(writer, frames, frames_infos, frame_no, prev_frame, prev_frame_in
         cv2.rectangle(out_frame, (5, 5), (vid_width-5, vid_height-5), (255,255,0), 5)
 
     writer.write(out_frame)
+
+    test_frame = out_frame.copy() if opt.test=="ss" else test_frame
+    test_frame = dlv3.create_overlay(test_frame)
+    if test_writer is not None:
+        test_writer.write(test_frame)
     frames_infos.popleft()
     # end = timer()
     # return (end-start)*1000
@@ -292,20 +298,36 @@ def detect_car_collision(car_list, out_frame):
         del car_list[0] #remove box1 anyway
     return collision_list
             
-    
+
+def check_is_rider(person_id, person_bbox, id_to_info):
+    left, top, right, bottom = person_bbox
+    center_x, center_y = (left+right)//2, (top+bottom)//2
+
+    for obj_id in id_to_info:
+        if obj_id != person_id:
+            class_id2, _, bbox2 = id_to_info[obj_id]
+            if class_id2==3 or class_id2==0: #motor or bike
+                left2, top2, right2, bottom2 = bbox2
+                center_x2, center_y2 = (left2+right2)//2, (top2+bottom2)//2
+              
+                if euclidean_distance(center_x,center_x2,center_y,center_2)<(bottom-top) or \
+                   compute_overlapped(person_bbox, bbox2)>0.3:
+                    rider_list.append(person_id)
+                   
+
 
 
 # Input bounding box of a person & mask from semantic segmentation
 def is_on_traffic_road(bbox, ss_mask, out_frame=None):
     left, top, right, bottom = bbox
-    # define check area
     height = bottom - top
+    # define check area
     left2, right2 = max(left, 0), min(right, vid_width)
-    top2 = min(bottom, vid_height)
-    bottom2 = min(bottom+height//10, vid_height)
+    top2 = min(bottom-height//12, vid_height)
+    bottom2 = min(bottom+height//12, vid_height)
 
-    # cv2.rectangle(out_frame, (left2, top2), (right2, bottom2), (0,255,255), 1)
-    # out_frame[top2:bottom2, left2:right2] = ss_mask[top2:bottom2, left2:right2]
+    if top2==bottom2:
+        return True
 
     total, road_count = 0, 0
     for y in range(top2, bottom2):
@@ -325,6 +347,8 @@ def is_on_traffic_road(bbox, ss_mask, out_frame=None):
     if total >0:
         if out_frame is not None:
             cv2.putText(out_frame, f"{(road_count/total):.2f}", ((left+right)//2, (top+bottom)//2 + 15), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0,255,255), 2)
+            cv2.rectangle(out_frame, (left2, top2), (right2, bottom2), (0,255,255), 1)
+            out_frame[top2:bottom2, left2:right2] = ss_mask[top2:bottom2, left2:right2]
         if road_count/total>0.5:
             return True
     return False
@@ -714,7 +738,8 @@ def yolo_detect(frame, model):
 
 
 def is_car(class_name):
-    return class_name=="car" or class_name=="bus" or class_name=="truck"
+    return class_name=="car" or class_name=="bus" or class_name=="truck" \
+           or class_name=="motor" or class_name=="rider"
 
 
 def detect_damaged_car(id_to_info, frame, frame_no):
@@ -744,10 +769,10 @@ def track_video():
     vid_height = int(vid.get(cv2.CAP_PROP_FRAME_HEIGHT))
     video_total_frame = int(vid.get(cv2.CAP_PROP_FRAME_COUNT))
     vid_fps = vid.get(cv2.CAP_PROP_FPS)
-    if not vid_fps == int(vid_fps):
-        old_fps = vid_fps
-        vid_fps = round(vid_fps)
-        print(f"Rounded {old_fps:2f} fps to {vid_fps}")
+    # if not vid_fps == int(vid_fps):
+    #     old_fps = vid_fps
+    #     vid_fps = round(vid_fps)
+    #     print(f"Rounded {old_fps:2f} fps to {vid_fps}")
     video_length = sec2length(video_total_frame//vid_fps)
     
     # auto rename if no path is provided
@@ -775,7 +800,7 @@ def track_video():
 
     # testing
     output_test = opt.test
-    if output_test:
+    if opt.test:
         test_output_path =  output_path.replace("output", "test")
         test_writer = cv2.VideoWriter(test_output_path, video_FourCC, vid_fps, (vid_width, vid_height))
     else:
@@ -936,7 +961,7 @@ def track_video():
     # release cv2 writer
     if isOutput:
         out_writer.release()
-    if output_test:
+    if opt.test:
         test_writer.release()
     if opt.ss_out:
         ss_writer.release()
@@ -962,7 +987,7 @@ if __name__ == '__main__':
     parser.add_argument('--x264', action='store_true', default=False, help = "[Optional]Use x264")
     # Car damage detect
     # test
-    parser.add_argument('--test', action='store_true', default=False, help = "[Optional]Output testing video")
+    parser.add_argument('--test', type=str, default="", help = "[Optional]Output testing video [moving/ss]")
     # Car damage detect
     parser.add_argument('--dmg_det', action='store_true', default=False, help = "[Optional]do damage classification")
     # Semantic segmentation
