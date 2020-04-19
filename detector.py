@@ -79,6 +79,9 @@ def proc_frame(writer, frames, frames_infos, frame_no, prev_frame, prev_frame_in
     if do_frame_diff_check:
             is_moving = detect_camera_moving(frame2proc, prev_frame, out_frame=test_frame)
 
+    if opt.test=="ss":
+        test_frame = dlv3.create_overlay(out_frame)
+
     global smooth_dict
     # Smooth moving detection
     if is_moving:
@@ -121,7 +124,7 @@ def proc_frame(writer, frames, frames_infos, frame_no, prev_frame, prev_frame_in
                         properties["jaywalker"] = is_on_traffic_road(bbox, ss_mask, out_frame=out_frame)
 
                 else: # Use pre-defined baseline
-                    if is_moving and detect_jaywalker(get_bboxes_by_id(frames_infos, obj_id), (left_mean, right_mean)):
+                    if is_moving and detect_jaywalker(bbox):
                         properties["jaywalker"] = True
     # ----Jaywalker end
 
@@ -184,6 +187,8 @@ def proc_frame(writer, frames, frames_infos, frame_no, prev_frame, prev_frame_in
     # ----traffic light/signs
 
         draw_bbox(out_frame, properties, class_name, obj_id, score, bbox)
+        if opt.test:
+            draw_bbox(test_frame, properties, class_name, obj_id, score, bbox)
 # --- Objects iteration end
 
     if is_moving:
@@ -196,11 +201,12 @@ def proc_frame(writer, frames, frames_infos, frame_no, prev_frame, prev_frame_in
 
         cv2.putText(out_frame, moving_label, (vid_width//2, vid_height-20), cv2.FONT_HERSHEY_SIMPLEX, 0.6, moving_color, 2)
         cv2.rectangle(out_frame, (5, 5), (vid_width-5, vid_height-5), (255,255,0), 5)
+        if opt.test:
+            cv2.putText(test_frame, moving_label, (vid_width//2, vid_height-20), cv2.FONT_HERSHEY_SIMPLEX, 0.6, moving_color, 2)
+            cv2.rectangle(test_frame, (5, 5), (vid_width-5, vid_height-5), (255,255,0), 5)
+
 
     writer.write(out_frame)
-
-    test_frame = out_frame.copy() if opt.test=="ss" else test_frame
-    test_frame = dlv3.create_overlay(test_frame)
     if test_writer is not None:
         test_writer.write(test_frame)
     frames_infos.popleft()
@@ -796,7 +802,7 @@ def track_video():
               f" fps = {vid_fps}, total frame = {video_total_frame}")
         out_writer = cv2.VideoWriter(output_path, video_FourCC, vid_fps, (vid_width, vid_height))
 
-    print_interval = DC.PRINT_INTERVAL_SEC*vid_fps
+    print_interval = int(DC.PRINT_INTERVAL_SEC*vid_fps)
 
     # testing
     output_test = opt.test
