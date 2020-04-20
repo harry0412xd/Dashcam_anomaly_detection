@@ -12,14 +12,14 @@ DET_CLOSE_DIS = True
 DET_JAYWALKER = True
 
 # Traffic signs/lights
-USE_SIGN_TO_DET_MOV = False #Use traffic light/sign to detect camera movement
+USE_SIGN_TO_DET_MOV = True #Use traffic light/sign to detect camera movement
 SHOW_SIGN_MOVEMENT = False #display the value used when determine "center displacement| width difference| height difference "
 
 
 # Labelling
 # User only one of these:
 PRINT_OBJ_ID = False
-PRINT_CLASS_LABEL = True # E.g. "Car:1 0.78" near the bounding box
+PRINT_CLASS_LABEL = False # E.g. "Car:1 0.78" near the bounding box
 
 
 PRINT_ANOMALY_LABEL = False # E.g. "Close Distance" near the bounding box

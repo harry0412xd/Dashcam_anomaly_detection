@@ -540,7 +540,7 @@ def detect_jaywalker(bbox, out_frame=None):
     if out_frame is not None:
         cv2.line(out_frame, pts[0], pts[1], (255,0,0))
         cv2.line(out_frame, pts[0], pts[2], (255,0,0))
-        cv2.line(out_frame, (0,y_thres), (vid_width,vid_height//3), (255,0,0))
+        cv2.line(out_frame, (0,y_thres), (vid_width,y_thres), (255,0,0))
 
     left, top, right, bottom = bbox
     height, bottom_center = bottom-top, ((left+right)//2, bottom)
@@ -812,7 +812,8 @@ def track_video():
               f" fps = {vid_fps}, total frame = {video_total_frame}")
         out_writer = cv2.VideoWriter(output_path, video_FourCC, vid_fps, (vid_width, vid_height))
 
-    print_interval = int(DC.PRINT_INTERVAL_SEC*vid_fps)
+    # print_interval = int(DC.PRINT_INTERVAL_SEC*vid_fps)
+    last_print_frame,print_count = 0, 1 #n-th output is printed
 
     # testing
     output_test = opt.test
@@ -884,7 +885,7 @@ def track_video():
         dlv3 = DeepLabv3plus(device, ss_writer, opt.ss_overlay)
 
     # Buffer
-    buffer_size = vid_fps #store 1sec of frames
+    buffer_size = int(vid_fps) #store 1sec of frames
     prev_frames = deque()
     frames_infos = deque()
     
@@ -952,12 +953,14 @@ def track_video():
 
             proc_frame_no += 1
 
-        if in_frame_no % print_interval == 0:
+        if in_frame_no > DC.PRINT_INTERVAL_SEC*vid_fps*print_count:
             end = timer()
-            avg_s = (end-start)/print_interval
+            avg_s = (end-start)/(in_frame_no-last_print_frame)
             fps = str(round(1/avg_s, 2))
             msg = f"[{sec2length(in_frame_no//vid_fps)}/{video_length}] avg_fps: {fps} time: {avg_s*1000}ms"
             print(msg)
+            last_print_frame = in_frame_no
+            print_count += 1
             start = timer()
 
     # Process the remaining frames in buffer
@@ -966,9 +969,9 @@ def track_video():
                                                  prev_frame, prev_frame_info, test_writer=test_writer)
         proc_frame_no += 1
 
-    end = timer()
-    if in_frame_no % print_interval>0:
-        avg_s = (end-start)/(in_frame_no % print_interval)
+    if last_print_frame!=in_frame_no:
+        end = timer()
+        avg_s = (end-start)/(in_frame_no-last_print_frame)
         fps = str(round(1/avg_s, 2))
         msg = f"[{sec2length(in_frame_no//vid_fps)}/{video_length}] avg_fps: {fps} time: {avg_s*1000}ms"
         print(msg)
