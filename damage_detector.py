@@ -17,16 +17,17 @@ class Damage_detector():
                  prob_period=2, weighted_prob=False, conf_thres=0.8, very_conf_thres=0.9, output_test_image=False):
         # url = "https://github.com/harry0412xd/Dashcam_anomaly_detection/releases/download/v1.0/gluon_seresnext101_32x4d-244_checkpoint-69.pth.tar"
         # checkpoint_path = "model_data/gluon_seresnext101_32x4d-244_checkpoint-69.pth.tar"
-        # if not os.path.isfile(checkpoint_path):
-        #     torch.utils.model_zoo.load_url(url, model_dir="model_data/")
+        url = "https://github.com/harry0412xd/Dashcam_anomaly_detection/releases/download/v1.0/gluon_seresnext101_32x4d-244_checkpoint-228_cleaned.pth-c36f9352.pth"
+        checkpoint_path = "model_data/gluon_seresnext101_32x4d-244_checkpoint-228_cleaned.pth-c36f9352.pth"
+        if not os.path.isfile(checkpoint_path):
+            torch.utils.model_zoo.load_url(url, model_dir="model_data/")
 
         # new data(5) 2020/3/17
-        checkpoint_path = "/content/MyDrive/cls_model/20200317-083104-gluon_seresnext101_32x4d-224/model_best.pth.tar"
+        # checkpoint_path = "/content/MyDrive/cls_model/20200317-083104-gluon_seresnext101_32x4d-224/model_best.pth.tar"
         # new data(6)
         # checkpoint_path = "/content/MyDrive/cls_model/train/20200331-153346-gluon_seresnext101_32x4d-224/model_best.pth.tar"
-        
-        checkpoint_path = "/content/MyDrive/cls_model/train/20200414-193010-gluon_seresnext101_32x4d-224/checkpoint-228.pth.tar"
-        model = create_model('gluon_seresnext101_32x4d', num_classes=2, checkpoint_path = checkpoint_path)
+        # checkpoint_path = "/content/MyDrive/cls_model/train/20200414-193010-gluon_seresnext101_32x4d-224/checkpoint-228.pth.tar"
+        # model = create_model('gluon_seresnext101_32x4d', num_classes=2, checkpoint_path = checkpoint_path)
 
         # checkpoint_path = "/content/MyDrive/cls_model/checkpoint-107.pth.tar"
         # model = create_model('gluon_seresnext101_64x4d', num_classes=2, checkpoint_path = checkpoint_path)

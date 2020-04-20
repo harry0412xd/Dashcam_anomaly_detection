@@ -95,7 +95,8 @@ def compute_iou(boxA, boxB):
 # To check whether a point(x,y) is within a triangle area of interest
 # by computer the 3 traingles form with any 2 point & (x,y)
 # and check if the total area of the 3 traingles equal to the triangle of interest
-def inside_roi(x,y, pts):
+def inside_roi(pt, pts):
+    x,y = pt
     x1, y1 = pts[0]
     x2, y2 = pts[1]
     x3, y3 = pts[2]

@@ -124,7 +124,7 @@ def proc_frame(writer, frames, frames_infos, frame_no, prev_frame, prev_frame_in
                         properties["jaywalker"] = is_on_traffic_road(bbox, ss_mask, out_frame=out_frame)
 
                 else: # Use pre-defined baseline
-                    if is_moving and detect_jaywalker(bbox):
+                    if is_moving and detect_jaywalker(bbox, out_frame=out_frame):
                         properties["jaywalker"] = True
     # ----Jaywalker end
 
@@ -326,6 +326,7 @@ def check_is_rider(person_id, person_bbox, id_to_info):
 # Input bounding box of a person & mask from semantic segmentation
 def is_on_traffic_road(bbox, ss_mask, out_frame=None):
     left, top, right, bottom = bbox
+    center_x = (left+right)//2
     height = bottom - top
     # define check area
     left2, right2 = max(left, 0), min(right, vid_width)
@@ -348,7 +349,10 @@ def is_on_traffic_road(bbox, ss_mask, out_frame=None):
                     road_count +=1
                 # is padding
                 elif r==255 and g==255 and b==255:
-                    return True
+                    if center_x>vid_width//6 and center_x<vid_width*5//6:
+                        return True
+                    else:
+                        road_count += 0.5
 
     if total >0:
         if out_frame is not None:
@@ -515,7 +519,7 @@ def detect_close_distance(bbox, out_frame=None):
     center_x, center_y = (left+right)//2, (top+bottom)//2
 
     # if (bottom> vid_height*8//9) or inside_roi(center_x, center_y, pts):
-    if inside_roi(center_x, center_y, pts):
+    if inside_roi((center_x, center_y), pts):
         width = right - left
         dist_score = ( 1-(width/vid_width) )**2
         if out_frame is not None:
@@ -529,14 +533,20 @@ def detect_close_distance(bbox, out_frame=None):
 
 
 def detect_jaywalker(bbox, out_frame=None):
-    pts = [(vid_width//2, vid_height//2), 
-           (vid_width//6, vid_height),
-           (vid_width*5//6, vid_height)]
+    pts = [(vid_width//2, vid_height//4), 
+           (vid_width//8, vid_height),
+           (vid_width*7//8, vid_height)]
+    y_thres = int(vid_height*0.45)
+    if out_frame is not None:
+        cv2.line(out_frame, pts[0], pts[1], (255,0,0))
+        cv2.line(out_frame, pts[0], pts[2], (255,0,0))
+        cv2.line(out_frame, (0,y_thres), (vid_width,vid_height//3), (255,0,0))
 
     left, top, right, bottom = bbox
+    height, bottom_center = bottom-top, ((left+right)//2, bottom)
     center_x = (left+right)//2
 
-    if inside_roi(center_x, bottom, pts):
+    if (bottom>y_thres) and (height>vid_height//4) and inside_roi(bottom_center, pts):
         return True
     return False
 

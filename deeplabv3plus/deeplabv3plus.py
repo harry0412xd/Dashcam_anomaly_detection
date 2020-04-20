@@ -56,7 +56,8 @@ class DeepLabv3plus():
         # resize and crop out the bottom
         height, width, _ = frame.shape
         resize_height = width//2
-        crop_frame = frame[0:resize_height, 0:width]
+        pad_h =  height-resize_height
+        crop_frame = frame[pad_h:height, 0:width]
 
         frame_RGB = cv2.cvtColor(crop_frame, cv2.COLOR_BGR2RGB)
         img = Image.fromarray(frame_RGB)
@@ -82,8 +83,8 @@ class DeepLabv3plus():
 
         # resize back to original size with padding
         out_img = cv2.resize(out_img, (width, width//2))
-        padding_height = height - width//2
-        out_img = cv2.copyMakeBorder(out_img, 0, padding_height, 0, 0, cv2.BORDER_CONSTANT, (255,255,255))
+        # padding_height = height - width//2
+        out_img = cv2.copyMakeBorder(out_img, pad_h, 0, 0, 0, cv2.BORDER_CONSTANT, (255,255,255))
 
         if self.writer is not None:
             if self.overlay:
