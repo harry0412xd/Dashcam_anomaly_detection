@@ -12,7 +12,7 @@ from damage_detector import Damage_detector
 import detector_config as DC
 from utils import load_det_result, use_det_result
 from yolov3.utils.utils import load_classes
-from detector import is_car
+from detector import is_dmg_car(class_name)
 
 
 def detect(id_to_info, frame, frame_no):
@@ -22,7 +22,7 @@ def detect(id_to_info, frame, frame_no):
     for obj_id in id_to_info:
         info = id_to_info[obj_id]
         class_id, score, bbox = info
-        if not is_car(class_names[class_id]):
+        if not is_dmg_car(class_names[class_id]):
             continue
         left, top, right, bottom = bbox
         dmg_height_thres, dmg_width_thres = 64, 64
@@ -68,7 +68,7 @@ def evaluate_avg():
         for obj_id in id_to_info:
             info = id_to_info[obj_id]
             class_id, score, bbox = info
-            if not is_car(class_names[class_id]):
+            if not is_dmg_car(class_names[class_id]):
                 continue
             left, top, right, bottom = bbox
 
@@ -137,7 +137,7 @@ def evaluate():
         for obj_id in id_to_info:
             info = id_to_info[obj_id]
             class_id, score, bbox = info
-            if not is_car(class_names[class_id]):
+            if not is_dmg_car(class_names[class_id]):
                 continue
             left, top, right, bottom = bbox
 

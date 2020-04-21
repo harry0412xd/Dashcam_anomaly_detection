@@ -121,17 +121,17 @@ def proc_frame(writer, frames, frames_infos, frame_no, prev_frame, prev_frame_in
             elif DC.DET_JAYWALKER:
                 if opt.ss: # Use semantic segmentation to find people on traffic road
                     if is_moving:
-                        properties["jaywalker"] = is_on_traffic_road(bbox, ss_mask, out_frame=out_frame)
+                        properties["jaywalker"] = is_on_traffic_road(bbox, ss_mask)
 
                 else: # Use pre-defined baseline
-                    if is_moving and detect_jaywalker(bbox, out_frame=out_frame):
+                    if is_moving and detect_jaywalker(bbox):
                         properties["jaywalker"] = True
     # ----Jaywalker end
 
         if is_car(class_name):
             # draw_future_center(frames_infos, obj_id, out_frame)
     # damage detection
-            if opt.dmg_det:
+            if opt.dmg_det and is_dmg_car(class_name):
                 if DC.USE_AVG_PROB:
                     dmg_prob = damage_detector.get_avg_prob(obj_id, frame_no)
                 elif DC.USE_ADJUSTED_PROB:
@@ -153,7 +153,7 @@ def proc_frame(writer, frames, frames_infos, frame_no, prev_frame, prev_frame_in
                         if dmg_prob>dmg_thres: skip_num = DC.DMG_SKIP_NO[i]
                     smooth_dict[obj_dmg_key] = [skip_num, dmg_prob]
 
-                if dmg_prob>=0.85:
+                if dmg_prob>=0.8:
                     properties["damaged"] = True
                 if DC.SHOW_PROB:
                     cv2.putText(out_frame, f"{dmg_prob:.2f}", ((right+left)//2, (top+bottom)//2), cv2.FONT_HERSHEY_SIMPLEX, 0.6, (0, 255, 0), 2)
@@ -753,6 +753,11 @@ def yolo_detect(frame, model):
     return results
 
 
+# classes that will be sent to damage classification
+def is_dmg_car(class_name):
+    return class_name=="car" or class_name=="bus" or class_name=="truck"
+
+# class that will be treated as cars when detecting anomaly: close distance, etc.
 def is_car(class_name):
     return class_name=="car" or class_name=="bus" or class_name=="truck" \
            or class_name=="motor" or class_name=="rider"

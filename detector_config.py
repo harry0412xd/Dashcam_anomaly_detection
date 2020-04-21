@@ -39,10 +39,10 @@ IGNORE_SMALL = True #Do not detect small car
 SHOW_PROB = True # Display the prob in the center of the bbox
 
 DMG_SKIP_DET = False #skip some checking
-DMG_SKIP_BASE = 0 #number of frame to skip
+DMG_SKIP_BASE = 1 #number of frame to skip
 
 DMG_THRES = [0.9, 0.95] # use in pairs, if the prob is > thres, skip the classification of that bbox by n frames
-DMG_SKIP_NO = [3, 12]
+DMG_SKIP_NO = [6, 12]
 
 USE_AVG_PROB = False
 USE_ADJUSTED_PROB = True
