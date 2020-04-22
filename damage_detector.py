@@ -132,7 +132,7 @@ class Damage_detector():
             frame_no2prob = self.id2probs[obj_id]
             remove = []
             total, count = 0.0, 0
-            cur_prob, conf_count = 0, 0
+            cur_prob, conf_count = -1, 0
             future_count, future_conf_count = 0, 0
             past_count, past_conf_count = 0, 0
             total_weight = 0
