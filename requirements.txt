@@ -18,3 +18,5 @@ tensorboard
 terminaltables
 pillow
 tqdm
+
+timm
