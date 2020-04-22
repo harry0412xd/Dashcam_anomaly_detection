@@ -803,6 +803,8 @@ def track_video():
         _filename = video_path.split("/")
         filename = _filename[len(_filename)-1]
         output_path = "video_out/" + filename.replace(".", "_output.")
+    else:
+        output_path = opt.output
     isOutput = True
 
     # init video writer
