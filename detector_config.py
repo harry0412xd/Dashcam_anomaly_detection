@@ -19,7 +19,7 @@ SHOW_SIGN_MOVEMENT = False #display the value used when determine "center displa
 # Labelling
 # User only one of these:
 PRINT_OBJ_ID = False
-PRINT_CLASS_LABEL = False # E.g. "Car:1 0.78" near the bounding box
+PRINT_CLASS_LABEL = True # E.g. "Car:1 0.78" near the bounding box
 
 
 PRINT_ANOMALY_LABEL = False # E.g. "Close Distance" near the bounding box
@@ -38,18 +38,16 @@ DO_ERASING = False #erase portion of image if overlapped with another bbox
 IGNORE_SMALL = True #Do not detect small car
 SHOW_PROB = True # Display the prob in the center of the bbox
 
-DMG_SKIP_DET = False #skip some checking
-DMG_SKIP_BASE = 1 #number of frame to skip
-
-DMG_THRES = [0.9, 0.95] # use in pairs, if the prob is > thres, skip the classification of that bbox by n frames
-DMG_SKIP_NO = [6, 12]
-
 USE_AVG_PROB = False
 USE_ADJUSTED_PROB = True
 PROB_PERIOD = 5
 WEIGHTED_PROB = False 
 WEIGHT_THRES = 0.8
 
+# DMG_SKIP_DET = False #skip some checking
+# DMG_SKIP_BASE = 1 #number of frame to skip
+# DMG_THRES = [0.9, 0.95] # use in pairs, if the prob is > thres, skip the classification of that bbox by n frames
+# DMG_SKIP_NO = [6, 12]
 
 """
 Other (constant used)
