@@ -137,21 +137,21 @@ def proc_frame(writer, frames, frames_infos, frame_no, prev_frame, prev_frame_in
                 elif DC.USE_ADJUSTED_PROB:
                     dmg_prob = damage_detector.get_adjusted_prob(obj_id, frame_no)
                 else:
-                    dmg_prob = damage_detector.detect(frame, bbox, id_to_info, frame_no, obj_id)
+                    dmg_prob = damage_detector.detect(frame2proc, bbox, id_to_info, frame_no, obj_id)
 
-                if DC.DMG_SKIP_BASE>0:
-                    obj_dmg_key = f"{obj_id}_dmg"
-                    if obj_dmg_key in smooth_dict and smooth_dict[obj_dmg_key][0]>0:
-                        smooth_dict[obj_dmg_key][0] -= 1
-                        dmg_prob = smooth_dict[obj_dmg_key][1]
-                    else:
-                        dmg_prob = damage_detector.get_avg_prob(obj_id, frame_no)
+                # if DC.DMG_SKIP_DET and DC.DMG_SKIP_BASE>0:
+                #     obj_dmg_key = f"{obj_id}_dmg"
+                #     if obj_dmg_key in smooth_dict and smooth_dict[obj_dmg_key][0]>0:
+                #         smooth_dict[obj_dmg_key][0] -= 1
+                #         dmg_prob = smooth_dict[obj_dmg_key][1]
+                #     else:
+                #         dmg_prob = damage_detector.get_avg_prob(obj_id, frame_no)
 
-                    # smooth indication and skip checking to make faster
-                    skip_num = DC.DMG_SKIP_BASE
-                    for i, dmg_thres in enumerate(DC.DMG_THRES):
-                        if dmg_prob>dmg_thres: skip_num = DC.DMG_SKIP_NO[i]
-                    smooth_dict[obj_dmg_key] = [skip_num, dmg_prob]
+                #     # smooth indication and skip checking to make faster
+                #     skip_num = DC.DMG_SKIP_BASE
+                #     for i, dmg_thres in enumerate(DC.DMG_THRES):
+                #         if dmg_prob>dmg_thres: skip_num = DC.DMG_SKIP_NO[i]
+                #     smooth_dict[obj_dmg_key] = [skip_num, dmg_prob]
 
                 if dmg_prob>=0.8:
                     properties["damaged"] = True
