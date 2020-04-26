@@ -519,7 +519,7 @@ def detect_close_distance(bbox, out_frame=None):
     center_x, center_y = (left+right)//2, (top+bottom)//2
 
     # if (bottom> vid_height*8//9) or inside_roi(center_x, center_y, pts):
-    if inside_roi((center_x, center_y), pts):
+    if inside_roi((center_x, bottom), pts):
         width = right - left
         dist_score = ( 1-(width/vid_width) )**2
         if out_frame is not None:
